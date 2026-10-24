@@ -1,0 +1,20 @@
+{
+  "model": "mlx-community/Qwen3-TTS-12Hz-1.7B-CustomVoice-4bit",
+  "revision": "f35faf19b0cc2160865af64ecf0f22f83d335135",
+  "text": "La pluie venait de s’arrêter. Camille poussa doucement la porte du jardin. Une silhouette l’attendait près de la fontaine. « Tu es revenu ? » demanda-t-elle, sans oser y croire. L’homme sourit. « Je t’avais promis de retrouver le chemin. » Alors, pour la première fois depuis longtemps, elle se sentit chez elle.",
+  "speaker": "Ryan",
+  "language": "French",
+  "host": "Mac; not a measurement on iPhone",
+  "load_peak_memory_gb": 2.376807576,
+  "stream": true,
+  "runs": [
+    {
+      "file": "01-chaleureuse.wav",
+      "instruction": "Read in French as a warm, intimate audiobook narrator. Gentle emotional depth, fluid phrasing, unhurried natural pauses. Convey quiet wonder in the question, a reassuring smile in the reply, and warmth in the final sentence. Subtle acting, never exaggerated.",
+      "seconds": 30.24,
+      "generation_seconds": 12.136125082965009,
+      "peak_memory_gb": 3.832632571,
+      "active_memory_gb": 2.374849776
+    }
+  ]
+}

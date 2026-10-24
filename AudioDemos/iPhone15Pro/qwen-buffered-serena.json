@@ -1,0 +1,17 @@
+{
+  "audioBeforeGenerationCompleted": true,
+  "audioSecondsAt1x": 63.12,
+  "elapsedSeconds": 62.791581988334656,
+  "error": "",
+  "firstAudioSeconds": 21.357432007789612,
+  "generationSeconds": 61.305845975875854,
+  "generationToAudioRatio": 0.9712586498079192,
+  "observedFootprintBytes": 3023080920,
+  "pauseResumedWithoutRegeneration": false,
+  "pauseTestRequested": false,
+  "playbackSpeed": 2,
+  "speaker": "serena",
+  "status": "passed",
+  "underruns": 2,
+  "note": "Ancienne réserve estimée par durée du texte : deux interruptions avec Serena. Remplacée ensuite par la mise en file de passages complets."
+}

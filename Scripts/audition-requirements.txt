@@ -1,0 +1,7 @@
+mlx-audio==0.6.1
+mlx==0.32.4
+mlx-metal==0.32.4
+soundfile==0.14.0
+numpy==2.5.4
+huggingface-hub==2.3.0
+transformers==5.20.2

@@ -1,0 +1,20 @@
+{
+  "audioBeforeGenerationCompleted": true,
+  "audioSecondsAt1x": 32.08,
+  "elapsedSeconds": 37.637643933296204,
+  "error": "",
+  "firstAudioSeconds": 21.309150099754333,
+  "generationSeconds": 30.17705500125885,
+  "generationToAudioRatio": 0.9406812656252759,
+  "observedFootprintBytes": 2984480240,
+  "pauseResumedWithoutRegeneration": false,
+  "pauseTestRequested": false,
+  "playbackSpeed": 2,
+  "speaker": "ryan",
+  "status": "passed",
+  "underruns": 1,
+  "configuration": "Release",
+  "date": "2026-10-24",
+  "buffering": "adaptive",
+  "note": "Successful full playback. The underrun counter included one false final-completion event; the state handling and regression test were subsequently corrected. No deliberate pause in this run."
+}

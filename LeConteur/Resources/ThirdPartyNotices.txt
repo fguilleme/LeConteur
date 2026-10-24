@@ -1,0 +1,63 @@
+LE CONTEUR — CRÉDITS
+
+Synthèse vocale iOS : Apple AVFoundation.
+Traduction locale : Apple Translation. Les langues doivent être installées sur l’appareil. Apple peut recueillir des métriques d’utilisation du framework, sans le contenu des textes.
+
+Voix neuronale : Piper, voix française fr_FR-siwis-medium.
+Corpus SIWIS : University of Edinburgh, licence Creative Commons Attribution 4.0.
+https://datashare.is.ed.ac.uk/handle/10283/2353
+Modèle converti par le projet sherpa-onnx :
+https://huggingface.co/csukuangfj/vits-piper-fr_FR-siwis-medium
+
+sherpa-onnx 1.13.8 — Copyright Xiaomi Corporation et contributeurs, Apache-2.0.
+https://github.com/k2-fsa/sherpa-onnx
+
+ONNX Runtime — Copyright Microsoft Corporation, MIT.
+https://github.com/microsoft/onnxruntime
+
+eSpeak NG — GPL-3.0-or-later.
+https://github.com/espeak-ng/espeak-ng
+Le moteur neuronal utilise eSpeak NG pour la phonémisation. Sa licence doit être respectée lors de la redistribution d’un binaire lié.
+
+ZIPFoundation 0.9.19 — Copyright Thomas Zoechling, MIT.
+https://github.com/weichsel/ZIPFoundation
+
+Le texte « Le goût des mots » est un texte de démonstration original créé pour Le Conteur.
+
+
+QWEN — NARRATION EXPRESSIVE
+Qwen3-TTS 1.7B CustomVoice — Qwen / Alibaba Cloud, Apache-2.0.
+https://github.com/QwenLM/Qwen3-TTS
+Poids quantifiés MLX (révision f35faf19b0cc2160865af64ecf0f22f83d335135) :
+https://huggingface.co/mlx-community/Qwen3-TTS-12Hz-1.7B-CustomVoice-4bit
+
+MLX et MLX Swift — Apple Inc., MIT.
+https://github.com/ml-explore/mlx-swift
+Swift Transformers — Hugging Face, Apache-2.0.
+https://github.com/huggingface/swift-transformers
+
+MLX Audio Swift — Prince Canuma, MIT.
+Sous-ensemble Qwen adapté depuis la révision d8e2cafea891928075d3c8577b1a05b99396594e.
+https://github.com/Blaizzy/mlx-audio-swift
+
+MIT License
+
+Copyright (c) 2025 Prince Canuma
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.

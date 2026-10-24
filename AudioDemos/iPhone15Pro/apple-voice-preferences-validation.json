@@ -1,0 +1,10 @@
+{
+  "date": "2026-10-24",
+  "device": "iPhone 15 Pro",
+  "legacyVoice": "com.apple.voice.enhanced.fr-FR.Aurelie",
+  "favorites": {
+    "fr": "com.apple.voice.enhanced.fr-FR.Aurelie"
+  },
+  "migrationVerified": true,
+  "automatedTestsPassed": 46
+}

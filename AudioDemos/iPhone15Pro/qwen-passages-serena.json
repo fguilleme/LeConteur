@@ -1,0 +1,26 @@
+{
+  "audioBeforeGenerationCompleted": true,
+  "audioSecondsAt1x": 27.68,
+  "buffering": "complete-passages-with-prefetch",
+  "elapsedSeconds": 41.914555072784424,
+  "error": "",
+  "firstAudioSeconds": 11.928774952888489,
+  "generationSeconds": 31.49409306049347,
+  "generationToAudioRatio": 1.1377923793530877,
+  "midPassageUnderruns": 0,
+  "multiplePassages": true,
+  "observedFootprintBytes": 2960231920,
+  "passageWaits": 1,
+  "pauseResumedWithoutRegeneration": true,
+  "pauseTestRequested": true,
+  "playbackSpeed": 2,
+  "speaker": "serena",
+  "status": "passed",
+  "waitPositionsAt1x": [
+    7.84
+  ],
+  "device": "iPhone 15 Pro",
+  "date": "2026-10-24",
+  "configuration": "Release",
+  "note": "Texte d’audition divisé en deux paragraphes. Mesure de file audio, pas de jugement subjectif de prosodie. Le journal signale un avertissement mémoire et deux chargements du modèle pendant cet essai."
+}

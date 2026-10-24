@@ -1,0 +1,18 @@
+{
+  "audioBeforeCompletion": true,
+  "completed": true,
+  "error": "",
+  "firstPassageSeconds": 4.666113972663879,
+  "language": "fr",
+  "paragraphs": 40,
+  "readerOpenedBeforeCompletion": true,
+  "resumedAfterWaiting": false,
+  "seconds": 50.20271897315979,
+  "status": "passed",
+  "waitedForNextPassage": false,
+  "validationContext": {
+    "playbackSpeed": 2,
+    "systemSpeechRate": 1,
+    "note": "Run before the system rate conversion fix. Proves progressive reader/audio start; does not assess speech quality. Validation scenario subsequently changed to 1x."
+  }
+}

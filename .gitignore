@@ -1,0 +1,11 @@
+.build/
+DerivedData/
+*.xcuserstate
+xcuserdata/
+.DS_Store
+*.wav
+*.onnx
+*.safetensors
+__pycache__/
+*.py[cod]
+.venv/

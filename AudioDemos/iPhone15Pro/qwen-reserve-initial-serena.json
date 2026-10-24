@@ -1,0 +1,30 @@
+{
+  "audioBeforeGenerationCompleted" : true,
+  "audioSecondsAt1x" : 108.08,
+  "buffering" : "time-reserve-with-continuous-prefetch",
+  "bufferPreset" : "automatic",
+  "elapsedSeconds" : 159.9907990694046,
+  "error" : "",
+  "firstAudioSeconds" : 62.544523954391479,
+  "generationSeconds" : 137.69281709194183,
+  "generationToAudioRatio" : 1.2739897954472783,
+  "lastObservedPlayedSecondsAt1x" : 108.08,
+  "maximumPosition" : 22,
+  "midPassageUnderruns" : 0,
+  "modelLoads" : 1,
+  "multiplePassages" : true,
+  "observedFootprintBytes" : 3084471792,
+  "paragraphCount" : 8,
+  "passageWaits" : 1,
+  "pauseResumedWithoutRegeneration" : false,
+  "pauseTestRequested" : false,
+  "peakReserveSeconds" : 24.207056583284867,
+  "playbackSpeed" : 2,
+  "reachedEnd" : true,
+  "reserveAtStartSeconds" : 24.207042499999517,
+  "speaker" : "serena",
+  "status" : "failed",
+  "waitPositionsAt1x" : [
+    64.640000000000001
+  ]
+}

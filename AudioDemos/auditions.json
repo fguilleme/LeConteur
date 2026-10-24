@@ -1,0 +1,32 @@
+{
+  "model": "mlx-community/Qwen3-TTS-12Hz-1.7B-CustomVoice-4bit",
+  "revision": "f35faf19b0cc2160865af64ecf0f22f83d335135",
+  "text": "La pluie venait de s’arrêter. Camille poussa doucement la porte du jardin. Une silhouette l’attendait près de la fontaine. « Tu es revenu ? » demanda-t-elle, sans oser y croire. L’homme sourit. « Je t’avais promis de retrouver le chemin. » Alors, pour la première fois depuis longtemps, elle se sentit chez elle.",
+  "speaker": "Ryan",
+  "language": "French",
+  "runs": [
+    {
+      "file": "01-chaleureuse.wav",
+      "instruction": "Read in French as a warm, intimate audiobook narrator. Gentle emotional depth, fluid phrasing, unhurried natural pauses. Convey quiet wonder in the question, a reassuring smile in the reply, and warmth in the final sentence. Subtle acting, never exaggerated.",
+      "seconds": 30.24,
+      "generation_seconds": 18.306670250021853,
+      "peak_memory_gb": 7.243775163
+    },
+    {
+      "file": "02-sobre.wav",
+      "instruction": "Read in French with a natural, clear, understated delivery. Calm and conversational, neutral but alive. Respect punctuation and questions with subtle pitch variation. No theatrical acting, no exaggerated emotion, no sing-song delivery.",
+      "seconds": 37.12,
+      "generation_seconds": 18.04361037502531,
+      "peak_memory_gb": 8.046606975
+    },
+    {
+      "file": "03-theatrale.wav",
+      "instruction": "Perform in French as an expressive dramatic storyteller. Build suspense before the silhouette. Give the question genuine surprised disbelief, the reply a warm reassuring smile, and the final line a feeling of relief. Vary rhythm, pitch and intensity, with deliberate dramatic pauses. Speak clearly without shouting.",
+      "seconds": 35.6,
+      "generation_seconds": 15.659293500008062,
+      "peak_memory_gb": 8.046606975
+    }
+  ],
+  "host": "Mac; not a measurement on iPhone",
+  "memory_measurement": "MLX peak since process start; not total process memory"
+}

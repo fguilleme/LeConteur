@@ -1,0 +1,38 @@
+{
+  "device": "iPhone 15 Pro",
+  "date": "2026-10-24",
+  "configuration": "Debug",
+  "model": "Qwen3-TTS-12Hz-1.7B-CustomVoice-4bit",
+  "revision": "f35faf19b0cc2160865af64ecf0f22f83d335135",
+  "status": "all-three-styles-generated",
+  "note": "Warm and natural completed in the first run. That run was interrupted before dramatic completed. Dramatic was rerun alone and passed. Footprint is sampled at chunk boundaries, not the OS peak.",
+  "runs": [
+    {
+      "style": "warm",
+      "metrics": {
+        "audioSeconds": 32.24,
+        "observedFootprintBytes": 3000815184,
+        "mlxPeakBytes": 3485187116,
+        "generationSeconds": 49.1447811126709
+      }
+    },
+    {
+      "style": "natural",
+      "metrics": {
+        "audioSeconds": 33.12,
+        "generationSeconds": 65.31124591827393,
+        "mlxPeakBytes": 3485119692,
+        "observedFootprintBytes": 3032993360
+      }
+    },
+    {
+      "metrics": {
+        "audioSeconds": 43.44,
+        "mlxPeakBytes": 3501659058,
+        "observedFootprintBytes": 3119418888,
+        "generationSeconds": 74.38503503799438
+      },
+      "style": "dramatic"
+    }
+  ]
+}

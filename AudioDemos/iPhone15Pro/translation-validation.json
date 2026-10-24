@@ -1,0 +1,22 @@
+{
+  "status": "passed",
+  "runs": [
+    {
+      "excerpt": "This morning, on page 1, Marie opens the garden door. She finds her friend near the old apple tree. \"The coffee is ready,\" she tells him. They sit down together and take the time to tell each other about their trip.",
+      "seconds": 60.821107029914856,
+      "paragraphs": 40,
+      "language": "en",
+      "voiceLanguage": "en-GB"
+    },
+    {
+      "excerpt": "Esta mañana, en la página 1, Marie abre la puerta del jardín. Encuentra a su amigo cerca del viejo manzano. «El café está listo», le dice. Se sientan juntos y se toman el tiempo de contar su viaje.",
+      "seconds": 64.03755509853363,
+      "paragraphs": 40,
+      "language": "es",
+      "voiceLanguage": "es-ES"
+    }
+  ],
+  "device": "iPhone 15 Pro",
+  "date": "2026-10-24",
+  "sample": "40 paragraphes de texte de test en français, voix française préférée au départ"
+}

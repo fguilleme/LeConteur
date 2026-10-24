@@ -1,0 +1,245 @@
+{
+  "date": "2026-10-24",
+  "device": "iPhone 15 Pro",
+  "configuration": "Release + CONTEUR_VALIDATION",
+  "sessionIdentifier": "com.guilleme.conteur.voice-downloads.v1",
+  "source": {
+    "repository": "mlx-community/Qwen3-TTS-12Hz-1.7B-CustomVoice-4bit",
+    "revision": "f35faf19b0cc2160865af64ecf0f22f83d335135",
+    "path": "model.safetensors",
+    "bytes": 1625226859,
+    "sha256": "45a5b5ccd3cc473b9d3890ea922937036b56b948e8bd8c678e725329abdd1d00"
+  },
+  "elapsedSeconds": 50.652,
+  "receivedAndVerifiedWhileLocked": true,
+  "fileProtection": "NSFileProtectionCompleteUntilFirstUserAuthentication",
+  "notes": [
+    "La copie de diagnostic utilise le gestionnaire et la session de production, dans un dossier séparé.",
+    "Démarrage par un bouton au premier plan, puis verrouillage manuel immédiat, sans débogueur.",
+    "L’essai initial différé de 63 Mo a été arrêté après une stagnation à 33,6 Mo. Sa cause exacte n’a pas été établie.",
+    "Le second essai de 63 Mo a fini au premier plan avant le verrouillage. Le présent essai de 1,63 Go valide réception et SHA-256 écran verrouillé.",
+    "Cet essai ne mesure pas le délai garanti par iOS ni le comportement après fermeture forcée."
+  ],
+  "events": [
+    {
+      "applicationState": 0,
+      "backgroundRefreshStatus": 2,
+      "event": "started",
+      "lowPowerMode": false,
+      "network": {
+        "cellular": false,
+        "constrained": false,
+        "expensive": false,
+        "satisfied": true,
+        "wifi": true
+      },
+      "protectedDataAvailable": true,
+      "timestamp": 1792860197.521663
+    },
+    {
+      "applicationState": 0,
+      "backgroundRefreshStatus": 2,
+      "bytes": 0,
+      "event": "scheduled",
+      "lowPowerMode": false,
+      "network": {
+        "cellular": false,
+        "constrained": false,
+        "expensive": false,
+        "satisfied": true,
+        "wifi": true
+      },
+      "protectedDataAvailable": true,
+      "timestamp": 1792860197.585744
+    },
+    {
+      "applicationState": 0,
+      "backgroundRefreshStatus": 2,
+      "event": "network",
+      "lowPowerMode": false,
+      "network": {
+        "cellular": false,
+        "constrained": false,
+        "expensive": false,
+        "satisfied": true,
+        "wifi": true
+      },
+      "protectedDataAvailable": true,
+      "timestamp": 1792860198.024356
+    },
+    {
+      "applicationState": 1,
+      "backgroundRefreshStatus": 2,
+      "event": "scene-inactive",
+      "lowPowerMode": false,
+      "network": {
+        "cellular": false,
+        "constrained": false,
+        "expensive": false,
+        "satisfied": true,
+        "wifi": true
+      },
+      "protectedDataAvailable": true,
+      "timestamp": 1792860202.469151
+    },
+    {
+      "applicationState": 1,
+      "backgroundRefreshStatus": 2,
+      "bytes": 4249753,
+      "event": "progress",
+      "lowPowerMode": false,
+      "network": {
+        "cellular": false,
+        "constrained": false,
+        "expensive": false,
+        "satisfied": true,
+        "wifi": true
+      },
+      "protectedDataAvailable": true,
+      "timestamp": 1792860204.289188
+    },
+    {
+      "applicationState": 1,
+      "backgroundRefreshStatus": 2,
+      "bytes": 8523628,
+      "event": "progress",
+      "lowPowerMode": false,
+      "network": {
+        "cellular": false,
+        "constrained": false,
+        "expensive": false,
+        "satisfied": true,
+        "wifi": true
+      },
+      "protectedDataAvailable": true,
+      "timestamp": 1792860204.7136521
+    },
+    {
+      "applicationState": 2,
+      "backgroundRefreshStatus": 2,
+      "event": "scene-background",
+      "lowPowerMode": false,
+      "network": {
+        "cellular": false,
+        "constrained": false,
+        "expensive": false,
+        "satisfied": true,
+        "wifi": true
+      },
+      "protectedDataAvailable": true,
+      "timestamp": 1792860204.891457
+    },
+    {
+      "applicationState": 2,
+      "backgroundRefreshStatus": 2,
+      "bytes": 12601003,
+      "event": "progress",
+      "lowPowerMode": false,
+      "network": {
+        "cellular": false,
+        "constrained": false,
+        "expensive": false,
+        "satisfied": true,
+        "wifi": true
+      },
+      "protectedDataAvailable": true,
+      "timestamp": 1792860204.968028
+    },
+    {
+      "applicationState": 2,
+      "backgroundRefreshStatus": 2,
+      "bytes": 16842128,
+      "event": "progress",
+      "lowPowerMode": false,
+      "network": {
+        "cellular": false,
+        "constrained": false,
+        "expensive": false,
+        "satisfied": true,
+        "wifi": true
+      },
+      "protectedDataAvailable": true,
+      "timestamp": 1792860205.067597
+    },
+    {
+      "applicationState": 2,
+      "backgroundRefreshStatus": 2,
+      "bytes": 20919503,
+      "event": "progress",
+      "lowPowerMode": false,
+      "network": {
+        "cellular": false,
+        "constrained": false,
+        "expensive": false,
+        "satisfied": true,
+        "wifi": true
+      },
+      "protectedDataAvailable": true,
+      "timestamp": 1792860205.179879
+    },
+    {
+      "applicationState": 2,
+      "backgroundRefreshStatus": 2,
+      "event": "background-wake",
+      "lowPowerMode": false,
+      "network": {
+        "cellular": false,
+        "constrained": false,
+        "expensive": false,
+        "satisfied": true,
+        "wifi": true
+      },
+      "protectedDataAvailable": false,
+      "timestamp": 1792860245.872189
+    },
+    {
+      "applicationState": 2,
+      "backgroundRefreshStatus": 2,
+      "event": "network",
+      "lowPowerMode": false,
+      "network": {
+        "cellular": false,
+        "constrained": false,
+        "expensive": false,
+        "satisfied": true,
+        "wifi": true
+      },
+      "protectedDataAvailable": false,
+      "timestamp": 1792860245.8740869
+    },
+    {
+      "applicationState": 2,
+      "backgroundRefreshStatus": 2,
+      "bytes": 1625226859,
+      "event": "received",
+      "lowPowerMode": false,
+      "network": {
+        "cellular": false,
+        "constrained": false,
+        "expensive": false,
+        "satisfied": true,
+        "wifi": true
+      },
+      "protectedDataAvailable": false,
+      "timestamp": 1792860245.892374
+    },
+    {
+      "applicationState": 2,
+      "backgroundRefreshStatus": 2,
+      "bytes": 1625226859,
+      "checksumVerified": true,
+      "event": "installed",
+      "fileProtection": "NSFileProtectionCompleteUntilFirstUserAuthentication",
+      "lowPowerMode": false,
+      "network": {
+        "cellular": false,
+        "constrained": false,
+        "expensive": false,
+        "satisfied": true,
+        "wifi": true
+      },
+      "protectedDataAvailable": false,
+      "timestamp": 1792860248.174141
+    }
+  ]
+}

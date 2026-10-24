@@ -1,0 +1,182 @@
+import SwiftUI
+import UniformTypeIdentifiers
+import Translation
+
+@main
+struct LeConteurApp: App {
+    @UIApplicationDelegateAdaptor(ConteurAppDelegate.self) private var appDelegate
+    @State private var library: LibraryStore
+    @State private var settings: ReaderSettings
+    @State private var playback: PlaybackController
+    @State private var translation: TranslationCoordinator
+    @State private var modelStore = NeuralModelStore()
+    @State private var qwenStore = QwenModelStore()
+
+    init() {
+        let library = LibraryStore()
+        let settings = ReaderSettings()
+        _library = State(initialValue: library)
+        _settings = State(initialValue: settings)
+        let playback = PlaybackController(library: library, settings: settings)
+        _playback = State(initialValue: playback)
+        _translation = State(initialValue: TranslationCoordinator(library: library, documentUpdated: { playback.translationUpdated($0) }))
+    }
+
+    var body: some Scene {
+        WindowGroup {
+            Group {
+                #if DEBUG || CONTEUR_VALIDATION
+                if CommandLine.arguments.contains("--voice-download-validation") {
+                    VoiceDownloadValidationView()
+                } else if CommandLine.arguments.contains("--qwen-stream-validation") {
+                    QwenStreamValidationView()
+                } else { normalContent }
+                #else
+                normalContent
+                #endif
+            }
+            .environment(library).environment(settings).environment(playback)
+            .environment(translation).environment(modelStore).environment(qwenStore)
+            .tint(ConteurTheme.green)
+            .preferredColorScheme(.light)
+        }
+    }
+
+    @ViewBuilder private var normalContent: some View {
+        #if DEBUG
+        if CommandLine.arguments.contains("--reader-translation-validation") {
+            ReaderTranslationValidationView()
+        } else if CommandLine.arguments.contains("--qwen-validation") || CommandLine.arguments.contains("--translation-validation") {
+            DeviceValidationView(store: qwenStore)
+        } else { RootView() }
+        #else
+        RootView()
+        #endif
+    }
+}
+
+private struct ReaderSelection: Identifiable {
+    let id: UUID
+    var automaticallyTranslate = false
+}
+
+struct RootView: View {
+    @Environment(LibraryStore.self) private var library
+    @Environment(ReaderSettings.self) private var settings
+    @Environment(PlaybackController.self) private var playback
+    @Environment(TranslationCoordinator.self) private var translation
+    @Environment(\.scenePhase) private var scenePhase
+    @State private var reader: ReaderSelection?
+    @State private var showImporter = false
+    @State private var showComposer = false
+    @State private var importing = false
+    @State private var processingInbox = false
+    @State private var error: String?
+
+    var body: some View {
+        TabView {
+            LibraryView(open: open, importFile: { showImporter = true }, compose: { showComposer = true })
+                .safeAreaInset(edge: .bottom, spacing: 0) { miniPlayer }
+                .tabItem { Label("Bibliothèque", systemImage: "books.vertical") }
+            VoicesView()
+                .safeAreaInset(edge: .bottom, spacing: 0) { miniPlayer }
+                .tabItem { Label("Voix", systemImage: "waveform") }
+        }
+        .sheet(item: $reader) { selection in
+            ReadingSessionView(documentID: selection.id, automaticallyTranslate: selection.automaticallyTranslate)
+        }
+        .sheet(isPresented: $showComposer) { ComposeView { document in if library.add(document) { open(document) } } }
+        .fileImporter(isPresented: $showImporter, allowedContentTypes: [UTType("org.idpf.epub-container") ?? .data, .pdf, .plainText, UTType(filenameExtension: "md") ?? .plainText]) { result in
+            switch result {
+            case .success(let url): Task { await importFile(url) }
+            case .failure(let failure): error = failure.localizedDescription
+            }
+        }
+        .onOpenURL { url in Task { await importFile(url) } }
+        .task { await consumeInbox() }
+        .onChange(of: scenePhase) { _, phase in if phase == .active { VoiceDownloads.shared.foreground(); Task { await consumeInbox() } } else if phase == .background { translation.suspend() } }
+        .onChange(of: settings.engine) { playback.settingsChanged() }
+        .onChange(of: settings.qwenStyle) { playback.settingsChanged() }
+        .onChange(of: settings.qwenSpeaker) { if playback.effectiveEngine == .qwen { playback.settingsChanged() } }
+        .onChange(of: settings.systemVoiceIDs) { old, new in
+            let language = SystemVoiceSelection.language(playback.document?.languageCode ?? TranslationCoordinator.phoneLanguage)
+            if old[language] != new[language], playback.effectiveEngine == .system { playback.settingsChanged() }
+        }
+        .onChange(of: settings.speed) { if playback.effectiveEngine != .qwen { playback.speedChanged() } }
+        .onChange(of: settings.qwenSpeed) { if playback.effectiveEngine == .qwen { playback.speedChanged() } }
+        .onChange(of: settings.qwenBuffer) { playback.qwenBufferChanged() }
+        .onChange(of: library.errorMessage) { _, message in if let message { error = message; library.errorMessage = nil } }
+        .overlay {
+            if importing {
+                ZStack {
+                    Color.black.opacity(0.2).ignoresSafeArea()
+                    VStack(spacing: 20) {
+                        ProgressView()
+                        Text("Ouverture du document…").font(.title3.bold())
+                    }
+                    .padding(28).background(ConteurTheme.paper, in: RoundedRectangle(cornerRadius: 24))
+                }
+            }
+        }
+        .alert("Le Conteur", isPresented: Binding(get: { error != nil }, set: { if !$0 { error = nil } })) {
+            Button("D’accord", role: .cancel) { error = nil }
+        } message: { Text(error ?? "") }
+    }
+
+    @ViewBuilder private var miniPlayer: some View {
+        if let document = playback.document, !playback.isPreview {
+            HStack(spacing: 14) {
+                Button { open(document) } label: {
+                    HStack(spacing: 12) {
+                        Image(systemName: "waveform").font(.title2).frame(width: 36)
+                        VStack(alignment: .leading, spacing: 3) {
+                            Text(document.title).font(.subheadline.weight(.semibold)).lineLimit(1)
+                            Text(playback.isPreparing ? "Préparation de la voix…" : playback.voiceName).font(.caption).foregroundStyle(.secondary)
+                        }
+                        Spacer(minLength: 0)
+                    }.contentShape(Rectangle())
+                }.buttonStyle(.plain)
+                Button { playback.toggle() } label: {
+                    Image(systemName: playback.isPlaying ? "pause.fill" : "play.fill").frame(width: 44, height: 44)
+                }.accessibilityLabel(playback.isPlaying ? "Pause" : "Lire")
+            }
+            .padding(.horizontal, 16).padding(.vertical, 8)
+            .background(ConteurTheme.wash).foregroundStyle(ConteurTheme.ink)
+        }
+    }
+
+    private func open(_ document: ReadingDocument) {
+        playback.pause()
+        let route = library.readingRoute(for: document, phoneLanguage: TranslationCoordinator.phoneLanguage)
+        reader = ReaderSelection(id: route.document.id, automaticallyTranslate: route.translate)
+    }
+
+    private func importFile(_ url: URL) async {
+        importing = true
+        defer { importing = false }
+        do {
+            let document = try await Task.detached(priority: .userInitiated) { try DocumentImporter.fromFile(url) }.value
+            if let saved = library.importDocument(document) { open(saved) }
+        } catch { self.error = error.localizedDescription }
+    }
+
+    private func consumeInbox() async {
+        guard !processingInbox else { return }
+        processingInbox = true
+        defer { processingInbox = false }
+        do {
+            for url in try SharedInbox.pendingFiles() {
+                do {
+                    let document = try await Task.detached { try DocumentImporter.fromFile(url) }.value
+                    guard library.importDocument(document) != nil else { return }
+                    try FileManager.default.removeItem(at: url.deletingLastPathComponent())
+                } catch {
+                    // Keep an unreadable original for recovery, outside the pending queue.
+                    let failed = url.deletingLastPathComponent().deletingLastPathComponent().appending(path: ".failed-\(UUID().uuidString)")
+                    try? FileManager.default.moveItem(at: url.deletingLastPathComponent(), to: failed)
+                    self.error = "\(url.lastPathComponent) : \(error.localizedDescription)"
+                }
+            }
+        } catch { self.error = error.localizedDescription }
+    }
+}

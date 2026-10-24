@@ -1,0 +1,19 @@
+{
+  "audioBeforeGenerationCompleted": true,
+  "audioSecondsAt1x": 36.88,
+  "elapsedSeconds": 43.19046103954315,
+  "error": "",
+  "firstAudioSeconds": 13.070127964019775,
+  "generationSeconds": 42.540852069854736,
+  "generationToAudioRatio": 1.1534938196815274,
+  "observedFootprintBytes": 3132263872,
+  "pauseResumedWithoutRegeneration": true,
+  "playbackSpeed": 2,
+  "status": "passed",
+  "underruns": 23,
+  "configuration": "Release",
+  "speaker": "ryan",
+  "buffering": "none",
+  "date": "2026-10-24",
+  "note": "Before adaptive reserve; confirms early audio and pause/resume but has many underruns at 2x."
+}
