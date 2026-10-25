@@ -89,6 +89,11 @@ struct VoicesView: View {
         guard let url = Bundle.main.url(forResource: "ThirdPartyNotices", withExtension: "txt"),
               let text = try? String(contentsOf: url, encoding: .utf8) else { return "Qwen3-TTS · MLX · ZIPFoundation" }
         return text
+            .replacingOccurrences(of: "{{IOS_SPEECH}}", with: String(localized: "Synthèse vocale iOS : Apple AVFoundation."))
+            .replacingOccurrences(of: "{{APPLE_TRANSLATION}}", with: String(localized: "Traduction locale : Apple Translation. Les langues doivent être installées sur l’appareil. Apple peut recueillir des métriques d’utilisation du framework, sans le contenu des textes."))
+            .replacingOccurrences(of: "{{DEMO_TEXT}}", with: String(localized: "Le texte « Le goût des mots » est un texte de démonstration original créé pour Le Conteur."))
+            .replacingOccurrences(of: "{{MLX_WEIGHTS}}", with: String(format: String(localized: "Poids quantifiés MLX (révision %@) :"), "f35faf19b0cc2160865af64ecf0f22f83d335135"))
+            .replacingOccurrences(of: "{{QWEN_SUBSET}}", with: String(format: String(localized: "Sous-ensemble Qwen adapté depuis la révision %@."), "d8e2cafea891928075d3c8577b1a05b99396594e"))
     }
 
     private func selectionMark(_ selected: Bool) -> some View {

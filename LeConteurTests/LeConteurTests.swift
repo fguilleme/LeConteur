@@ -1984,7 +1984,13 @@ private actor QwenTestRenderer {
 }
 
 final class LocalizationCatalogTests: XCTestCase {
-    func testSimplifiedChineseCoversEveryActiveStringAndPreservesFormatSpecifiers() throws {
+    func testEverySupportedLanguageCoversActiveStringsAndPreservesFormatSpecifiers() throws {
+        for language in ["ar", "de", "en", "es", "it", "ja", "ko", "pt", "ru", "zh-Hans"] {
+            try assertCompleteLocalization(language)
+        }
+    }
+
+    private func assertCompleteLocalization(_ language: String) throws {
         let repository = URL(fileURLWithPath: #filePath)
             .deletingLastPathComponent()
             .deletingLastPathComponent()
@@ -1997,12 +2003,12 @@ final class LocalizationCatalogTests: XCTestCase {
             let entry = try XCTUnwrap(rawEntry as? [String: Any], source)
             guard entry["extractionState"] as? String != "stale" else { continue }
             let localizations = try XCTUnwrap(entry["localizations"] as? [String: Any], source)
-            let chinese = try XCTUnwrap(localizations["zh-Hans"] as? [String: Any], source)
-            let unit = try XCTUnwrap(chinese["stringUnit"] as? [String: Any], source)
+            let localization = try XCTUnwrap(localizations[language] as? [String: Any], source)
+            let unit = try XCTUnwrap(localization["stringUnit"] as? [String: Any], source)
             let translation = try XCTUnwrap(unit["value"] as? String, source)
-            XCTAssertFalse(translation.isEmpty, "Missing Simplified Chinese translation for: \(source)")
+            XCTAssertFalse(translation.isEmpty, "Missing \(language) translation for: \(source)")
             XCTAssertEqual(formatSpecifiers(in: translation), formatSpecifiers(in: source),
-                           "Format specifiers changed for: \(source)")
+                           "Format specifiers changed in \(language) for: \(source)")
         }
     }
 
