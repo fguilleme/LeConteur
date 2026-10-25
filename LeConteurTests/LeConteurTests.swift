@@ -1970,3 +1970,35 @@ private actor QwenTestRenderer {
             generationSeconds: delay, audioSeconds: duration, mlxPeakBytes: 0, observedFootprintBytes: 0))
     }
 }
+
+final class LocalizationCatalogTests: XCTestCase {
+    func testSimplifiedChineseCoversEveryActiveStringAndPreservesFormatSpecifiers() throws {
+        let repository = URL(fileURLWithPath: #filePath)
+            .deletingLastPathComponent()
+            .deletingLastPathComponent()
+        let catalogURL = repository.appending(path: "Shared/Localizable.xcstrings")
+        let data = try Data(contentsOf: catalogURL)
+        let catalog = try XCTUnwrap(JSONSerialization.jsonObject(with: data) as? [String: Any])
+        let strings = try XCTUnwrap(catalog["strings"] as? [String: Any])
+
+        for (source, rawEntry) in strings where !source.isEmpty {
+            let entry = try XCTUnwrap(rawEntry as? [String: Any], source)
+            guard entry["extractionState"] as? String != "stale" else { continue }
+            let localizations = try XCTUnwrap(entry["localizations"] as? [String: Any], source)
+            let chinese = try XCTUnwrap(localizations["zh-Hans"] as? [String: Any], source)
+            let unit = try XCTUnwrap(chinese["stringUnit"] as? [String: Any], source)
+            let translation = try XCTUnwrap(unit["value"] as? String, source)
+            XCTAssertFalse(translation.isEmpty, "Missing Simplified Chinese translation for: \(source)")
+            XCTAssertEqual(formatSpecifiers(in: translation), formatSpecifiers(in: source),
+                           "Format specifiers changed for: \(source)")
+        }
+    }
+
+    private func formatSpecifiers(in value: String) -> [String] {
+        let expression = try! NSRegularExpression(pattern: #"%(?:[0-9]+\$)?(?:@|lld|ld|d|f|s|%)"#)
+        let range = NSRange(value.startIndex..<value.endIndex, in: value)
+        return expression.matches(in: value, range: range).compactMap { match in
+            Range(match.range, in: value).map { String(value[$0]) }
+        }.sorted()
+    }
+}

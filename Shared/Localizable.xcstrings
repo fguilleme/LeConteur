@@ -31,6 +31,12 @@
             "state": "translated",
             "value": " · 고품질"
           }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": " · 增强"
+          }
         }
       }
     },
@@ -46,6 +52,12 @@
           "stringUnit": {
             "state": "translated",
             "value": " · 프리미엄"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": " · 高级"
           }
         }
       }
@@ -63,6 +75,12 @@
             "state": "translated",
             "value": ". 자동 목표"
           }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "。自动目标"
+          }
         }
       }
     },
@@ -75,6 +93,12 @@
           }
         },
         "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "·  %@"
+          }
+        },
+        "zh-Hans": {
           "stringUnit": {
             "state": "translated",
             "value": "·  %@"
@@ -95,6 +119,12 @@
             "state": "translated",
             "value": "·  %lld분"
           }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "·  %lld 分钟"
+          }
         }
       }
     },
@@ -110,6 +140,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "· 예상 단어 추적"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "· 单词跟随位置为估算值"
           }
         }
       }
@@ -133,6 +169,12 @@
             "state": "translated",
             "value": "%@ · %lld%%"
           }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ · %lld %%"
+          }
         }
       }
     },
@@ -154,6 +196,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "%@ 버퍼 · %lld초 준비됨"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@缓冲 · 已准备 %lld 秒"
           }
         }
       }
@@ -177,6 +225,12 @@
             "state": "translated",
             "value": "%@, %@"
           }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@，%@"
+          }
         }
       }
     },
@@ -198,6 +252,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "%@. %@%@"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@。%@%@"
           }
         }
       }
@@ -221,6 +281,12 @@
             "state": "translated",
             "value": "%@%@"
           }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@%@"
+          }
         }
       }
     },
@@ -237,6 +303,12 @@
             "state": "translated",
             "value": "%@×"
           }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@×"
+          }
         }
       }
     },
@@ -249,6 +321,12 @@
           }
         },
         "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld"
+          }
+        },
+        "zh-Hans": {
           "stringUnit": {
             "state": "translated",
             "value": "%lld"
@@ -275,6 +353,12 @@
             "state": "translated",
             "value": "%lld / %lld개 구절 번역됨"
           }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "已翻译 %lld / %lld 个段落"
+          }
         }
       }
     },
@@ -290,6 +374,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "%lld%%"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld %%"
           }
         }
       }
@@ -307,6 +397,12 @@
             "state": "translated",
             "value": "예상 듣기 시간 %lld분"
           }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "预计朗读 %lld 分钟"
+          }
         }
       }
     },
@@ -322,6 +418,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "%lld분"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld 分钟"
           }
         }
       }
@@ -339,6 +441,12 @@
             "state": "translated",
             "value": "%lld퍼센트"
           }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "百分之 %lld"
+          }
         }
       }
     },
@@ -354,6 +462,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "%lld초"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld 秒"
           }
         }
       }
@@ -371,6 +485,12 @@
             "state": "translated",
             "value": "들을 책"
           }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "待朗读"
+          }
         }
       }
     },
@@ -386,6 +506,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "다시 시작 필요"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "继续阅读"
           }
         }
       }
@@ -595,6 +721,12 @@
             "state": "translated",
             "value": "설정 → 손쉬운 사용 → 콘텐츠 말하기 → 음성에서 고품질 음성을 추가하세요. 메뉴 이름은 iOS 버전에 따라 다를 수 있습니다."
           }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "您可以前往“设置”→“辅助功能”→“朗读内容”→“声音”，添加增强品质的声音。菜单名称可能因 iOS 版本而异。"
+          }
         }
       }
     },
@@ -739,6 +871,12 @@
             "state": "translated",
             "value": "%@에 종료"
           }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "将在 %@ 后停止"
+          }
         }
       }
     },
@@ -755,6 +893,12 @@
             "state": "translated",
             "value": "미리 듣기 중지"
           }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "停止试听"
+          }
         }
       }
     },
@@ -770,6 +914,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "계정과 광고가 없으며 어떤 문서도 서버로 전송되지 않습니다. 책과 번역은 기기에 저장되고 앱의 iCloud 백업에서 제외됩니다."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "无需账户，没有广告，也不会将任何文档发送到服务器。书籍及其译文仅存储在本机，并且不会包含在本应用的 iCloud 备份中。"
           }
         }
       }
@@ -915,6 +1065,12 @@
             "state": "translated",
             "value": "현재 사용할 수 있는 Apple 음성이 없습니다. iPhone 손쉬운 사용 설정에서 음성을 추가할 수 있습니다."
           }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "目前没有可用的 Apple 声音。您可以在 iPhone 的辅助功能设置中添加声音。"
+          }
         }
       }
     },
@@ -930,6 +1086,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "이 텍스트의 언어에 사용할 수 있는 음성이 없습니다. iOS 손쉬운 사용 설정에서 음성을 추가하세요."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "没有可用于本文语言的声音。请在 iOS 辅助功能设置中添加声音。"
           }
         }
       }
@@ -1011,6 +1173,12 @@
             "state": "translated",
             "value": "모든 언어 자동 선택"
           }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "所有语言均自动选择"
+          }
         }
       }
     },
@@ -1091,6 +1259,12 @@
             "state": "translated",
             "value": "문서가 너무 큽니다. 제한은 50MB 또는 200만 자입니다."
           }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "此文档过大。上限为 50 MB 或 200 万个字符。"
+          }
         }
       }
     },
@@ -1106,6 +1280,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "이 문서에 읽을 수 있는 텍스트가 없습니다. 스캔한 PDF에는 문자 인식이 필요합니다."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "此文档不包含可读取的文本。扫描版 PDF 需要先进行文字识别。"
           }
         }
       }
@@ -1123,6 +1303,12 @@
             "state": "translated",
             "value": "이 EPUB은 손상되었거나 보호되어 있거나 지원되지 않는 형식입니다."
           }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "此 EPUB 书籍已损坏、受保护或使用了不支持的格式。"
+          }
         }
       }
     },
@@ -1139,6 +1325,12 @@
             "state": "translated",
             "value": "이 PDF는 암호로 보호되어 있습니다. 가져오기 전에 잠금을 해제하세요."
           }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "此 PDF 受密码保护。请先解锁再导入。"
+          }
         }
       }
     },
@@ -1154,6 +1346,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "이 언어 조합은 Apple 번역에서 지원되지 않습니다. 원문은 계속 이용할 수 있습니다."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Apple 翻译不支持此语言组合。您仍可阅读原文。"
           }
         }
       }
@@ -1300,6 +1498,12 @@
             "state": "translated",
             "value": "%@의 선호 음성으로 선택"
           }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "设为%@的首选声音"
+          }
         }
       }
     },
@@ -1315,6 +1519,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "DRM이 없는 EPUB, PDF, DOCX, TXT 또는 Markdown 파일을 선택하세요."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "请选择无 DRM 的 EPUB、PDF、DOCX、TXT 或 Markdown 文件。"
           }
         }
       }
@@ -1652,6 +1862,12 @@
             "state": "translated",
             "value": "제작진 및 오픈 소스 구성 요소"
           }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "鸣谢与开源组件"
+          }
         }
       }
     },
@@ -1738,6 +1954,12 @@
             "state": "translated",
             "value": "최근 시도: %lld초 분량의 오디오를 %lld초 만에 준비했습니다."
           }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "上次尝试：准备了 %lld 秒音频，用时 %lld 秒。"
+          }
         }
       }
     },
@@ -1753,6 +1975,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "감정과 대비가 풍부한 낭독"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "更丰富的情感与层次"
           }
         }
       }
@@ -1834,6 +2062,12 @@
             "state": "translated",
             "value": "가져온 문서"
           }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "已导入的文档"
+          }
         }
       }
     },
@@ -1849,6 +2083,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "%@ 듣기"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "试听%@"
           }
         }
       }
@@ -1866,6 +2106,12 @@
             "state": "translated",
             "value": "Qwen으로 듣기"
           }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "使用 Qwen 朗读"
+          }
         }
       }
     },
@@ -1881,6 +2127,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "이 스타일 미리 듣기"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "试听此风格"
           }
         }
       }
@@ -1898,6 +2150,12 @@
             "state": "translated",
             "value": "텍스트 작성 또는 붙여넣기"
           }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "输入或粘贴文本"
+          }
         }
       }
     },
@@ -1913,6 +2171,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "여기에 텍스트를 작성하거나 붙여넣으세요…"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "在此输入或粘贴文本…"
           }
         }
       }
@@ -1930,6 +2194,12 @@
             "state": "translated",
             "value": "검색 지우기"
           }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "清除搜索"
+          }
         }
       }
     },
@@ -1945,6 +2215,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "대기 중"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "等待中"
           }
         }
       }
@@ -2154,6 +2430,12 @@
             "state": "translated",
             "value": "일시 정지"
           }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "已暂停"
+          }
         }
       }
     },
@@ -2169,6 +2451,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "일시 정지 · 다음 내용 준비 중"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "已暂停 · 正在准备后续内容"
           }
         }
       }
@@ -2186,6 +2474,12 @@
             "state": "translated",
             "value": "일시 정지 · 버퍼 유지됨"
           }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "已暂停 · 缓冲已保留"
+          }
         }
       }
     },
@@ -2201,6 +2495,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "여성적이고 따뜻하며 표현력이 풍부함 · 한국어"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "女声，温暖且富有表现力 · 韩语"
           }
         }
       }
@@ -2218,6 +2518,12 @@
             "state": "translated",
             "value": "여성적이고 부드러우며 따뜻함 · 중국어"
           }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "女声，柔和温暖 · 中文"
+          }
         }
       }
     },
@@ -2234,6 +2540,12 @@
             "state": "translated",
             "value": "여성적이고 가벼우며 명랑함 · 일본어"
           }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "女声，轻快活泼 · 日语"
+          }
         }
       }
     },
@@ -2249,6 +2561,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "여성적이고 생기 넘치며 밝음 · 중국어"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "女声，活泼明亮 · 中文"
           }
         }
       }
@@ -2330,6 +2648,12 @@
             "state": "translated",
             "value": "완료된 파일 유지됨"
           }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "已完成的文件将会保留"
+          }
         }
       }
     },
@@ -2345,6 +2669,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Qwen이 준비하는 동안 Le Conteur를 열어 두세요. 다시 시작하려면 재생을 탭하세요."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Qwen 准备期间请保持 Le Conteur 打开。轻点“播放”继续。"
           }
         }
       }
@@ -2490,6 +2820,12 @@
             "state": "translated",
             "value": "EPUB을 준비할 수 없습니다: %@"
           }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "无法准备 EPUB：%@"
+          }
         }
       }
     },
@@ -2505,6 +2841,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "iOS에서 언어 설치 중…"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "正在通过 iOS 安装语言…"
           }
         }
       }
@@ -2522,6 +2864,12 @@
             "state": "translated",
             "value": "설치됨 · 오프라인"
           }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "已安装 · 可离线使用"
+          }
         }
       }
     },
@@ -2538,6 +2886,12 @@
             "state": "translated",
             "value": "Qwen 설치 · 2.31GB"
           }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "安装 Qwen · 2.31 GB"
+          }
         }
       }
     },
@@ -2553,6 +2907,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "먼저 음성에서 Qwen을 설치하세요."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "请先在“声音”中安装 Qwen。"
           }
         }
       }
@@ -2634,6 +2994,12 @@
             "state": "translated",
             "value": "번역된 저자 이름을 저장할 수 없습니다."
           }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "无法保存翻译后的作者名。"
+          }
         }
       }
     },
@@ -2649,6 +3015,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "보관함을 열 수 없습니다. 파일은 보존되었습니다. %@"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "无法打开书库。您的文件已保留。%@"
           }
         }
       }
@@ -2666,6 +3038,12 @@
             "state": "translated",
             "value": "오디오북의 따뜻함"
           }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "有声书般温暖柔和"
+          }
         }
       }
     },
@@ -2681,6 +3059,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "이 텍스트의 언어를 감지할 수 없습니다. 원문을 읽을 수 있습니다."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "无法检测此文本的语言。您可以阅读原文。"
           }
         }
       }
@@ -2698,6 +3082,12 @@
             "state": "translated",
             "value": "표시된 언어는 음성의 모국어입니다. 낭독은 책의 언어를 따르며 억양은 달라질 수 있습니다."
           }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "显示的是声音的原始语言。朗读会使用书籍的语言，但口音可能有所不同。"
+          }
         }
       }
     },
@@ -2713,6 +3103,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "첫 구절이 준비되는 즉시 읽을 수 있습니다. 읽는 동안 나머지 내용이 번역됩니다."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "前几个段落准备好后即可开始朗读，其余内容会在朗读过程中继续翻译。"
           }
         }
       }
@@ -2794,6 +3190,12 @@
             "state": "translated",
             "value": "Qwen에 사용할 수 있는 메모리가 부족합니다. 다른 앱을 닫고 다시 시도하거나 iPhone 음성을 선택하세요."
           }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "可用内存不足，无法运行 Qwen。请关闭其他应用后重试，或选择 iPhone 声音。"
+          }
         }
       }
     },
@@ -2809,6 +3211,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "기기 저장에 실패했습니다: %@"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "本地保存失败：%@"
           }
         }
       }
@@ -2826,21 +3234,77 @@
             "state": "translated",
             "value": "나머지 내용을 번역 중…"
           }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "正在翻译后续内容…"
+          }
         }
       }
     },
     "L’installation des langues par iOS prend trop de temps. Ouvrez Réglages › Apps › Traduire › Langues téléchargées, installez les deux langues, puis réessayez.": {
       "localizations": {
-        "ar": { "stringUnit": { "state": "translated", "value": "يستغرق تثبيت اللغات بواسطة iOS وقتًا طويلاً. افتح الإعدادات › التطبيقات › الترجمة › اللغات التي تم تنزيلها، وثبّت اللغتين، ثم أعد المحاولة." } },
-        "de": { "stringUnit": { "state": "translated", "value": "Die iOS-Sprachinstallation dauert zu lange. Öffnen Sie Einstellungen › Apps › Übersetzen › Geladene Sprachen, installieren Sie beide Sprachen und versuchen Sie es erneut." } },
-        "en": { "stringUnit": { "state": "translated", "value": "The iOS language installation is taking too long. Open Settings › Apps › Translate › Downloaded Languages, install both languages, then try again." } },
-        "es": { "stringUnit": { "state": "translated", "value": "La instalación de idiomas de iOS está tardando demasiado. Abre Ajustes › Apps › Traducir › Idiomas descargados, instala ambos idiomas y vuelve a intentarlo." } },
-        "it": { "stringUnit": { "state": "translated", "value": "L’installazione delle lingue di iOS sta impiegando troppo tempo. Apri Impostazioni › App › Traduci › Lingue scaricate, installa entrambe le lingue e riprova." } },
-        "ja": { "stringUnit": { "state": "translated", "value": "iOSの言語インストールに時間がかかりすぎています。設定 › アプリ › 翻訳 › ダウンロード済みの言語を開き、両方の言語をインストールしてから再試行してください。" } },
-        "ko": { "stringUnit": { "state": "translated", "value": "iOS 언어 설치가 너무 오래 걸립니다. 설정 › 앱 › 번역 › 다운로드한 언어에서 두 언어를 설치한 후 다시 시도하세요." } },
-        "pt": { "stringUnit": { "state": "translated", "value": "A instalação dos idiomas pelo iOS está a demorar demasiado. Abra Definições › Apps › Traduzir › Idiomas descarregados, instale os dois idiomas e tente novamente." } },
-        "ru": { "stringUnit": { "state": "translated", "value": "Установка языков в iOS занимает слишком много времени. Откройте Настройки › Приложения › Перевод › Загруженные языки, установите оба языка и повторите попытку." } },
-        "zh-Hans": { "stringUnit": { "state": "translated", "value": "iOS 安装语言所需时间过长。请打开“设置”›“App”›“翻译”›“已下载的语言”，安装这两种语言，然后重试。" } }
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "يستغرق تثبيت اللغات بواسطة iOS وقتًا طويلاً. افتح الإعدادات › التطبيقات › الترجمة › اللغات التي تم تنزيلها، وثبّت اللغتين، ثم أعد المحاولة."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Die iOS-Sprachinstallation dauert zu lange. Öffnen Sie Einstellungen › Apps › Übersetzen › Geladene Sprachen, installieren Sie beide Sprachen und versuchen Sie es erneut."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The iOS language installation is taking too long. Open Settings › Apps › Translate › Downloaded Languages, install both languages, then try again."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "La instalación de idiomas de iOS está tardando demasiado. Abre Ajustes › Apps › Traducir › Idiomas descargados, instala ambos idiomas y vuelve a intentarlo."
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "L’installazione delle lingue di iOS sta impiegando troppo tempo. Apri Impostazioni › App › Traduci › Lingue scaricate, installa entrambe le lingue e riprova."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "iOSの言語インストールに時間がかかりすぎています。設定 › アプリ › 翻訳 › ダウンロード済みの言語を開き、両方の言語をインストールしてから再試行してください。"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "iOS 언어 설치가 너무 오래 걸립니다. 설정 › 앱 › 번역 › 다운로드한 언어에서 두 언어를 설치한 후 다시 시도하세요."
+          }
+        },
+        "pt": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "A instalação dos idiomas pelo iOS está a demorar demasiado. Abra Definições › Apps › Traduzir › Idiomas descarregados, instale os dois idiomas e tente novamente."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Установка языков в iOS занимает слишком много времени. Откройте Настройки › Приложения › Перевод › Загруженные языки, установите оба языка и повторите попытку."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "iOS 安装语言所需时间过长。请打开“设置”›“App”›“翻译”›“已下载的语言”，安装这两种语言，然后重试。"
+          }
+        }
       }
     },
     "La suite se prépare pendant l’écoute": {
@@ -2855,6 +3319,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "듣는 동안 다음 내용 준비 중"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "朗读时会继续准备后续内容"
           }
         }
       }
@@ -2872,6 +3342,12 @@
             "state": "translated",
             "value": "번역에 실패했습니다: %@ 완료된 구절은 저장되었습니다."
           }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "翻译未完成：%@ 已完成的段落已保存。"
+          }
         }
       }
     },
@@ -2887,6 +3363,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "번역을 저장할 수 없습니다."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "无法保存翻译。"
           }
         }
       }
@@ -2904,6 +3386,12 @@
             "state": "translated",
             "value": "번역이 응답하지 않습니다. 원문을 읽거나 번역을 다시 시도할 수 있습니다. 완료된 구절은 저장되었습니다."
           }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "翻译已停止响应。您可以阅读原文，并通过“翻译”重试。已完成的段落已保存。"
+          }
         }
       }
     },
@@ -2919,6 +3407,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Apple 음성이 응답하지 않습니다. 구절을 다시 들으려면 재생을 탭하세요."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Apple 声音已停止响应。轻点“播放”重新朗读此段。"
           }
         }
       }
@@ -2936,6 +3430,12 @@
             "state": "translated",
             "value": "알 수 없는 언어"
           }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "未知语言"
+          }
         }
       }
     },
@@ -2951,6 +3451,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "언어 또는 음성"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "语言或声音"
           }
         }
       }
@@ -3032,6 +3538,12 @@
             "state": "translated",
             "value": "Le Conteur"
           }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Le Conteur"
+          }
         }
       }
     },
@@ -3044,6 +3556,12 @@
           }
         },
         "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "LE CONTEUR"
+          }
+        },
+        "zh-Hans": {
           "stringUnit": {
             "state": "translated",
             "value": "LE CONTEUR"
@@ -3063,6 +3581,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Qwen 파일 %@이(가) 불완전하거나 유효하지 않습니다. 설치를 다시 시작하세요."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Qwen 文件 %@ 不完整或无效。请重新安装。"
           }
         }
       }
@@ -3208,6 +3732,12 @@
             "state": "translated",
             "value": "다른 앱으로 전환하거나 화면을 꺼도 Wi-Fi에서 다운로드가 계속됩니다. 중단해도 완료된 파일은 유지됩니다."
           }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "切换应用或关闭屏幕后，下载仍会通过 Wi-Fi 继续。即使中断，已完成下载的文件也会保留。"
+          }
         }
       }
     },
@@ -3224,6 +3754,12 @@
             "state": "translated",
             "value": "세 가지 미리 듣기에 사용되는 텍스트"
           }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "三种风格的试听文本"
+          }
         }
       }
     },
@@ -3239,6 +3775,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "번역된 제목을 저장할 수 없습니다."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "无法保存翻译后的标题。"
           }
         }
       }
@@ -3320,6 +3862,12 @@
             "state": "translated",
             "value": "버퍼 재생 중 · 생성 일시 정지"
           }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "正在朗读缓冲内容 · 生成已暂停"
+          }
         }
       }
     },
@@ -3336,6 +3884,12 @@
             "state": "translated",
             "value": "버퍼 재생 중 · 다음 내용은 다시 시도해야 함"
           }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "正在朗读缓冲内容 · 后续内容需要重试"
+          }
         }
       }
     },
@@ -3351,6 +3905,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Qwen 낭독"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Qwen 朗读"
           }
         }
       }
@@ -3560,6 +4120,12 @@
             "state": "translated",
             "value": "공간 확보 중…"
           }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "正在释放空间…"
+          }
         }
       }
     },
@@ -3575,6 +4141,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Qwen을 설치하려면 iPhone에서 최소 3GB의 공간을 확보하세요."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "请在 iPhone 上至少释放 3 GB 空间以安装 Qwen。"
           }
         }
       }
@@ -3720,6 +4292,12 @@
             "state": "translated",
             "value": "책: %@"
           }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "书籍：%@"
+          }
         }
       }
     },
@@ -3735,6 +4313,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "번역된 책"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "翻译后的书籍"
           }
         }
       }
@@ -3816,6 +4400,12 @@
             "state": "translated",
             "value": "리더의 책갈피 버튼으로 구절을 저장하세요."
           }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "使用阅读器中的书签按钮标记段落。"
+          }
         }
       }
     },
@@ -3831,6 +4421,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "각 언어에서 음성 하나에 별표를 지정하세요. 다른 언어를 들어도 선택이 유지됩니다."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "为每种语言标记一个星标声音。切换到其他语言朗读时，您的选择仍会保留。"
           }
         }
       }
@@ -3848,6 +4444,12 @@
             "state": "translated",
             "value": "남성적이고 역동적임 · 영어"
           }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "男声，动感有活力 · 英语"
+          }
         }
       }
     },
@@ -3863,6 +4465,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "남성적이고 명료하며 밝음 · 미국 영어"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "男声，清晰明亮 · 美式英语"
           }
         }
       }
@@ -3880,6 +4488,12 @@
             "state": "translated",
             "value": "남성적이고 낮으며 차분함 · 중국어"
           }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "男声，低沉稳重 · 中文"
+          }
         }
       }
     },
@@ -3896,6 +4510,12 @@
             "state": "translated",
             "value": "남성적이고 젊으며 자연스러움 · 베이징 중국어"
           }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "男声，年轻自然 · 北京中文"
+          }
         }
       }
     },
@@ -3911,6 +4531,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "남성적이고 생기 넘치며 약간 허스키함 · 쓰촨 중국어"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "男声，活泼略带沙哑 · 四川中文"
           }
         }
       }
@@ -4056,6 +4682,12 @@
             "state": "translated",
             "value": "현재 단어: %@"
           }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "当前单词：%@"
+          }
         }
       }
     },
@@ -4200,6 +4832,12 @@
             "state": "translated",
             "value": "문서 여는 중…"
           }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "正在打开文档…"
+          }
         }
       }
     },
@@ -4216,6 +4854,12 @@
             "state": "translated",
             "value": "Qwen 낭독을 준비하려면 앱을 여세요."
           }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "请打开应用以准备 Qwen 朗读。"
+          }
         }
       }
     },
@@ -4231,6 +4875,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "다음 내용을 준비하려면 앱을 여세요"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "请打开应用以准备后续内容"
           }
         }
       }
@@ -4568,6 +5218,12 @@
             "state": "translated",
             "value": "구절 %lld"
           }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "第 %lld 段"
+          }
         }
       }
     },
@@ -4589,6 +5245,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "%lld/%lld 구절"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "第 %lld 段，共 %lld 段"
           }
         }
       }
@@ -4798,6 +5460,12 @@
             "state": "translated",
             "value": "읽기 위치"
           }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "朗读位置"
+          }
         }
       }
     },
@@ -4813,6 +5481,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "준비"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "正在准备"
           }
         }
       }
@@ -4830,6 +5504,12 @@
             "state": "translated",
             "value": "메모리 확보를 위해 준비를 중단했습니다. 더 짧은 구절로 다시 시도하세요."
           }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "为释放内存，准备过程已停止。请使用更短的段落重试。"
+          }
         }
       }
     },
@@ -4845,6 +5525,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "오디오 버퍼 준비 중…"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "正在准备音频缓冲…"
           }
         }
       }
@@ -4862,6 +5548,12 @@
             "state": "translated",
             "value": "번역 준비 중…"
           }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "正在准备翻译…"
+          }
         }
       }
     },
@@ -4877,6 +5569,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "음성 준비 중…"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "正在准备声音…"
           }
         }
       }
@@ -4894,6 +5592,12 @@
             "state": "translated",
             "value": "언어 준비 중…"
           }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "正在准备语言…"
+          }
         }
       }
     },
@@ -4910,21 +5614,77 @@
             "state": "translated",
             "value": "첫 구절 준비 중…"
           }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "正在准备第一段…"
+          }
         }
       }
     },
     "Première installation : cela peut prendre plusieurs minutes. Gardez l’app ouverte et connectée au Wi-Fi.": {
       "localizations": {
-        "ar": { "stringUnit": { "state": "translated", "value": "التثبيت لأول مرة: قد يستغرق عدة دقائق. أبقِ التطبيق مفتوحًا ومتصلاً بشبكة Wi‑Fi." } },
-        "de": { "stringUnit": { "state": "translated", "value": "Erstinstallation: Dies kann mehrere Minuten dauern. Lassen Sie die App geöffnet und mit dem WLAN verbunden." } },
-        "en": { "stringUnit": { "state": "translated", "value": "First-time installation: this may take several minutes. Keep the app open and connected to Wi‑Fi." } },
-        "es": { "stringUnit": { "state": "translated", "value": "Primera instalación: puede tardar varios minutos. Mantén la app abierta y conectada a una red Wi‑Fi." } },
-        "it": { "stringUnit": { "state": "translated", "value": "Prima installazione: potrebbe richiedere alcuni minuti. Mantieni l’app aperta e connessa al Wi‑Fi." } },
-        "ja": { "stringUnit": { "state": "translated", "value": "初回インストールには数分かかることがあります。アプリを開いたまま、Wi‑Fi に接続してください。" } },
-        "ko": { "stringUnit": { "state": "translated", "value": "처음 설치할 때는 몇 분 정도 걸릴 수 있습니다. 앱을 열어 두고 Wi‑Fi에 연결해 주세요." } },
-        "pt": { "stringUnit": { "state": "translated", "value": "Primeira instalação: pode demorar vários minutos. Mantenha a aplicação aberta e ligada ao Wi‑Fi." } },
-        "ru": { "stringUnit": { "state": "translated", "value": "Первая установка может занять несколько минут. Не закрывайте приложение и оставайтесь подключёнными к Wi‑Fi." } },
-        "zh-Hans": { "stringUnit": { "state": "translated", "value": "首次安装：可能需要几分钟。请保持 App 打开并连接到无线局域网。" } }
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "التثبيت لأول مرة: قد يستغرق عدة دقائق. أبقِ التطبيق مفتوحًا ومتصلاً بشبكة Wi‑Fi."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Erstinstallation: Dies kann mehrere Minuten dauern. Lassen Sie die App geöffnet und mit dem WLAN verbunden."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "First-time installation: this may take several minutes. Keep the app open and connected to Wi‑Fi."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Primera instalación: puede tardar varios minutos. Mantén la app abierta y conectada a una red Wi‑Fi."
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Prima installazione: potrebbe richiedere alcuni minuti. Mantieni l’app aperta e connessa al Wi‑Fi."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "初回インストールには数分かかることがあります。アプリを開いたまま、Wi‑Fi に接続してください。"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "처음 설치할 때는 몇 분 정도 걸릴 수 있습니다. 앱을 열어 두고 Wi‑Fi에 연결해 주세요."
+          }
+        },
+        "pt": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Primeira instalação: pode demorar vários minutos. Mantenha a aplicação aberta e ligada ao Wi‑Fi."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Первая установка может занять несколько минут. Не закрывайте приложение и оставайтесь подключёнными к Wi‑Fi."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "首次安装：可能需要几分钟。请保持 App 打开并连接到无线局域网。"
+          }
+        }
       }
     },
     "Prête": {
@@ -4939,6 +5699,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "준비됨"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "已就绪"
           }
         }
       }
@@ -4956,6 +5722,12 @@
             "state": "translated",
             "value": "읽기 준비 완료 · 설치된 모든 언어"
           }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "可立即朗读 · 已安装所有语言"
+          }
         }
       }
     },
@@ -4968,6 +5740,12 @@
           }
         },
         "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Qwen"
+          }
+        },
+        "zh-Hans": {
           "stringUnit": {
             "state": "translated",
             "value": "Qwen"
@@ -4988,6 +5766,12 @@
             "state": "translated",
             "value": "Qwen · 표현력 있는 음성"
           }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Qwen · 富有表现力"
+          }
         }
       }
     },
@@ -5003,6 +5787,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Qwen이 사용 가능한 오디오를 만들지 못했습니다. 더 짧은 구절로 다시 시도하세요."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Qwen 未生成可用音频。请使用更短的段落重试。"
           }
         }
       }
@@ -5020,6 +5810,12 @@
             "state": "translated",
             "value": "Qwen이 이 구절을 완료하지 못했습니다. 다시 시도하려면 재생을 탭하세요."
           }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Qwen 未能完成此段。轻点“播放”重试。"
+          }
         }
       }
     },
@@ -5035,6 +5831,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Qwen은 이 책의 언어를 지원하지 않습니다. Apple 음성 %@로 읽습니다."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Qwen 不支持此书的语言。将使用 Apple 声音 %@ 朗读。"
           }
         }
       }
@@ -5052,6 +5854,12 @@
             "state": "translated",
             "value": "Qwen에는 메모리가 8GB 이상인 iPhone이 필요합니다. iPhone 음성은 계속 사용할 수 있습니다."
           }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Qwen 需要至少配备 8 GB 内存的 iPhone。您仍可使用 iPhone 声音。"
+          }
         }
       }
     },
@@ -5067,6 +5875,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Qwen은 낭독 전에 여러 구절을 준비하고 듣는 동안 다음 내용을 계속 준비합니다. 자동 설정은 속도와 준비 시간에 맞춰 버퍼를 조절합니다. 화면을 끄거나 다른 앱을 사용해도 준비된 버퍼는 재생할 수 있습니다. 버퍼가 비면 Le Conteur로 돌아와 다음 내용을 준비할 때까지 기다립니다. 단어 추적은 예상값입니다."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Qwen 会在朗读前预先准备多个段落，并在朗读过程中继续准备后续内容。“自动”会根据朗读速度和准备时间调整音频缓冲。关闭屏幕或切换到其他应用后，已缓冲的内容仍可继续朗读。缓冲用尽后，朗读会等待您返回 Le Conteur，再准备后续内容。单词跟随位置为估算值。"
           }
         }
       }
@@ -5084,6 +5898,12 @@
             "state": "translated",
             "value": "충전 중"
           }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "重新缓冲"
+          }
         }
       }
     },
@@ -5099,6 +5919,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "다시 시작하기 전 버퍼 충전 중…"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "继续前正在重新缓冲…"
           }
         }
       }
@@ -5179,6 +6005,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "재구성"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "正在重新生成"
           }
         }
       }
@@ -5324,6 +6156,12 @@
             "state": "translated",
             "value": "재생 전 버퍼 채우는 중…"
           }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "朗读前正在填充缓冲…"
+          }
         }
       }
     },
@@ -5339,6 +6177,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "계속 듣기"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "继续"
           }
         }
       }
@@ -5420,6 +6264,12 @@
             "state": "translated",
             "value": "버퍼"
           }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "缓冲"
+          }
         }
       }
     },
@@ -5435,6 +6285,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "오디오 버퍼"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "音频缓冲"
           }
         }
       }
@@ -5452,6 +6308,12 @@
             "state": "translated",
             "value": "버퍼 사용 가능"
           }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "可用缓冲"
+          }
         }
       }
     },
@@ -5467,6 +6329,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Qwen 버퍼"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Qwen 缓冲"
           }
         }
       }
@@ -5484,6 +6352,12 @@
             "state": "translated",
             "value": "Qwen 버퍼가 비었습니다. 다음 내용을 준비하려면 앱을 여세요."
           }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Qwen 缓冲已用尽。请打开应用以准备后续内容。"
+          }
         }
       }
     },
@@ -5499,6 +6373,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "내 책에 사용 중"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "已用于您的书籍"
           }
         }
       }
@@ -5644,6 +6524,12 @@
             "state": "translated",
             "value": "목차"
           }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "目录"
+          }
         }
       }
     },
@@ -5659,6 +6545,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Qwen 스타일"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Qwen 风格"
           }
         }
       }
@@ -5804,6 +6696,12 @@
             "state": "translated",
             "value": "이 책을 삭제할까요?"
           }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "删除此书？"
+          }
         }
       }
     },
@@ -5819,6 +6717,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "모델 삭제 · 2.31GB"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "删除模型 · 2.31 GB"
           }
         }
       }
@@ -5889,16 +6793,66 @@
     },
     "Téléchargement géré par iOS": {
       "localizations": {
-        "ar": { "stringUnit": { "state": "translated", "value": "تتم إدارة التنزيل بواسطة iOS" } },
-        "de": { "stringUnit": { "state": "translated", "value": "Download wird von iOS verwaltet" } },
-        "en": { "stringUnit": { "state": "translated", "value": "Download managed by iOS" } },
-        "es": { "stringUnit": { "state": "translated", "value": "Descarga gestionada por iOS" } },
-        "it": { "stringUnit": { "state": "translated", "value": "Download gestito da iOS" } },
-        "ja": { "stringUnit": { "state": "translated", "value": "ダウンロードはiOSによって管理されています" } },
-        "ko": { "stringUnit": { "state": "translated", "value": "다운로드는 iOS에서 관리합니다" } },
-        "pt": { "stringUnit": { "state": "translated", "value": "Transferência gerida pelo iOS" } },
-        "ru": { "stringUnit": { "state": "translated", "value": "Загрузка управляется iOS" } },
-        "zh-Hans": { "stringUnit": { "state": "translated", "value": "下载由 iOS 管理" } }
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "تتم إدارة التنزيل بواسطة iOS"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Download wird von iOS verwaltet"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Download managed by iOS"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Descarga gestionada por iOS"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Download gestito da iOS"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ダウンロードはiOSによって管理されています"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "다운로드는 iOS에서 관리합니다"
+          }
+        },
+        "pt": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Transferência gerida pelo iOS"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Загрузка управляется iOS"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "下载由 iOS 管理"
+          }
+        }
       }
     },
     "Téléchargement en arrière-plan · Wi-Fi": {
@@ -5913,6 +6867,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "백그라운드 다운로드 · Wi-Fi"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "后台下载 · Wi-Fi"
           }
         }
       }
@@ -6058,6 +7018,12 @@
             "state": "translated",
             "value": "텍스트"
           }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "文本"
+          }
         }
       }
     },
@@ -6073,6 +7039,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "개인 텍스트"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "自定义文本"
           }
         }
       }
@@ -6218,6 +7190,12 @@
             "state": "translated",
             "value": "이 문단부터 다시 읽으려면 두 번 탭하세요"
           }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "轻点两次，从此段继续朗读"
+          }
         }
       }
     },
@@ -6297,6 +7275,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "다음 내용이 모두 준비됨"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "所有后续内容均已就绪"
           }
         }
       }
@@ -6506,6 +7490,12 @@
             "state": "translated",
             "value": "번역이 중단되었습니다. 완료된 구절은 저장되며 번역을 다시 시작하면 계속할 수 있습니다."
           }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "翻译已中断。已完成的段落已保存；请重新启动翻译以继续。"
+          }
         }
       }
     },
@@ -6521,6 +7511,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "번역이 일시 정지되었습니다. 준비된 구절은 계속 읽을 수 있습니다. 계속하려면 번역 계속을 탭하세요."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "翻译已暂停。已准备的段落仍可朗读。轻点“继续翻译”以继续。"
           }
         }
       }
@@ -6538,6 +7534,12 @@
             "state": "translated",
             "value": "%@로 번역"
           }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "翻译成%@"
+          }
         }
       }
     },
@@ -6553,6 +7555,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "세 가지 이야기 방식"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "三种讲述方式"
           }
         }
       }
@@ -6570,6 +7578,12 @@
             "state": "translated",
             "value": "구절 하나가 번역되지 않았습니다. 다시 시도할 수 있도록 완료된 구절은 유지됩니다."
           }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "有一个段落未翻译。已完成的段落会保留，以便重试。"
+          }
         }
       }
     },
@@ -6585,6 +7599,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "이야기를 위한 공간"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "为您的故事留一点空间"
           }
         }
       }
@@ -6666,6 +7686,12 @@
             "state": "translated",
             "value": "차분하고 자연스러운 낭독"
           }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "平静自然的讲述"
+          }
         }
       }
     },
@@ -6681,6 +7707,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "iPhone에서 만들어지는 표현력 있는 낭독입니다. 책과 함께할 감정을 선택하세요."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "富有表现力的旁白，在您的 iPhone 上生成。选择陪伴您阅读的情感风格。"
           }
         }
       }
@@ -6698,6 +7730,12 @@
             "state": "translated",
             "value": "버퍼가 길수록 문단 사이의 멈춤이 줄지만 시작은 늦어집니다. 초 단위는 선택한 속도에서의 듣기 시간입니다."
           }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "更长的缓冲可减少段落之间的停顿，但会延迟开始朗读。显示的秒数是按当前速度计算的可朗读时长。"
+          }
         }
       }
     },
@@ -6713,6 +7751,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "언어마다 선호 음성을 하나씩 지정할 수 있습니다. 번역 후에도 읽을 때 자동으로 선택됩니다."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "每种语言可设置一个首选声音。朗读时会自动使用该声音，翻译后也一样。"
           }
         }
       }
@@ -6730,6 +7774,12 @@
             "state": "translated",
             "value": "나에게 어울리는 음성"
           }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "找到适合您的声音"
+          }
         }
       }
     },
@@ -6745,6 +7795,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "내 책에 사용"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "用于我的书籍"
           }
         }
       }
@@ -6762,6 +7818,12 @@
             "state": "translated",
             "value": "읽기 속도"
           }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "朗读速度"
+          }
         }
       }
     },
@@ -6777,6 +7839,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Qwen 속도"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Qwen 速度"
           }
         }
       }
@@ -6922,6 +7990,12 @@
             "state": "translated",
             "value": "Apple 음성"
           }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Apple 声音"
+          }
         }
       }
     },
@@ -6937,6 +8011,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "번역 중에는 Apple 음성을 사용합니다. Qwen을 선택하면 번역을 일시 정지하고 이미 준비된 구절을 읽습니다."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "翻译期间使用 Apple 声音。选择 Qwen 会暂停翻译，并朗读已准备好的段落。"
           }
         }
       }
@@ -7018,6 +8098,12 @@
             "state": "translated",
             "value": "iPhone 음성"
           }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "iPhone 声音"
+          }
         }
       }
     },
@@ -7033,6 +8119,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "선호 음성"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "首选声音"
           }
         }
       }
@@ -7113,6 +8205,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Qwen 음성"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Qwen 声音"
           }
         }
       }
@@ -7323,6 +8421,12 @@
             "state": "translated",
             "value": "보관함은 온전히 내 것입니다"
           }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "您的书库只属于您"
+          }
         }
       }
     },
@@ -7403,6 +8507,12 @@
             "state": "translated",
             "value": "선호 음성을 사용할 수 없습니다. 그동안 다른 음성을 사용합니다."
           }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "您的首选声音目前不可用，将暂时使用其他声音。"
+          }
         }
       }
     },
@@ -7482,6 +8592,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "다른 앱으로 전환하거나 화면을 꺼도 됩니다."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "您可以切换应用或关闭屏幕。"
           }
         }
       }
