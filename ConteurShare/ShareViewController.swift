@@ -24,36 +24,49 @@ private struct ShareImportView: View {
     @State private var isDone = false
     @State private var error: String?
 
+    private let ink = Color(uiColor: .label)
+    private let mutedInk = Color(uiColor: .secondaryLabel)
+    private let accent = Color(red: 0.22, green: 0.34, blue: 0.26)
+    private let paper = Color(uiColor: .systemBackground)
+
     var body: some View {
         VStack(spacing: 24) {
             Image(systemName: isDone ? "checkmark.circle.fill" : "book.closed.fill")
-                .font(.system(size: 58)).foregroundStyle(Color(red: 0.22, green: 0.34, blue: 0.26))
+                .font(.system(size: 58)).foregroundStyle(accent)
             Text("Le Conteur").font(.system(size: 34, weight: .medium, design: .serif))
             if let error {
-                Text(error).multilineTextAlignment(.center)
+                Text(error).multilineTextAlignment(.center).foregroundStyle(ink)
             } else if isDone {
                 Text("Votre livre vous attend.").font(.title2)
                 Text("Ouvrez Le Conteur pour l’ajouter à votre bibliothèque et commencer la lecture.")
-                    .multilineTextAlignment(.center).foregroundStyle(.secondary)
+                    .multilineTextAlignment(.center).foregroundStyle(mutedInk)
             } else {
                 ProgressView("Copie sur votre iPhone…")
             }
             if isDone || error != nil {
                 Button("Terminer") { context?.completeRequest(returningItems: nil) }
-                    .buttonStyle(.borderedProminent).tint(Color(red: 0.22, green: 0.34, blue: 0.26))
+                    .buttonStyle(.borderedProminent).tint(accent).foregroundStyle(.white)
             }
         }
+        .foregroundStyle(ink)
         .padding(32).frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(Color(red: 0.97, green: 0.96, blue: 0.93))
+        .background(paper)
         .task { await receive() }
     }
 
     private func receive() async {
         let items = context?.inputItems as? [NSExtensionItem] ?? []
-        let supported = ["org.idpf.epub-container", UTType.pdf.identifier, UTType.plainText.identifier, UTType.fileURL.identifier]
+        let supported = [
+            "org.idpf.epub-container",
+            UTType.pdf.identifier,
+            "org.openxmlformats.wordprocessingml.document",
+            "net.daringfireball.markdown",
+            UTType.plainText.identifier,
+            UTType.fileURL.identifier
+        ]
         guard let provider = items.flatMap({ $0.attachments ?? [] }).first,
               let type = supported.first(where: { provider.hasItemConformingToTypeIdentifier($0) }) else {
-            error = "Partagez un fichier EPUB, PDF ou TXT avec Le Conteur."
+            error = "Partagez un fichier EPUB, PDF, DOCX, TXT ou Markdown avec Le Conteur."
             return
         }
         do {

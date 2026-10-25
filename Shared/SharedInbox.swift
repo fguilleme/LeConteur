@@ -18,8 +18,8 @@ enum SharedInbox {
             throw NSError(domain: "LeConteur", code: 2, userInfo: [NSLocalizedDescriptionKey: "La limite d’import est de 50 Mo."])
         }
         let name = URL(fileURLWithPath: suggestedName ?? source.lastPathComponent).lastPathComponent
-        guard ["epub", "pdf", "txt", "md", "markdown"].contains(URL(fileURLWithPath: name).pathExtension.lowercased()) else {
-            throw NSError(domain: "LeConteur", code: 3, userInfo: [NSLocalizedDescriptionKey: "Choisissez un fichier EPUB, PDF ou texte."])
+        guard ["epub", "pdf", "docx", "txt", "md", "markdown"].contains(URL(fileURLWithPath: name).pathExtension.lowercased()) else {
+            throw NSError(domain: "LeConteur", code: 3, userInfo: [NSLocalizedDescriptionKey: "Choisissez un fichier EPUB, PDF, DOCX, TXT ou Markdown."])
         }
         let id = UUID().uuidString
         let staging = directory.appending(path: ".pending-\(id)", directoryHint: .isDirectory)

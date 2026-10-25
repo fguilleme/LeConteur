@@ -21,6 +21,7 @@
 				<string>com.adobe.pdf</string>
 				<string>public.plain-text</string>
 				<string>net.daringfireball.markdown</string>
+				<string>org.openxmlformats.wordprocessingml.document</string>
 			</array>
 		</dict>
 	</array>

@@ -10,7 +10,7 @@ enum ImportFailure: LocalizedError {
         switch self {
         case .empty: "Ce document ne contient pas de texte lisible. Pour un PDF scanné, une reconnaissance de caractères est nécessaire."
         case .tooLarge: "Ce document est trop volumineux. La limite est de 50 Mo ou de 2 millions de caractères."
-        case .unsupported: "Choisissez un fichier PDF, EPUB sans DRM, TXT ou Markdown."
+        case .unsupported: "Choisissez un fichier EPUB sans DRM, PDF, DOCX, TXT ou Markdown."
         case .invalidEPUB: "Ce livre EPUB est endommagé, protégé ou n’utilise pas un format pris en charge."
         case .lockedPDF: "Ce PDF est protégé par un mot de passe. Déverrouillez-le avant de l’importer."
         }
@@ -57,6 +57,7 @@ enum DocumentImporter {
         guard size <= 50_000_000 else { throw ImportFailure.tooLarge }
         var title = url.deletingPathExtension().lastPathComponent
         var author = "Document importé"
+        var declaredLanguage: String?
         var coverData: Data?
         let text: String
         switch url.pathExtension.lowercased() {
@@ -78,7 +79,14 @@ enum DocumentImporter {
             text = book.text
             if !book.title.isEmpty { title = book.title }
             if !book.author.isEmpty { author = book.author }
+            if !book.language.isEmpty { declaredLanguage = SystemVoiceSelection.language(book.language) }
             coverData = book.cover
+        case "docx":
+            let document = try readDOCX(url)
+            text = document.text
+            if !document.title.isEmpty { title = document.title }
+            if !document.author.isEmpty { author = document.author }
+            if !document.language.isEmpty { declaredLanguage = SystemVoiceSelection.language(document.language) }
         case "txt", "md", "markdown":
             let data = try Data(contentsOf: url)
             guard let decoded = String(data: data, encoding: .utf8)
@@ -88,11 +96,33 @@ enum DocumentImporter {
         default: throw ImportFailure.unsupported
         }
         var document = try fromText(text, title: title, source: url.pathExtension.uppercased(), author: author)
+        if let declaredLanguage { document.languageCode = declaredLanguage }
         if let coverData { document.coverFileName = try? BookCoverStore.save(coverData, directory: coverDirectory) }
         return document
     }
 
-    private static func readEPUB(_ url: URL) throws -> (text: String, title: String, author: String, cover: Data?) {
+    private static func readDOCX(_ url: URL) throws -> (text: String, title: String, author: String, language: String) {
+        let archive = try Archive(url: url, accessMode: .read)
+        var total: Int64 = 0
+        func data(_ path: String) throws -> Data {
+            guard let entry = archive[path], entry.type == .file else { throw ImportFailure.empty }
+            total += Int64(entry.uncompressedSize)
+            guard entry.uncompressedSize < 20_000_000, total <= 25_000_000 else { throw ImportFailure.tooLarge }
+            var content = Data()
+            _ = try archive.extract(entry) { content.append($0) }
+            return content
+        }
+        let body = XMLCollector()
+        try body.parse(data("word/document.xml"))
+        let metadata = XMLCollector()
+        if archive["docProps/core.xml"] != nil { try? metadata.parse(data("docProps/core.xml")) }
+        return (body.text.trimmingCharacters(in: .whitespacesAndNewlines),
+                metadata.title.trimmingCharacters(in: .whitespacesAndNewlines),
+                metadata.author.trimmingCharacters(in: .whitespacesAndNewlines),
+                metadata.language.trimmingCharacters(in: .whitespacesAndNewlines))
+    }
+
+    private static func readEPUB(_ url: URL) throws -> (text: String, title: String, author: String, language: String, cover: Data?) {
         let archive = try Archive(url: url, accessMode: .read)
         var total: Int64 = 0
         func data(_ path: String) throws -> Data {
@@ -161,7 +191,124 @@ enum DocumentImporter {
         for candidate in candidates.prefix(8) {
             if let found = cover(candidate, relativeTo: base) { artwork = found; break }
         }
-        return (texts.joined(separator: "\n\n"), package.title.trimmingCharacters(in: .whitespacesAndNewlines), package.author.trimmingCharacters(in: .whitespacesAndNewlines), artwork)
+        let body = texts.joined(separator: "\n\n")
+        let title = repairedMetadata(package.title, using: texts)
+        return (body, title, package.author.trimmingCharacters(in: .whitespacesAndNewlines), package.language.trimmingCharacters(in: .whitespacesAndNewlines), artwork)
+    }
+
+    /// Some EPUB generators have already replaced a smart quote in the OPF title
+    /// with U+FFFD, even though the same title is intact in the book body. Only use
+    /// a body candidate when its letters and numbers exactly match the metadata;
+    /// this avoids guessing what an actually missing character was.
+    private static func repairedMetadata(_ value: String, using chapters: [String]) -> String {
+        let value = value.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard value.contains("\u{fffd}") else { return value }
+        let key = metadataKey(value)
+        guard !key.isEmpty else { return value }
+        for chapter in chapters {
+            for line in chapter.components(separatedBy: .newlines) {
+                let candidate = line.trimmingCharacters(in: .whitespacesAndNewlines)
+                guard !candidate.isEmpty, !candidate.contains("\u{fffd}"),
+                      candidate.count <= max(value.count + 20, 160),
+                      metadataKey(candidate) == key else { continue }
+                return candidate
+            }
+        }
+        return value
+    }
+
+    private static func metadataKey(_ value: String) -> String {
+        String(value.lowercased().filter { $0.isLetter || $0.isNumber })
+    }
+}
+
+enum EPUBExporter {
+    static func export(_ document: ReadingDocument) throws -> URL {
+        let language = SystemVoiceSelection.language(document.resolvedLanguage ?? document.languageCode ?? "und")
+        let identifier = "urn:uuid:\(document.id.uuidString.lowercased())"
+        let title = xml(document.title)
+        let author = xml(document.author)
+        let modified = ISO8601DateFormatter().string(from: Date())
+        let paragraphs = document.paragraphRanges.map { range in
+            "<p>\(xml(document.segments[range].joined(separator: " ")))</p>"
+        }.joined(separator: "\n")
+
+        let coverData: Data? = document.coverFileName.flatMap { name in
+            guard name.range(of: "^[a-f0-9]{64}\\.jpg$", options: .regularExpression) != nil else { return nil }
+            return try? Data(contentsOf: BookCoverStore.directory.appending(path: name))
+        }
+        let coverManifest = coverData == nil ? "" : "<item id=\"cover\" href=\"cover.jpg\" media-type=\"image/jpeg\" properties=\"cover-image\"/>"
+        let coverMarkup = coverData == nil ? "" : "<img class=\"cover\" src=\"cover.jpg\" alt=\"Couverture\"/>"
+        let container = """
+        <?xml version="1.0" encoding="UTF-8"?>
+        <container version="1.0" xmlns="urn:oasis:names:tc:opendocument:xmlns:container">
+          <rootfiles><rootfile full-path="OEBPS/content.opf" media-type="application/oebps-package+xml"/></rootfiles>
+        </container>
+        """
+        let package = """
+        <?xml version="1.0" encoding="UTF-8"?>
+        <package version="3.0" unique-identifier="book-id" xmlns="http://www.idpf.org/2007/opf">
+          <metadata xmlns:dc="http://purl.org/dc/elements/1.1/">
+            <dc:identifier id="book-id">\(identifier)</dc:identifier>
+            <dc:title>\(title)</dc:title>
+            <dc:creator>\(author)</dc:creator>
+            <dc:language>\(xml(language))</dc:language>
+            <meta property="dcterms:modified">\(modified)</meta>
+          </metadata>
+          <manifest>
+            <item id="nav" href="nav.xhtml" media-type="application/xhtml+xml" properties="nav"/>
+            <item id="book" href="book.xhtml" media-type="application/xhtml+xml"/>
+            \(coverManifest)
+          </manifest>
+          <spine><itemref idref="book"/></spine>
+        </package>
+        """
+        let nav = """
+        <?xml version="1.0" encoding="UTF-8"?>
+        <html xmlns="http://www.w3.org/1999/xhtml" xmlns:epub="http://www.idpf.org/2007/ops" lang="\(xml(language))">
+          <head><title>Sommaire</title></head>
+          <body><nav epub:type="toc"><h1>Sommaire</h1><ol><li><a href="book.xhtml">\(title)</a></li></ol></nav></body>
+        </html>
+        """
+        let book = """
+        <?xml version="1.0" encoding="UTF-8"?>
+        <html xmlns="http://www.w3.org/1999/xhtml" lang="\(xml(language))">
+          <head>
+            <title>\(title)</title>
+            <style>body{font-family:serif;line-height:1.55;margin:6%;}h1{text-align:center;margin-top:1.5em;}h2{text-align:center;font-weight:normal;font-size:1em;margin-bottom:3em;}.cover{display:block;max-width:70%;max-height:70vh;margin:1em auto 3em;}p{text-indent:1.2em;margin:.45em 0;}</style>
+          </head>
+          <body>\(coverMarkup)\(paragraphs)</body>
+        </html>
+        """
+
+        let folder = URL.temporaryDirectory.appending(path: "LeConteurExports", directoryHint: .isDirectory)
+        try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+        let baseName = document.title.replacingOccurrences(of: "[^\\p{L}\\p{N} _-]", with: "", options: .regularExpression)
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+        let url = folder.appending(path: (baseName.isEmpty ? "Livre traduit" : baseName) + " – \(language.uppercased()).epub")
+        try? FileManager.default.removeItem(at: url)
+        let archive = try Archive(url: url, accessMode: .create)
+        try add(Data("application/epub+zip".utf8), at: "mimetype", to: archive, compression: .none)
+        try add(Data(container.utf8), at: "META-INF/container.xml", to: archive)
+        try add(Data(package.utf8), at: "OEBPS/content.opf", to: archive)
+        try add(Data(nav.utf8), at: "OEBPS/nav.xhtml", to: archive)
+        try add(Data(book.utf8), at: "OEBPS/book.xhtml", to: archive)
+        if let coverData { try add(coverData, at: "OEBPS/cover.jpg", to: archive) }
+        return url
+    }
+
+    private static func add(_ data: Data, at path: String, to archive: Archive, compression: CompressionMethod = .deflate) throws {
+        try archive.addEntry(with: path, type: .file, uncompressedSize: Int64(data.count), compressionMethod: compression) { position, size in
+            data.subdata(in: Int(position)..<(Int(position) + size))
+        }
+    }
+
+    private static func xml(_ value: String) -> String {
+        value.replacingOccurrences(of: "&", with: "&amp;")
+            .replacingOccurrences(of: "<", with: "&lt;")
+            .replacingOccurrences(of: ">", with: "&gt;")
+            .replacingOccurrences(of: "\"", with: "&quot;")
+            .replacingOccurrences(of: "'", with: "&apos;")
     }
 }
 
@@ -177,13 +324,31 @@ private final class XMLCollector: NSObject, XMLParserDelegate {
     var text = ""
     var title = ""
     var author = ""
+    var language = ""
     private var elements: [String] = []
 
     func parse(_ data: Data) throws {
-        let parser = XMLParser(data: data)
+        let parser = XMLParser(data: normalizedXMLData(data))
         parser.shouldResolveExternalEntities = false
         parser.delegate = self
         guard parser.parse() else { throw ImportFailure.invalidEPUB }
+    }
+
+    /// XML defaults to UTF-8, but older EPUB tools sometimes write Windows-1252
+    /// punctuation while still declaring UTF-8 (or declaring nothing). XMLParser
+    /// accepts those bytes lossily and exposes replacement characters, so recover
+    /// the common legacy encoding before parsing.
+    private func normalizedXMLData(_ data: Data) -> Data {
+        guard String(data: data, encoding: .utf8) == nil,
+              !data.starts(with: [0xff, 0xfe]), !data.starts(with: [0xfe, 0xff]) else { return data }
+
+        let prefix = String(decoding: data.prefix(256), as: UTF8.self).lowercased()
+        if let declaration = prefix.range(of: "encoding") {
+            let suffix = prefix[declaration.upperBound...].prefix(48)
+            if !suffix.contains("utf-8") && !suffix.contains("utf8") { return data }
+        }
+        guard let recovered = String(data: data, encoding: .windowsCP1252) else { return data }
+        return Data(recovered.utf8)
     }
 
     func parser(_ parser: XMLParser, didStartElement elementName: String, namespaceURI: String?, qualifiedName qName: String?, attributes: [String: String]) {
@@ -206,6 +371,7 @@ private final class XMLCollector: NSObject, XMLParserDelegate {
     func parser(_ parser: XMLParser, foundCharacters string: String) {
         if elements.last == "title" { title += string }
         if elements.last == "creator" { author += string }
+        if elements.last == "language" { language += string }
         if elements.contains("body"), !elements.contains(where: { ["script", "style", "nav"].contains($0) }) { text += string }
     }
 

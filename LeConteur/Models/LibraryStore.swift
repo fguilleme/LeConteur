@@ -68,13 +68,17 @@ final class LibraryStore {
         return true
     }
 
-    /// Reimporting an old EPUB can recover its artwork without duplicating the book
-    /// or losing reading progress. Translations share the same local image.
+    /// Reimporting an old EPUB can refresh repaired metadata or recover its artwork
+    /// without duplicating the book or losing reading progress. Translations share
+    /// the same local image.
     func importDocument(_ document: ReadingDocument) -> ReadingDocument? {
         if document.source == "EPUB", let index = documents.firstIndex(where: {
-            $0.source == "EPUB" && $0.title == document.title && $0.author == document.author && $0.segments == document.segments
+            $0.source == "EPUB" && $0.segments == document.segments
         }) {
             let previous = documents
+            documents[index].title = document.title
+            documents[index].author = document.author
+            documents[index].languageCode = document.languageCode
             if let cover = document.coverFileName {
                 let originalID = documents[index].id
                 documents[index].coverFileName = cover
