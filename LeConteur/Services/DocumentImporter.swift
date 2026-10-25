@@ -8,17 +8,17 @@ enum ImportFailure: LocalizedError {
     case empty, tooLarge, unsupported, invalidEPUB, lockedPDF
     var errorDescription: String? {
         switch self {
-        case .empty: "Ce document ne contient pas de texte lisible. Pour un PDF scanné, une reconnaissance de caractères est nécessaire."
-        case .tooLarge: "Ce document est trop volumineux. La limite est de 50 Mo ou de 2 millions de caractères."
-        case .unsupported: "Choisissez un fichier EPUB sans DRM, PDF, DOCX, TXT ou Markdown."
-        case .invalidEPUB: "Ce livre EPUB est endommagé, protégé ou n’utilise pas un format pris en charge."
-        case .lockedPDF: "Ce PDF est protégé par un mot de passe. Déverrouillez-le avant de l’importer."
+        case .empty: String(localized: "Ce document ne contient pas de texte lisible. Pour un PDF scanné, une reconnaissance de caractères est nécessaire.")
+        case .tooLarge: String(localized: "Ce document est trop volumineux. La limite est de 50 Mo ou de 2 millions de caractères.")
+        case .unsupported: String(localized: "Choisissez un fichier EPUB sans DRM, PDF, DOCX, TXT ou Markdown.")
+        case .invalidEPUB: String(localized: "Ce livre EPUB est endommagé, protégé ou n’utilise pas un format pris en charge.")
+        case .lockedPDF: String(localized: "Ce PDF est protégé par un mot de passe. Déverrouillez-le avant de l’importer.")
         }
     }
 }
 
 enum DocumentImporter {
-    static func fromText(_ text: String, title: String, source: String = "TEXTE", author: String = "Texte personnel") throws -> ReadingDocument {
+    static func fromText(_ text: String, title: String, source: String = String(localized: "TEXTE"), author: String = String(localized: "Texte personnel")) throws -> ReadingDocument {
         guard text.count <= 2_000_000 else { throw ImportFailure.tooLarge }
         let paragraphs = text.replacingOccurrences(of: "\r\n", with: "\n")
             .replacingOccurrences(of: "\n[\t ]*\n", with: "\u{001e}", options: .regularExpression)
@@ -56,7 +56,7 @@ enum DocumentImporter {
         let size = try url.resourceValues(forKeys: [.fileSizeKey]).fileSize ?? 0
         guard size <= 50_000_000 else { throw ImportFailure.tooLarge }
         var title = url.deletingPathExtension().lastPathComponent
-        var author = "Document importé"
+        var author = String(localized: "Document importé")
         var declaredLanguage: String?
         var coverData: Data?
         let text: String
@@ -267,7 +267,7 @@ enum EPUBExporter {
         <?xml version="1.0" encoding="UTF-8"?>
         <html xmlns="http://www.w3.org/1999/xhtml" xmlns:epub="http://www.idpf.org/2007/ops" lang="\(xml(language))">
           <head><title>Sommaire</title></head>
-          <body><nav epub:type="toc"><h1>Sommaire</h1><ol><li><a href="book.xhtml">\(title)</a></li></ol></nav></body>
+          <body><nav epub:type="toc"><h1>\(xml(String(localized: "Sommaire")))</h1><ol><li><a href="book.xhtml">\(title)</a></li></ol></nav></body>
         </html>
         """
         let book = """
@@ -285,7 +285,7 @@ enum EPUBExporter {
         try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
         let baseName = document.title.replacingOccurrences(of: "[^\\p{L}\\p{N} _-]", with: "", options: .regularExpression)
             .trimmingCharacters(in: .whitespacesAndNewlines)
-        let url = folder.appending(path: (baseName.isEmpty ? "Livre traduit" : baseName) + " – \(language.uppercased()).epub")
+        let url = folder.appending(path: (baseName.isEmpty ? String(localized: "Livre traduit") : baseName) + " – \(language.uppercased()).epub")
         try? FileManager.default.removeItem(at: url)
         let archive = try Archive(url: url, accessMode: .create)
         try add(Data("application/epub+zip".utf8), at: "mimetype", to: archive, compression: .none)

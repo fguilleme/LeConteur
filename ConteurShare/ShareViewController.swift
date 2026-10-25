@@ -66,7 +66,7 @@ private struct ShareImportView: View {
         ]
         guard let provider = items.flatMap({ $0.attachments ?? [] }).first,
               let type = supported.first(where: { provider.hasItemConformingToTypeIdentifier($0) }) else {
-            error = "Partagez un fichier EPUB, PDF, DOCX, TXT ou Markdown avec Le Conteur."
+            error = String(localized: "Partagez un fichier EPUB, PDF, DOCX, TXT ou Markdown avec Le Conteur.")
             return
         }
         do {
