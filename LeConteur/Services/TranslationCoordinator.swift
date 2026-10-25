@@ -7,11 +7,14 @@ import Translation
 final class TranslationCoordinator {
     static var phoneLanguage: String { SystemVoiceSelection.language(Locale.preferredLanguages.first ?? Locale.current.identifier) }
     var configuration: TranslationSession.Configuration?
-    private(set) var isTranslating = false
+    private(set) var isTranslating = false {
+        didSet { if oldValue != isTranslating { activityChanged(isTranslating) } }
+    }
     private(set) var progress: Double = 0
     private(set) var isPreparing = false
     private(set) var status = "Préparation des langues…"
     var readyDocumentID: UUID?
+    private(set) var activeDocumentID: UUID?
     var errorMessage: String?
     private var sourceDocument: ReadingDocument?
     private var savedDraft: ReadingDocument?
@@ -25,22 +28,33 @@ final class TranslationCoordinator {
     private let library: LibraryStore
     private let prepareVoice: () async -> Void
     private let languageStatus: (String, String) async -> LanguageAvailability.Status
+    private let fallbackLanguageStatus: (String, String) async -> LanguageAvailability.Status
     private let startupTimeout: Duration
     private let documentUpdated: (UUID) -> Void
+    private let activityChanged: (Bool) -> Void
 
     init(library: LibraryStore,
          startupTimeout: Duration = .seconds(60),
          documentUpdated: @escaping (UUID) -> Void = { _ in },
+         activityChanged: @escaping (Bool) -> Void = { _ in },
          prepareVoice: @escaping () async -> Void = { await QwenVoiceRenderer.shared.unload() },
          languageStatus: @escaping (String, String) async -> LanguageAvailability.Status = { source, target in
              let languages: LanguageAvailability
              if #available(iOS 26.4, *) { languages = LanguageAvailability(preferredStrategy: .highFidelity) }
              else { languages = LanguageAvailability() }
              return await languages.status(from: Locale.Language(identifier: source), to: Locale.Language(identifier: target))
+         },
+         fallbackLanguageStatus: @escaping (String, String) async -> LanguageAvailability.Status = { source, target in
+             let languages: LanguageAvailability
+             if #available(iOS 26.4, *) { languages = LanguageAvailability(preferredStrategy: .lowLatency) }
+             else { languages = LanguageAvailability() }
+             return await languages.status(from: Locale.Language(identifier: source), to: Locale.Language(identifier: target))
          }) {
         self.library = library
         self.documentUpdated = documentUpdated
-        self.prepareVoice = prepareVoice; self.languageStatus = languageStatus; self.startupTimeout = startupTimeout
+        self.activityChanged = activityChanged
+        self.prepareVoice = prepareVoice; self.languageStatus = languageStatus
+        self.fallbackLanguageStatus = fallbackLanguageStatus; self.startupTimeout = startupTimeout
     }
 
     /// Readable passages are published without waiting for the rest of the book.
@@ -70,8 +84,9 @@ final class TranslationCoordinator {
         if let existing = library.documents.first(where: {
             $0.translationOf == document.id && SystemVoiceSelection.language($0.languageCode ?? "und") == target
         }) {
-            if !existing.isTranslationPending { readyDocumentID = existing.id; return }
+            if !existing.isTranslationPending && existing.isTranslationMetadataComplete { readyDocumentID = existing.id; return }
             savedDraft = existing
+            activeDocumentID = existing.id
             readyDocumentID = existing.id
         }
         sourceDocument = document
@@ -84,9 +99,18 @@ final class TranslationCoordinator {
         await prepareVoice()
         guard requestID == request else { return }
         guard !Task.isCancelled else { cancel(); return }
-        let availability = await languageStatus(source, target)
+        var availability = await languageStatus(source, target)
         guard requestID == request else { return }
         guard !Task.isCancelled else { cancel(); return }
+        // On iOS 26.4+, a high-fidelity availability check only considers Apple
+        // Intelligence models. A language such as Russian may still be supported by
+        // the traditional models shared with the Translate app. The configured
+        // high-fidelity session will automatically fall back to those models.
+        if availability == .unsupported {
+            availability = await fallbackLanguageStatus(source, target)
+            guard requestID == request else { return }
+            guard !Task.isCancelled else { cancel(); return }
+        }
         guard availability != .unsupported else {
             errorMessage = "Cette paire de langues n’est pas prise en charge par la traduction Apple. L’original reste disponible."
             cancel()
@@ -122,8 +146,9 @@ final class TranslationCoordinator {
             let work = TranslationWork(document: document, source: source, target: language)
             let checkpoint = try TranslationCheckpoint(fingerprint: work.fingerprint)
             var output = checkpoint.load(count: work.blocks.count)
-            var draft = savedDraft?.translationFingerprint == work.fingerprint
+            var draft = savedDraft?.translationComplete == true || savedDraft?.translationFingerprint == work.fingerprint
                 ? savedDraft! : work.draft(original: document, language: language)
+            activeDocumentID = draft.id
             func publishAvailable() throws {
                 guard work.appendAvailable(output, to: &draft) else { return }
                 guard library.saveTranslation(draft) else {
@@ -143,6 +168,41 @@ final class TranslationCoordinator {
             try await session.prepareTranslation()
             try Task.checkCancellation()
             guard requestID == request else { return }
+            if draft.translationTitleComplete != true {
+                armWatchdog(request: request)
+                let translatedTitle = try await session.translate(document.title)
+                    .targetText.trimmingCharacters(in: .whitespacesAndNewlines)
+                guard !translatedTitle.isEmpty else { throw TranslationWorkError.incomplete }
+                draft.title = translatedTitle
+                draft.translationTitleComplete = true
+                guard library.saveTranslation(draft) else {
+                    throw NSError(domain: "Translation", code: 2, userInfo: [NSLocalizedDescriptionKey: library.errorMessage ?? "Le titre traduit n’a pas pu être sauvegardé."])
+                }
+                documentUpdated(draft.id)
+            }
+            if draft.translationAuthorComplete != true {
+                armWatchdog(request: request)
+                let originalAuthor = document.author.trimmingCharacters(in: .whitespacesAndNewlines)
+                if originalAuthor.isEmpty {
+                    draft.author = ""
+                } else {
+                    let translatedAuthor = try await session.translate(originalAuthor)
+                        .targetText.trimmingCharacters(in: .whitespacesAndNewlines)
+                    guard !translatedAuthor.isEmpty else { throw TranslationWorkError.incomplete }
+                    draft.author = translatedAuthor
+                }
+                draft.translationAuthorComplete = true
+                guard library.saveTranslation(draft) else {
+                    throw NSError(domain: "Translation", code: 3, userInfo: [NSLocalizedDescriptionKey: library.errorMessage ?? "L’auteur traduit n’a pas pu être sauvegardé."])
+                }
+                documentUpdated(draft.id)
+            }
+            if draft.translationComplete == true {
+                checkpoint.remove()
+                cancel()
+                readyDocumentID = draft.id
+                return
+            }
             isPreparing = false
             updateProgress()
             let remaining = work.blocks.indices.filter { output[$0].isEmpty }
@@ -209,6 +269,7 @@ final class TranslationCoordinator {
         isPreparing = false
         sourceDocument = nil
         savedDraft = nil
+        activeDocumentID = nil
         readyDocumentID = nil
     }
 

@@ -110,6 +110,9 @@ struct ReaderTranslationValidationView: View {
     var body: some View {
         ReadingSessionView(documentID: originalID, automaticallyTranslate: true)
             .environment(library).environment(settings).environment(playback).environment(coordinator)
+            .translationTask(coordinator.configuration) { session in
+                await coordinator.translate(using: session)
+            }
             .onAppear { UIApplication.shared.isIdleTimerDisabled = true }
             .onChange(of: playback.documentID) { _, id in
                 guard id != originalID, id != nil, !report.readerOpenedBeforeCompletion else { return }

@@ -38,7 +38,6 @@ struct LeConteurApp: App {
             .environment(library).environment(settings).environment(playback)
             .environment(translation).environment(modelStore).environment(qwenStore)
             .tint(ConteurTheme.green)
-            .preferredColorScheme(.light)
         }
     }
 
@@ -85,8 +84,17 @@ struct RootView: View {
         .sheet(item: $reader) { selection in
             ReadingSessionView(documentID: selection.id, automaticallyTranslate: selection.automaticallyTranslate)
         }
+        .translationTask(translation.configuration) { session in
+            await translation.translate(using: session)
+        }
         .sheet(isPresented: $showComposer) { ComposeView { document in if library.add(document) { open(document) } } }
-        .fileImporter(isPresented: $showImporter, allowedContentTypes: [UTType("org.idpf.epub-container") ?? .data, .pdf, .plainText, UTType(filenameExtension: "md") ?? .plainText]) { result in
+        .fileImporter(isPresented: $showImporter, allowedContentTypes: [
+            UTType("org.idpf.epub-container") ?? .data,
+            .pdf,
+            UTType("org.openxmlformats.wordprocessingml.document") ?? .data,
+            .plainText,
+            UTType("net.daringfireball.markdown") ?? .plainText
+        ]) { result in
             switch result {
             case .success(let url): Task { await importFile(url) }
             case .failure(let failure): error = failure.localizedDescription

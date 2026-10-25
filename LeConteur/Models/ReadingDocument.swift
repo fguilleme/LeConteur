@@ -18,11 +18,22 @@ struct ReadingDocument: Codable, Identifiable, Hashable, Sendable {
     var coverFileName: String?
     var preferredReadingID: UUID?
     var translationComplete: Bool?
+    var translationTitleComplete: Bool?
+    var translationAuthorComplete: Bool?
     var translatedBlocks: Int?
     var translationTotalBlocks: Int?
     var translationFingerprint: String?
 
     var isTranslationPending: Bool { translationOf != nil && translationComplete == false }
+    var isTranslationMetadataComplete: Bool {
+        translationTitleComplete == true && translationAuthorComplete == true
+    }
+    var translationProgress: Double {
+        guard let total = translationTotalBlocks, total > 0 else {
+            return translationComplete == true ? 1 : 0
+        }
+        return min(1, max(0, Double(translatedBlocks ?? 0) / Double(total)))
+    }
     var resolvedLanguage: String? {
         let code = languageCode ?? NLLanguageRecognizer.dominantLanguage(for: segments.prefix(8).joined(separator: " "))?.rawValue
         return code.map(SystemVoiceSelection.language)

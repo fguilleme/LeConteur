@@ -1,14 +1,17 @@
 import SwiftUI
+import UIKit
 
 struct LibraryView: View {
     @Environment(LibraryStore.self) private var library
     @Environment(PlaybackController.self) private var playback
+    @Environment(TranslationCoordinator.self) private var translation
     let open: (ReadingDocument) -> Void
     let importFile: () -> Void
     let compose: () -> Void
     @State private var search = ""
     @State private var filter = 0
     @State private var deleting: ReadingDocument?
+    @State private var sharedBook: SharedBook?
 
     private var filtered: [ReadingDocument] {
         library.documents.filter {
@@ -43,6 +46,11 @@ struct LibraryView: View {
                                     Eyebrow(text: featured.position > 0 ? "REPRENDRE" : "À ÉCOUTER")
                                     Text(featured.title).font(.system(size: 25, weight: .medium, design: .serif)).lineLimit(3)
                                     Text("\(featured.minutes) min d’écoute estimées").font(.caption).foregroundStyle(ConteurTheme.muted)
+                                    if featured.isTranslationPending {
+                                        BookTranslationGauge(progress: featured.translationProgress,
+                                                             isActive: translation.isTranslating && translation.activeDocumentID == featured.id,
+                                                             compact: true)
+                                    }
                                     HStack(spacing: 8) {
                                         Image(systemName: "play.fill").font(.system(size: 11))
                                         Text(featured.position > 0 ? "Continuer" : "Ouvrir le lecteur").font(.caption.weight(.semibold))
@@ -50,7 +58,7 @@ struct LibraryView: View {
                                 }
                                 Spacer(minLength: 0)
                             }.padding(20).frame(maxWidth: .infinity, alignment: .leading)
-                                .background(Color(red: 0.92, green: 0.91, blue: 0.85), in: RoundedRectangle(cornerRadius: 23))
+                                .background(ConteurTheme.featured, in: RoundedRectangle(cornerRadius: 23))
                         }.buttonStyle(.plain)
                     }
 
@@ -70,8 +78,8 @@ struct LibraryView: View {
                         ForEach(Array(["Tout", "En cours", "Terminés"].enumerated()), id: \.offset) { index, title in
                             Button { filter = index } label: {
                                 Text(title).font(.caption.weight(.medium)).padding(.horizontal, 16).padding(.vertical, 10)
-                                    .background(filter == index ? ConteurTheme.ink : Color.white.opacity(0.6), in: Capsule())
-                                    .foregroundStyle(filter == index ? .white : ConteurTheme.muted)
+                                    .background(filter == index ? ConteurTheme.ink : ConteurTheme.card, in: Capsule())
+                                    .foregroundStyle(filter == index ? ConteurTheme.paper : ConteurTheme.muted)
                             }.buttonStyle(.plain)
                         }
                     }.padding(.top, -12)
@@ -81,7 +89,7 @@ struct LibraryView: View {
                             TextField("Rechercher un titre ou un auteur", text: $search).font(.subheadline)
                                 .autocorrectionDisabled()
                             if !search.isEmpty { Button { search = "" } label: { Image(systemName: "xmark.circle.fill") }.accessibilityLabel("Effacer la recherche") }
-                        }.padding(13).background(.white.opacity(0.7), in: RoundedRectangle(cornerRadius: 12))
+                        }.padding(13).background(ConteurTheme.card, in: RoundedRectangle(cornerRadius: 12))
                     }
                     if filtered.isEmpty {
                         ContentUnavailableView(search.isEmpty ? "Un peu de place pour vos histoires" : "Aucun résultat", systemImage: "book", description: Text("Ajoutez un EPUB, un PDF ou votre propre texte."))
@@ -97,9 +105,17 @@ struct LibraryView: View {
                                             Text(document.author).font(.caption).foregroundStyle(ConteurTheme.muted).lineLimit(1)
                                             HStack(spacing: 8) {
                                                 Text(document.source).font(.system(size: 9, weight: .semibold)).tracking(1)
+                                                if document.source == "EPUB" {
+                                                    Text("·  \(languageName(for: document))").font(.system(size: 9, weight: .semibold)).tracking(1)
+                                                }
                                                 Text("·  \(document.minutes) min").font(.caption)
                                                 if document.isFinished { Image(systemName: "checkmark.circle.fill") }
                                             }.foregroundStyle(ConteurTheme.muted)
+                                            if document.isTranslationPending {
+                                                BookTranslationGauge(progress: document.translationProgress,
+                                                                     isActive: translation.isTranslating && translation.activeDocumentID == document.id,
+                                                                     compact: true)
+                                            }
                                             if document.progress > 0 && !document.isFinished { ProgressView(value: document.progress).tint(ConteurTheme.orange) }
                                         }
                                         Spacer(minLength: 0)
@@ -108,6 +124,9 @@ struct LibraryView: View {
                                 }.buttonStyle(.plain)
                                     .contextMenu {
                                         Button("Ouvrir", systemImage: "book") { open(document) }
+                                        if document.translationOf != nil && !document.isTranslationPending {
+                                            Button("Partager la traduction", systemImage: "square.and.arrow.up") { export(document) }
+                                        }
                                         Button("Supprimer", systemImage: "trash", role: .destructive) { deleting = document }
                                     }
                                 Divider().overlay(ConteurTheme.ink.opacity(0.06))
@@ -126,8 +145,39 @@ struct LibraryView: View {
                     deleting = nil
                 }
             }
+            .sheet(item: $sharedBook) { BookShareSheet(url: $0.url).ignoresSafeArea() }
         }
     }
+
+    private func export(_ document: ReadingDocument) {
+        Task {
+            do {
+                let url = try await Task.detached(priority: .userInitiated) { try EPUBExporter.export(document) }.value
+                sharedBook = SharedBook(url: url)
+            } catch {
+                library.errorMessage = "Impossible de préparer l’EPUB : \(error.localizedDescription)"
+            }
+        }
+    }
+
+    private func languageName(for document: ReadingDocument) -> String {
+        guard let languageCode = document.languageCode, !languageCode.isEmpty else { return "LANGUE INCONNUE" }
+        let code = SystemVoiceSelection.language(languageCode)
+        return (Locale.current.localizedString(forLanguageCode: code) ?? code).localizedUppercase
+    }
+}
+
+struct SharedBook: Identifiable {
+    let id = UUID()
+    let url: URL
+}
+
+struct BookShareSheet: UIViewControllerRepresentable {
+    let url: URL
+    func makeUIViewController(context: Context) -> UIActivityViewController {
+        UIActivityViewController(activityItems: [url], applicationActivities: nil)
+    }
+    func updateUIViewController(_ controller: UIActivityViewController, context: Context) {}
 }
 
 struct ComposeView: View {
@@ -142,7 +192,7 @@ struct ComposeView: View {
                 Text("Une idée, un article,\nune histoire.").font(.system(size: 32, design: .serif))
                 TextField("Titre de votre lecture", text: $title).textFieldStyle(.roundedBorder)
                 TextEditor(text: $text).scrollContentBackground(.hidden).padding(12)
-                    .background(.white, in: RoundedRectangle(cornerRadius: 16))
+                    .background(ConteurTheme.card, in: RoundedRectangle(cornerRadius: 16))
                     .overlay(alignment: .topLeading) { if text.isEmpty { Text("Écrivez ou collez votre texte ici…").foregroundStyle(.tertiary).padding(20).allowsHitTesting(false) } }
                 if let error { Text(error).font(.caption).foregroundStyle(.red) }
             }.padding(24).background(ConteurTheme.paper)

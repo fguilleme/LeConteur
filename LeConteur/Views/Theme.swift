@@ -1,12 +1,22 @@
 import SwiftUI
 
 enum ConteurTheme {
-    static let paper = Color(red: 0.97, green: 0.96, blue: 0.93)
-    static let ink = Color(red: 0.15, green: 0.22, blue: 0.18)
-    static let green = Color(red: 0.25, green: 0.37, blue: 0.29)
-    static let muted = Color(red: 0.43, green: 0.47, blue: 0.42)
-    static let orange = Color(red: 0.77, green: 0.40, blue: 0.25)
-    static let wash = Color(red: 0.90, green: 0.92, blue: 0.86)
+    static let paper = adaptive(light: (0.97, 0.96, 0.93), dark: (0.07, 0.09, 0.08))
+    static let ink = adaptive(light: (0.15, 0.22, 0.18), dark: (0.91, 0.94, 0.91))
+    static let green = adaptive(light: (0.25, 0.37, 0.29), dark: (0.27, 0.50, 0.33))
+    static let muted = adaptive(light: (0.43, 0.47, 0.42), dark: (0.66, 0.70, 0.66))
+    static let orange = adaptive(light: (0.77, 0.40, 0.25), dark: (0.94, 0.55, 0.36))
+    static let wash = adaptive(light: (0.90, 0.92, 0.86), dark: (0.13, 0.18, 0.15))
+    static let card = adaptive(light: (0.99, 0.99, 0.98), dark: (0.12, 0.14, 0.13))
+    static let featured = adaptive(light: (0.92, 0.91, 0.85), dark: (0.16, 0.19, 0.17))
+    static let coverDark = Color(red: 0.15, green: 0.22, blue: 0.18)
+
+    private static func adaptive(light: (CGFloat, CGFloat, CGFloat), dark: (CGFloat, CGFloat, CGFloat)) -> Color {
+        Color(uiColor: UIColor { traits in
+            let components = traits.userInterfaceStyle == .dark ? dark : light
+            return UIColor(red: components.0, green: components.1, blue: components.2, alpha: 1)
+        })
+    }
 }
 
 struct BookCover: View {
@@ -29,7 +39,7 @@ struct BookCover: View {
     private var placeholder: some View {
         ZStack {
             RoundedRectangle(cornerRadius: large ? 16 : 9)
-                .fill(LinearGradient(colors: [ConteurTheme.green, ConteurTheme.ink], startPoint: .topLeading, endPoint: .bottomTrailing))
+                .fill(LinearGradient(colors: [Color(red: 0.25, green: 0.37, blue: 0.29), ConteurTheme.coverDark], startPoint: .topLeading, endPoint: .bottomTrailing))
             GeometryReader { proxy in
                 Path { path in
                     for i in 0..<7 {
@@ -56,5 +66,31 @@ struct Eyebrow: View {
     let text: String
     var body: some View {
         Text(text).font(.system(size: 10, weight: .semibold)).tracking(2).foregroundStyle(ConteurTheme.muted)
+    }
+}
+
+struct BookTranslationGauge: View {
+    let progress: Double
+    let isActive: Bool
+    var compact = false
+
+    private var value: Double { min(1, max(0, progress)) }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: compact ? 4 : 7) {
+            HStack(spacing: 8) {
+                Label(isActive ? "Traduction en cours" : "Traduction en pause",
+                      systemImage: isActive ? "translate" : "pause.circle")
+                Spacer(minLength: 8)
+                Text("\(Int((value * 100).rounded(.down))) %").monospacedDigit()
+            }
+            .font(compact ? .system(size: 10, weight: .semibold) : .caption.weight(.semibold))
+            .foregroundStyle(ConteurTheme.muted)
+            ProgressView(value: value)
+                .tint(isActive ? ConteurTheme.green : ConteurTheme.muted)
+        }
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel(isActive ? "Traduction en cours" : "Traduction en pause")
+        .accessibilityValue("\(Int((value * 100).rounded(.down))) pour cent")
     }
 }

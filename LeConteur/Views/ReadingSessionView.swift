@@ -1,5 +1,4 @@
 import SwiftUI
-import Translation
 
 /// Owns the native translation session for the whole reader presentation. Switching
 /// from the original to the first translated paragraphs must not destroy that session.
@@ -52,13 +51,13 @@ struct ReadingSessionView: View {
                 .accessibilityIdentifier("translation-prompt")
             }
         }
-        .translationTask(translation.configuration) { session in
-            await translation.translate(using: session)
-        }
         .onAppear {
             guard !didOpen else { return }
             didOpen = true
             if automaticallyTranslate, let document { start(document) }
+            else if let document, document.translationOf != nil, !document.isTranslationMetadataComplete {
+                repairMetadata(document)
+            }
         }
         .onChange(of: translation.readyDocumentID) { _, id in
             guard let id else { return }
@@ -69,8 +68,6 @@ struct ReadingSessionView: View {
             ReadingIdleTimer.isTranslating = active
         }
         .onDisappear {
-            requestTask?.cancel()
-            translation.cancel()
             ReadingIdleTimer.isTranslating = false
         }
         .interactiveDismissDisabled(showTranslation)
@@ -95,5 +92,12 @@ struct ReadingSessionView: View {
         library.rememberReading(originalID: id, readingID: id)
         currentID = id
         showTranslation = false
+    }
+
+    private func repairMetadata(_ document: ReadingDocument) {
+        requestTask?.cancel()
+        requestTask = Task {
+            await translation.request(document, targetLanguage: document.resolvedLanguage ?? TranslationCoordinator.phoneLanguage)
+        }
     }
 }

@@ -30,7 +30,7 @@ struct TranslationWork {
         encoder.outputFormatting = [.sortedKeys]
         let data = try! encoder.encode(blocks)
         var hash = SHA256()
-        hash.update(data: Data("paragraph-v1|\(source)|\(target)|".utf8))
+        hash.update(data: Data("paragraph-v2|\(source)|\(target)|\(document.title)|".utf8))
         hash.update(data: data)
         fingerprint = hash.finalize().map { String(format: "%02x", $0) }.joined()
     }
@@ -53,6 +53,8 @@ struct TranslationWork {
         result.languageCode = language
         result.translationVersion = 1
         result.translationComplete = false
+        result.translationTitleComplete = false
+        result.translationAuthorComplete = false
         result.translatedBlocks = 0
         result.translationTotalBlocks = blocks.count
         result.translationFingerprint = fingerprint
