@@ -23,6 +23,7 @@ struct ReadingDocument: Codable, Identifiable, Hashable, Sendable {
     var translatedBlocks: Int?
     var translationTotalBlocks: Int?
     var translationFingerprint: String?
+    var builtInID: String?
 
     var isTranslationPending: Bool { translationOf != nil && translationComplete == false }
     var isTranslationMetadataComplete: Bool {
@@ -50,36 +51,30 @@ struct ReadingDocument: Codable, Identifiable, Hashable, Sendable {
         }
     }
 
-    static let welcome: ReadingDocument = {
-        let text = """
-        Il y a des histoires qui commencent par un voyage. Celle-ci commence par une voix.
-
-        Imaginez un matin tranquille. La lumière glisse sur la table, le café est encore chaud et un livre vous attend. Vous n’avez pas besoin de tourner la page. Il vous suffit d’écouter.
-
-        Le Conteur donne une voix à vos textes, à vos documents et aux livres que vous aimez. Importez un fichier, choisissez votre voix et laissez les mots vous accompagner.
-
-        Tout se passe sur votre iPhone. Vos lectures restent avec vous, même lorsque le réseau disparaît. Dans un train, au détour d’une promenade, ou simplement les yeux fermés.
-
-        Vous pouvez choisir une voix de votre iPhone ou télécharger la voix neuronale française. Une fois installée, elle aussi fonctionne sans connexion.
-
-        Prenez votre temps. Accélérez la lecture, retrouvez un passage, posez un signet. Les histoires savent attendre.
-
-        Et maintenant, quel sera votre prochain voyage ?
-        """
-        let paragraphs = text.components(separatedBy: "\n\n").map(TextSegmenter.split)
+    static var welcome: ReadingDocument {
+        let paragraphs = [
+            String(localized: "Il y a des histoires qui commencent par un voyage. Celle-ci commence par une voix."),
+            String(localized: "Imaginez un matin tranquille. La lumière glisse sur la table, le café est encore chaud et un livre vous attend. Vous n’avez pas besoin de tourner la page. Il vous suffit d’écouter."),
+            String(localized: "Le Conteur donne une voix à vos textes, à vos documents et aux livres que vous aimez. Importez un fichier, choisissez votre voix et laissez les mots vous accompagner."),
+            String(localized: "Tout se passe sur votre iPhone. Vos lectures restent avec vous, même lorsque le réseau disparaît. Dans un train, au détour d’une promenade, ou simplement les yeux fermés."),
+            String(localized: "Vous pouvez choisir une voix de votre iPhone ou utiliser Qwen. Une fois installé, Qwen fonctionne lui aussi sans connexion."),
+            String(localized: "Prenez votre temps. Accélérez la lecture, retrouvez un passage, posez un signet. Les histoires savent attendre."),
+            String(localized: "Et maintenant, quel sera votre prochain voyage ?")
+        ].map(TextSegmenter.split)
         var document = ReadingDocument(
-        title: "Le goût des mots",
-        author: "Bienvenue dans Le Conteur",
-        source: "DÉCOUVERTE",
+        title: String(localized: "Le goût des mots"),
+        author: String(localized: "Bienvenue dans Le Conteur"),
+        source: String(localized: "DÉCOUVERTE"),
         segments: paragraphs.flatMap { $0 })
         var start = 0
         document.paragraphStarts = paragraphs.map { parts in
             defer { start += parts.count }
             return start
         }
-        document.languageCode = "fr"
+        document.languageCode = Locale.current.language.languageCode?.identifier ?? "fr"
+        document.builtInID = "welcome"
         return document
-    }()
+    }
 }
 
 enum TextSegmenter {

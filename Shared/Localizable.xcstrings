@@ -2102,6 +2102,71 @@
         }
       }
     },
+    "Bienvenue dans Le Conteur": {
+      "extractionState": "manual",
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "مرحبا بكم في الراوي"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Willkommen beim Erzähler"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Welcome to Storyteller"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bienvenido a Narrador"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Benvenuto in Narratore"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "語り手へようこそ"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "이야기꾼에 오신 것을 환영합니다"
+          }
+        },
+        "pt": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bem-vindo ao Contador"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Добро пожаловать в «Рассказчик»"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "欢迎使用讲述者"
+          }
+        }
+      }
+    },
     "Ce PDF est protégé par un mot de passe. Déverrouillez-le avant de l’importer.": {
       "localizations": {
         "ar": {
@@ -3261,6 +3326,71 @@
         }
       }
     },
+    "DÉCOUVERTE": {
+      "extractionState": "manual",
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "الاكتشاف"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ENTDECKUNG"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "DISCOVERY"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "DESCUBRIMIENTO"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "SCOPERTA"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "発見"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "발견"
+          }
+        },
+        "pt": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "DESCOBERTA"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ОТКРЫТИЕ"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "发现"
+          }
+        }
+      }
+    },
     "Désactiver la minuterie": {
       "localizations": {
         "ar": {
@@ -3901,6 +4031,71 @@
         }
       }
     },
+    "Et maintenant, quel sera votre prochain voyage ?": {
+      "extractionState": "manual",
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "والآن، ما هي رحلتك القادمة؟"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Und was wird nun Ihre nächste Reise sein?"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "And now, what will be your next trip?"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Y ahora, ¿cuál será tu próximo viaje?"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "E ora, quale sarà il tuo prossimo viaggio?"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "さて、次の旅行は何になりますか？"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "이제 다음 여행은 어떻게 될까요?"
+          }
+        },
+        "pt": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "E agora, qual será sua próxima viagem?"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "А теперь, какой будет ваша следующая поездка?"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "现在，您的下一次旅行将是什么？"
+          }
+        }
+      }
+    },
     "Fermer le lecteur": {
       "localizations": {
         "ar": {
@@ -4290,61 +4485,191 @@
         "ar": {
           "stringUnit": {
             "state": "translated",
-            "value": "أبقِ Le Conteur مفتوحًا أثناء إعداد Qwen. اضغط تشغيل للمتابعة."
+            "value": "أبقِ الراوي مفتوحًا أثناء إعداد Qwen. اضغط تشغيل للمتابعة."
           }
         },
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "Lassen Sie „Le Conteur“ geöffnet, während Sie Qwen vorbereiten. Tippen Sie auf „Wiedergabe“, um fortzufahren."
+            "value": "Lassen Sie „Erzähler“ geöffnet, während Sie Qwen vorbereiten. Tippen Sie auf „Wiedergabe“, um fortzufahren."
           }
         },
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Keep Le Conteur open while Qwen prepares. Tap Play to resume."
+            "value": "Keep Storyteller open while Qwen prepares. Tap Play to resume."
           }
         },
         "es": {
           "stringUnit": {
             "state": "translated",
-            "value": "Mantén abierto Le Conteur mientras preparas Qwen. Toca Reproducir para reanudar."
+            "value": "Mantén abierto Narrador mientras preparas Qwen. Toca Reproducir para reanudar."
           }
         },
         "it": {
           "stringUnit": {
             "state": "translated",
-            "value": "Mantieni aperto Le Conteur mentre prepari Qwen. Tocca Riproduci per riprendere."
+            "value": "Mantieni aperto Narratore mentre prepari Qwen. Tocca Riproduci per riprendere."
           }
         },
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "Qwenの準備中は、Le Conteurを開いたままにしてください。再開するには「再生」をタップします。"
+            "value": "Qwenの準備中は、語り手を開いたままにしてください。再開するには「再生」をタップします。"
           }
         },
         "ko": {
           "stringUnit": {
             "state": "translated",
-            "value": "Qwen이 준비하는 동안 Le Conteur를 열어 두세요. 다시 시작하려면 재생을 탭하세요."
+            "value": "Qwen이 준비하는 동안 이야기꾼을 열어 두세요. 다시 시작하려면 재생을 탭하세요."
           }
         },
         "pt": {
           "stringUnit": {
             "state": "translated",
-            "value": "Mantenha Le Conteur aberto enquanto prepara Qwen. Toque em Reproduzir para continuar."
+            "value": "Mantenha Contador aberto enquanto prepara Qwen. Toque em Reproduzir para continuar."
           }
         },
         "ru": {
           "stringUnit": {
             "state": "translated",
-            "value": "Держите Le Conteurа открытым, пока готовите Qwen. Нажмите «Воспроизвести», чтобы возобновить воспроизведение."
+            "value": "Держите Рассказчик открытым, пока готовите Qwen. Нажмите «Воспроизвести», чтобы возобновить воспроизведение."
           }
         },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "Qwen 准备期间请保持 Le Conteur 打开。轻点“播放”继续。"
+            "value": "Qwen 准备期间请保持 讲述者 打开。轻点“播放”继续。"
+          }
+        }
+      }
+    },
+    "Il y a des histoires qui commencent par un voyage. Celle-ci commence par une voix.": {
+      "extractionState": "manual",
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "هناك قصص تبدأ برحلة. وهذا يبدأ بالصوت."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Es gibt Geschichten, die mit einer Reise beginnen. Dies beginnt mit einer Stimme."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "There are stories that begin with a journey. This begins with a voice."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Hay historias que comienzan con un viaje. Esto comienza con una voz."
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ci sono storie che iniziano con un viaggio. Questo inizia con una voce."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "旅から始まる物語がある。これは声から始まります。"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "여행으로 시작되는 이야기가 있습니다. 이것은 목소리로 시작됩니다."
+          }
+        },
+        "pt": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Há histórias que começam com uma viagem. Isso começa com uma voz."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Есть истории, которые начинаются с путешествия. Все начинается с голоса."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "有些故事是从一次旅行开始的。这要从一个声音开始。"
+          }
+        }
+      }
+    },
+    "Imaginez un matin tranquille. La lumière glisse sur la table, le café est encore chaud et un livre vous attend. Vous n’avez pas besoin de tourner la page. Il vous suffit d’écouter.": {
+      "extractionState": "manual",
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "تخيل صباح هادئ. ينزلق الضوء عبر الطاولة، والقهوة لا تزال ساخنة، وكتاب في انتظارك. لا تحتاج إلى قلب الصفحة. عليك فقط أن تستمع."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Stellen Sie sich einen ruhigen Morgen vor. Das Licht gleitet über den Tisch, der Kaffee ist noch heiß und ein Buch erwartet Sie. Sie müssen nicht umblättern. Man muss nur zuhören."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Imagine a quiet morning. The light slides across the table, the coffee is still hot and a book awaits you. You don't need to turn the page. You just have to listen."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Imagina una mañana tranquila. La luz se desliza sobre la mesa, el café aún está caliente y un libro te espera. No es necesario pasar página. Sólo tienes que escuchar."
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Immagina una mattinata tranquilla. La luce scivola sul tavolo, il caffè è ancora caldo e un libro ti aspetta. Non è necessario voltare pagina. Devi solo ascoltare."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "静かな朝を想像してみてください。光がテーブルを横切り、コーヒーはまだ熱く、本があなたを待っています。ページをめくる必要はありません。ただ聞くだけでいいのです。"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "조용한 아침을 상상해 보세요. 빛이 테이블 위로 미끄러지듯 지나가고 커피는 여전히 뜨겁고 책 한 권이 여러분을 기다리고 있습니다. 페이지를 넘길 필요가 없습니다. 당신은 듣기만 하면 됩니다."
+          }
+        },
+        "pt": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Imagine uma manhã tranquila. A luz desliza pela mesa, o café ainda está quente e um livro espera por você. Você não precisa virar a página. Você apenas tem que ouvir."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Представьте себе тихое утро. Свет скользит по столу, кофе еще горячий, и вас ждет книга. Вам не нужно переворачивать страницу. Вам просто нужно слушать."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "想象一下一个安静的早晨。灯光从桌子上滑过，咖啡仍然是热的，一本书正在等待着您。你不需要翻页。你只需要听。"
           }
         }
       }
@@ -4866,61 +5191,61 @@
         "ar": {
           "stringUnit": {
             "state": "translated",
-            "value": "LE CONTEUR"
+            "value": "الراوي"
           }
         },
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "LE CONTEUR"
+            "value": "ERZÄHLER"
           }
         },
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "LE CONTEUR"
+            "value": "STORYTELLER"
           }
         },
         "es": {
           "stringUnit": {
             "state": "translated",
-            "value": "LE CONTEUR"
+            "value": "NARRADOR"
           }
         },
         "it": {
           "stringUnit": {
             "state": "translated",
-            "value": "LE CONTEUR"
+            "value": "NARRATORE"
           }
         },
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "LE CONTEUR"
+            "value": "語り手"
           }
         },
         "ko": {
           "stringUnit": {
             "state": "translated",
-            "value": "LE CONTEUR"
+            "value": "이야기꾼"
           }
         },
         "pt": {
           "stringUnit": {
             "state": "translated",
-            "value": "LE CONTEUR"
+            "value": "CONTADOR"
           }
         },
         "ru": {
           "stringUnit": {
             "state": "translated",
-            "value": "LE CONTEUR"
+            "value": "РАССКАЗЧИК"
           }
         },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "LE CONTEUR"
+            "value": "讲述者"
           }
         }
       }
@@ -5954,61 +6279,126 @@
         "ar": {
           "stringUnit": {
             "state": "translated",
-            "value": "Le Conteur"
+            "value": "الراوي"
           }
         },
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "Le Conteur"
+            "value": "Erzähler"
           }
         },
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Le Conteur"
+            "value": "Storyteller"
           }
         },
         "es": {
           "stringUnit": {
             "state": "translated",
-            "value": "Le Conteur"
+            "value": "Narrador"
           }
         },
         "it": {
           "stringUnit": {
             "state": "translated",
-            "value": "Le Conteur"
+            "value": "Narratore"
           }
         },
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "Le Conteur"
+            "value": "語り手"
           }
         },
         "ko": {
           "stringUnit": {
             "state": "translated",
-            "value": "Le Conteur"
+            "value": "이야기꾼"
           }
         },
         "pt": {
           "stringUnit": {
             "state": "translated",
-            "value": "Le Conteur"
+            "value": "Contador"
           }
         },
         "ru": {
           "stringUnit": {
             "state": "translated",
-            "value": "Le Conteur"
+            "value": "Рассказчик"
           }
         },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "Le Conteur"
+            "value": "讲述者"
+          }
+        }
+      }
+    },
+    "Le Conteur donne une voix à vos textes, à vos documents et aux livres que vous aimez. Importez un fichier, choisissez votre voix et laissez les mots vous accompagner.": {
+      "extractionState": "manual",
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "يعطي الراوي صوتًا لنصوصك ومستنداتك والكتب التي تحبها. قم بتحميل ملف، واختر صوتك ودع الكلمات ترافقك."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Der Erzähler verleiht Ihren Texten, Ihren Dokumenten und den Büchern, die Sie lieben, eine Stimme. Laden Sie eine Datei hoch, wählen Sie Ihre Stimme und lassen Sie sich von den Worten begleiten."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Storyteller gives a voice to your texts, your documents and the books you love. Upload a file, choose your voice and let the words accompany you."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Narrador da voz a tus textos, a tus documentos y a los libros que amas. Sube un archivo, elige tu voz y deja que las palabras te acompañen."
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Narratore dà voce ai tuoi testi, ai tuoi documenti e ai libri che ami. Carica un file, scegli la tua voce e lascia che le parole ti accompagnino."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "語り手は、あなたのテキスト、文書、そしてあなたが愛する本に声を与えます。ファイルをアップロードし、自分の声を選択して、言葉を添えてください。"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "이야기꾼는 귀하의 텍스트, 문서 및 귀하가 좋아하는 책에 음성을 제공합니다. 파일을 업로드하고 음성을 선택하고 단어를 따라가세요."
+          }
+        },
+        "pt": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Contador dá voz aos seus textos, aos seus documentos e aos livros que você adora. Faça upload de um arquivo, escolha sua voz e deixe as palavras te acompanharem."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Рассказчик дает голос вашим текстам, вашим документам и книгам, которые вы любите. Загрузите файл, выберите свой голос и позвольте словам сопровождать вас."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "讲述者为您的文本、文档和您喜爱的书籍提供声音。上传文件，选择您的声音，让文字陪伴您。"
           }
         }
       }
@@ -6073,6 +6463,71 @@
           "stringUnit": {
             "state": "translated",
             "value": "Qwen 文件 %@ 不完整或无效。请重新安装。"
+          }
+        }
+      }
+    },
+    "Le goût des mots": {
+      "extractionState": "manual",
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "طعم الكلمات"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Der Geschmack von Worten"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The taste of words"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "El sabor de las palabras"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Il sapore delle parole"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "言葉の味"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "말의 맛"
+          }
+        },
+        "pt": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "O sabor das palavras"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Вкус слов"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "言语的味道"
           }
         }
       }
@@ -6275,61 +6730,61 @@
         "ar": {
           "stringUnit": {
             "state": "translated",
-            "value": "نص «Le goût des mots» هو نص تجريبي أصلي أُنشئ لتطبيق Le Conteur."
+            "value": "نص «Le goût des mots» هو نص تجريبي أصلي أُنشئ لتطبيق الراوي."
           }
         },
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "„Le goût des mots“ ist ein eigens für Le Conteur verfasster Beispieltext."
+            "value": "„Le goût des mots“ ist ein eigens für Erzähler verfasster Beispieltext."
           }
         },
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "“Le goût des mots” is an original sample text created for Le Conteur."
+            "value": "“Le goût des mots” is an original sample text created for Storyteller."
           }
         },
         "es": {
           "stringUnit": {
             "state": "translated",
-            "value": "«Le goût des mots» es un texto de demostración original creado para Le Conteur."
+            "value": "«Le goût des mots» es un texto de demostración original creado para Narrador."
           }
         },
         "it": {
           "stringUnit": {
             "state": "translated",
-            "value": "«Le goût des mots» è un testo dimostrativo originale creato per Le Conteur."
+            "value": "«Le goût des mots» è un testo dimostrativo originale creato per Narratore."
           }
         },
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "「Le goût des mots」はLe Conteurのために作成されたオリジナルのサンプルテキストです。"
+            "value": "「Le goût des mots」は語り手のために作成されたオリジナルのサンプルテキストです。"
           }
         },
         "ko": {
           "stringUnit": {
             "state": "translated",
-            "value": "‘Le goût des mots’는 Le Conteur를 위해 제작된 오리지널 예시 텍스트입니다."
+            "value": "‘Le goût des mots’는 이야기꾼을 위해 제작된 오리지널 예시 텍스트입니다."
           }
         },
         "pt": {
           "stringUnit": {
             "state": "translated",
-            "value": "«Le goût des mots» é um texto de demonstração original criado para o Le Conteur."
+            "value": "«Le goût des mots» é um texto de demonstração original criado para o Contador."
           }
         },
         "ru": {
           "stringUnit": {
             "state": "translated",
-            "value": "«Le goût des mots» — оригинальный демонстрационный текст, созданный для Le Conteur."
+            "value": "«Le goût des mots» — оригинальный демонстрационный текст, созданный для Рассказчик."
           }
         },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "《Le goût des mots》是专为Le Conteur创作的原创示例文本。"
+            "value": "《Le goût des mots》是专为讲述者创作的原创示例文本。"
           }
         }
       }
@@ -8387,61 +8842,61 @@
         "ar": {
           "stringUnit": {
             "state": "translated",
-            "value": "افتح Le Conteur لإضافته إلى مكتبتك وبدء القراءة."
+            "value": "افتح الراوي لإضافته إلى مكتبتك وبدء القراءة."
           }
         },
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "Öffne Le Conteur, um es deiner Bibliothek hinzuzufügen und mit dem Lesen zu beginnen."
+            "value": "Öffne Erzähler, um es deiner Bibliothek hinzuzufügen und mit dem Lesen zu beginnen."
           }
         },
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Open Le Conteur to add it to your library and start reading."
+            "value": "Open Storyteller to add it to your library and start reading."
           }
         },
         "es": {
           "stringUnit": {
             "state": "translated",
-            "value": "Abre Le Conteur para añadirlo a tu biblioteca y empezar a leer."
+            "value": "Abre Narrador para añadirlo a tu biblioteca y empezar a leer."
           }
         },
         "it": {
           "stringUnit": {
             "state": "translated",
-            "value": "Apri Le Conteur per aggiungerlo alla libreria e iniziare la lettura."
+            "value": "Apri Narratore per aggiungerlo alla libreria e iniziare la lettura."
           }
         },
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "Le Conteurを開いてライブラリに追加し、読書を始めてください。"
+            "value": "語り手を開いてライブラリに追加し、読書を始めてください。"
           }
         },
         "ko": {
           "stringUnit": {
             "state": "translated",
-            "value": "Le Conteur를 열어 보관함에 추가하고 읽기를 시작하세요."
+            "value": "이야기꾼을 열어 보관함에 추가하고 읽기를 시작하세요."
           }
         },
         "pt": {
           "stringUnit": {
             "state": "translated",
-            "value": "Abra o Le Conteur para o adicionar à biblioteca e começar a leitura."
+            "value": "Abra o Contador para o adicionar à biblioteca e começar a leitura."
           }
         },
         "ru": {
           "stringUnit": {
             "state": "translated",
-            "value": "Откройте Le Conteur, чтобы добавить книгу в библиотеку и начать чтение."
+            "value": "Откройте Рассказчик, чтобы добавить книгу в библиотеку и начать чтение."
           }
         },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "打开 Le Conteur，将其添加到书库并开始阅读。"
+            "value": "打开 讲述者，将其添加到书库并开始阅读。"
           }
         }
       }
@@ -8771,61 +9226,61 @@
         "ar": {
           "stringUnit": {
             "state": "translated",
-            "value": "شارك ملف EPUB أو PDF أو DOCX أو TXT أو Markdown مع Le Conteur."
+            "value": "شارك ملف EPUB أو PDF أو DOCX أو TXT أو Markdown مع الراوي."
           }
         },
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "Teile eine EPUB-, PDF-, DOCX-, TXT- oder Markdown-Datei mit Le Conteur."
+            "value": "Teile eine EPUB-, PDF-, DOCX-, TXT- oder Markdown-Datei mit Erzähler."
           }
         },
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Share an EPUB, PDF, DOCX, TXT, or Markdown file with Le Conteur."
+            "value": "Share an EPUB, PDF, DOCX, TXT, or Markdown file with Storyteller."
           }
         },
         "es": {
           "stringUnit": {
             "state": "translated",
-            "value": "Comparte un archivo EPUB, PDF, DOCX, TXT o Markdown con Le Conteur."
+            "value": "Comparte un archivo EPUB, PDF, DOCX, TXT o Markdown con Narrador."
           }
         },
         "it": {
           "stringUnit": {
             "state": "translated",
-            "value": "Condividi un file EPUB, PDF, DOCX, TXT o Markdown con Le Conteur."
+            "value": "Condividi un file EPUB, PDF, DOCX, TXT o Markdown con Narratore."
           }
         },
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "EPUB、PDF、DOCX、TXT、またはMarkdownファイルをLe Conteurと共有してください。"
+            "value": "EPUB、PDF、DOCX、TXT、またはMarkdownファイルを語り手と共有してください。"
           }
         },
         "ko": {
           "stringUnit": {
             "state": "translated",
-            "value": "EPUB, PDF, DOCX, TXT 또는 Markdown 파일을 Le Conteur로 공유하세요."
+            "value": "EPUB, PDF, DOCX, TXT 또는 Markdown 파일을 이야기꾼으로 공유하세요."
           }
         },
         "pt": {
           "stringUnit": {
             "state": "translated",
-            "value": "Partilhe um ficheiro EPUB, PDF, DOCX, TXT ou Markdown com o Le Conteur."
+            "value": "Partilhe um ficheiro EPUB, PDF, DOCX, TXT ou Markdown com o Contador."
           }
         },
         "ru": {
           "stringUnit": {
             "state": "translated",
-            "value": "Поделитесь файлом EPUB, PDF, DOCX, TXT или Markdown с Le Conteur."
+            "value": "Поделитесь файлом EPUB, PDF, DOCX, TXT или Markdown с Рассказчик."
           }
         },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "请将 EPUB、PDF、DOCX、TXT 或 Markdown 文件共享到 Le Conteur。"
+            "value": "请将 EPUB、PDF、DOCX、TXT 或 Markdown 文件共享到 讲述者。"
           }
         }
       }
@@ -9345,6 +9800,71 @@
           "stringUnit": {
             "state": "translated",
             "value": "首次安装：可能需要几分钟。请保持 App 打开并连接到无线局域网。"
+          }
+        }
+      }
+    },
+    "Prenez votre temps. Accélérez la lecture, retrouvez un passage, posez un signet. Les histoires savent attendre.": {
+      "extractionState": "manual",
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "خذ وقتك. تسريع القراءة، والعثور على مقطع، ووضع إشارة مرجعية. القصص تعرف كيف تنتظر."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nehmen Sie sich Zeit. Beschleunigen Sie das Lesen, finden Sie eine Passage, setzen Sie ein Lesezeichen. Geschichten wissen, wie man wartet."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Take your time. Speed ​​up reading, find a passage, put a bookmark. Stories know how to wait."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tómate tu tiempo. Acelera la lectura, busca un pasaje, pon un marcador. Las historias saben esperar."
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Prenditi il tuo tempo. Accelera la lettura, trova un passaggio, metti un segnalibro. Le storie sanno aspettare."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ゆっくり時間をかけてください。読書をスピードアップし、一節を見つけ、ブックマークを付けます。物語は待つ方法を知っています。"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "천천히 시간을 가지세요. 읽기 속도를 높이고, 구절을 찾고, 북마크를 추가하세요. 이야기는 기다리는 방법을 알고 있습니다."
+          }
+        },
+        "pt": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Não tenha pressa. Acelere a leitura, encontre uma passagem, coloque um marcador. As histórias sabem esperar."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Не торопитесь. Ускорьте чтение, найдите отрывок, поставьте закладку. Истории умеют ждать."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "慢慢来。加快阅读速度，找到一段话，放书签。故事知道如何等待。"
           }
         }
       }
@@ -10250,25 +10770,25 @@
         "ar": {
           "stringUnit": {
             "state": "translated",
-            "value": "يُعدّ Qwen عدة مقاطع قبل القراءة ويواصل تجهيز المزيد أثناء الاستماع. يضبط الوضع التلقائي المخزون حسب السرعة ووقت الإعداد. يبقى المخزون قابلًا للتشغيل عند إطفاء الشاشة أو استخدام تطبيق آخر. وعندما ينفد، تنتظر القراءة عودتك إلى Le Conteur لإعداد المزيد. تتبّع الكلمات تقديري."
+            "value": "يُعدّ Qwen عدة مقاطع قبل القراءة ويواصل تجهيز المزيد أثناء الاستماع. يضبط الوضع التلقائي المخزون حسب السرعة ووقت الإعداد. يبقى المخزون قابلًا للتشغيل عند إطفاء الشاشة أو استخدام تطبيق آخر. وعندما ينفد، تنتظر القراءة عودتك إلى الراوي لإعداد المزيد. تتبّع الكلمات تقديري."
           }
         },
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "Qwen bereitet vor dem Lesen mehrere Passagen vor und kommt beim Zuhören weiter voran. Automatische Anpassung der Reserve an Geschwindigkeit und Zubereitungszeit. Bei ausgeschaltetem Bildschirm oder in einer anderen App bleibt die Reserve lesbar. Sobald die Lektüre leer ist, wartet sie auf Ihre Rückkehr zu Le Conteur, um sich auf den Rest vorzubereiten. Die Wortverfolgung wird geschätzt."
+            "value": "Qwen bereitet vor dem Lesen mehrere Passagen vor und kommt beim Zuhören weiter voran. Automatische Anpassung der Reserve an Geschwindigkeit und Zubereitungszeit. Bei ausgeschaltetem Bildschirm oder in einer anderen App bleibt die Reserve lesbar. Sobald die Lektüre leer ist, wartet sie auf Ihre Rückkehr zu Erzähler, um sich auf den Rest vorzubereiten. Die Wortverfolgung wird geschätzt."
           }
         },
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Qwen prepares several passages before reading and keeps working ahead while you listen. Automatic adjusts the buffer to the speed and preparation time. With the screen off or in another app, the buffer remains playable. Once empty, reading waits for you to return to Le Conteur to prepare more. Word tracking is estimated."
+            "value": "Qwen prepares several passages before reading and keeps working ahead while you listen. Automatic adjusts the buffer to the speed and preparation time. With the screen off or in another app, the buffer remains playable. Once empty, reading waits for you to return to Storyteller to prepare more. Word tracking is estimated."
           }
         },
         "es": {
           "stringUnit": {
             "state": "translated",
-            "value": "Qwen prepara varios pasajes antes de leer y continúa avanzando mientras escucha. Automático adapta la reserva a la velocidad y tiempo de preparación. Con la pantalla apagada o en otra aplicación, la reserva sigue siendo legible. Una vez vacía, la lectura espera tu regreso a Le Conteur para prepararte para el resto. Se estima el seguimiento de palabras."
+            "value": "Qwen prepara varios pasajes antes de leer y continúa avanzando mientras escucha. Automático adapta la reserva a la velocidad y tiempo de preparación. Con la pantalla apagada o en otra aplicación, la reserva sigue siendo legible. Una vez vacía, la lectura espera tu regreso a Narrador para prepararte para el resto. Se estima el seguimiento de palabras."
           }
         },
         "it": {
@@ -10280,31 +10800,31 @@
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "Qwenは読む前にいくつかの文章を準備し、聞きながら先を読み続けます。リザーブは速度と準備時間に自動的に適応されます。画面をオフにしても、別のアプリを使用しても、リザーブは読み取り可能なままです。読み物が空になると、残りの準備のために Le Conteur に戻るのを待ちます。単語追跡は推定されます。"
+            "value": "Qwenは読む前にいくつかの文章を準備し、聞きながら先を読み続けます。リザーブは速度と準備時間に自動的に適応されます。画面をオフにしても、別のアプリを使用しても、リザーブは読み取り可能なままです。読み物が空になると、残りの準備のために 語り手 に戻るのを待ちます。単語追跡は推定されます。"
           }
         },
         "ko": {
           "stringUnit": {
             "state": "translated",
-            "value": "Qwen은 낭독 전에 여러 구절을 준비하고 듣는 동안 다음 내용을 계속 준비합니다. 자동 설정은 속도와 준비 시간에 맞춰 버퍼를 조절합니다. 화면을 끄거나 다른 앱을 사용해도 준비된 버퍼는 재생할 수 있습니다. 버퍼가 비면 Le Conteur로 돌아와 다음 내용을 준비할 때까지 기다립니다. 단어 추적은 예상값입니다."
+            "value": "Qwen은 낭독 전에 여러 구절을 준비하고 듣는 동안 다음 내용을 계속 준비합니다. 자동 설정은 속도와 준비 시간에 맞춰 버퍼를 조절합니다. 화면을 끄거나 다른 앱을 사용해도 준비된 버퍼는 재생할 수 있습니다. 버퍼가 비면 이야기꾼으로 돌아와 다음 내용을 준비할 때까지 기다립니다. 단어 추적은 예상값입니다."
           }
         },
         "pt": {
           "stringUnit": {
             "state": "translated",
-            "value": "Qwen prepara várias passagens antes de ler e continua avançando enquanto ouve. Automático adapta a reserva à velocidade e ao tempo de preparo. Fora da tela ou em outro aplicativo, a reserva permanece legível. Uma vez vazia, a leitura aguarda seu retorno aLe Conteur para se preparar para o resto. O rastreamento de palavras é estimado."
+            "value": "Qwen prepara várias passagens antes de ler e continua avançando enquanto ouve. Automático adapta a reserva à velocidade e ao tempo de preparo. Fora da tela ou em outro aplicativo, a reserva permanece legível. Uma vez vazia, a leitura aguarda seu retorno ao Contador para se preparar para o resto. O rastreamento de palavras é estimado."
           }
         },
         "ru": {
           "stringUnit": {
             "state": "translated",
-            "value": "Qwen готовит несколько отрывков перед чтением и продолжает продвигаться вперед, слушая. Автомат адаптирует резерв под скорость и время приготовления. Выключив экран или в другом приложении, резерв остаётся читаемым. Когда книга опустеет, она ждет вашего возвращения в Le Conteur, чтобы подготовиться к остальному. Отслеживание слов оценивается."
+            "value": "Qwen готовит несколько отрывков перед чтением и продолжает продвигаться вперед, слушая. Автомат адаптирует резерв под скорость и время приготовления. Выключив экран или в другом приложении, резерв остаётся читаемым. Когда книга опустеет, она ждет вашего возвращения в Рассказчик, чтобы подготовиться к остальному. Отслеживание слов оценивается."
           }
         },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "Qwen 会在朗读前预先准备多个段落，并在朗读过程中继续准备后续内容。“自动”会根据朗读速度和准备时间调整音频缓冲。关闭屏幕或切换到其他应用后，已缓冲的内容仍可继续朗读。缓冲用尽后，朗读会等待您返回 Le Conteur，再准备后续内容。单词跟随位置为估算值。"
+            "value": "Qwen 会在朗读前预先准备多个段落，并在朗读过程中继续准备后续内容。“自动”会根据朗读速度和准备时间调整音频缓冲。关闭屏幕或切换到其他应用后，已缓冲的内容仍可继续朗读。缓冲用尽后，朗读会等待您返回 讲述者，再准备后续内容。单词跟随位置为估算值。"
           }
         }
       }
@@ -12611,6 +13131,71 @@
           "stringUnit": {
             "state": "translated",
             "value": "全部"
+          }
+        }
+      }
+    },
+    "Tout se passe sur votre iPhone. Vos lectures restent avec vous, même lorsque le réseau disparaît. Dans un train, au détour d’une promenade, ou simplement les yeux fermés.": {
+      "extractionState": "manual",
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "كل شيء يحدث على جهاز iPhone الخاص بك. قراءاتك تبقى معك، حتى عندما تختفي الشبكة. في القطار، أثناء المشي، أو ببساطة مع إغلاق عينيك."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Alles geschieht auf Ihrem iPhone. Ihre Messwerte bleiben bei Ihnen, auch wenn das Netzwerk verschwindet. Im Zug, beim Spaziergang oder einfach mit geschlossenen Augen."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Everything happens on your iPhone. Your readings stay with you, even when the network disappears. On a train, while taking a walk, or simply with your eyes closed."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Todo sucede en tu iPhone. Tus lecturas permanecen contigo, incluso cuando la red desaparece. En un tren, mientras das un paseo o simplemente con los ojos cerrados."
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tutto accade sul tuo iPhone. Le tue letture rimangono con te, anche quando la rete scompare. In treno, mentre fai una passeggiata o semplicemente con gli occhi chiusi."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "すべては iPhone 上で行われます。ネットワークが消滅しても、測定値は残ります。電車の中、散歩中、目を閉じているときなど。"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "모든 일은 iPhone에서 이루어집니다. 네트워크가 사라져도 판독값은 그대로 유지됩니다. 기차 안, 산책 중, 눈을 감고 있을 때."
+          }
+        },
+        "pt": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tudo acontece no seu iPhone. Suas leituras permanecem com você, mesmo quando a rede desaparece. No trem, durante um passeio ou simplesmente com os olhos fechados."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Все происходит на вашем iPhone. Ваши показания остаются с вами, даже когда сеть пропадает. В поезде, на прогулке или просто с закрытыми глазами."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "一切都发生在您的 iPhone 上。即使网络消失，您的读数也会保留在您身边。在火车上、散步时或只是闭上眼睛。"
           }
         }
       }
@@ -14981,6 +15566,71 @@
           "stringUnit": {
             "state": "translated",
             "value": "您可以切换应用或关闭屏幕。"
+          }
+        }
+      }
+    },
+    "Vous pouvez choisir une voix de votre iPhone ou utiliser Qwen. Une fois installé, Qwen fonctionne lui aussi sans connexion.": {
+      "extractionState": "manual",
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "يمكنك اختيار صوت من جهاز iPhone الخاص بك أو استخدام Qwen. بمجرد التثبيت، يعمل Qwen أيضًا بدون اتصال."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sie können eine Stimme von Ihrem iPhone auswählen oder Qwen verwenden. Einmal installiert funktioniert Qwen auch ohne Verbindung."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "You can choose a voice from your iPhone or use Qwen. Once installed, Qwen also works without connection."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Puedes elegir una voz desde tu iPhone o usar Qwen. Una vez instalado, Qwen también funciona sin conexión."
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Puoi scegliere una voce dal tuo iPhone o utilizzare Qwen. Una volta installato, Qwen funziona anche senza connessione."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "iPhone から音声を選択することも、Qwen を使用することもできます。 Qwen をインストールすると、接続しなくても動作します。"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "iPhone에서 음성을 선택하거나 Qwen을 사용할 수 있습니다. Qwen은 일단 설치되면 연결 없이도 작동합니다."
+          }
+        },
+        "pt": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Você pode escolher uma voz do seu iPhone ou usar o Qwen. Depois de instalado, o Qwen também funciona sem conexão."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Вы можете выбрать голос со своего iPhone или использовать Qwen. После установки Qwen также работает без подключения."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "您可以从 iPhone 中选择声音或使用 Qwen。安装后，Qwen 无需连接即可运行。"
           }
         }
       }

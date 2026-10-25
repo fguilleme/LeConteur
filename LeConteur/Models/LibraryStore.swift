@@ -50,7 +50,7 @@ final class LibraryStore {
             try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
             if FileManager.default.fileExists(atPath: fileURL.path) {
                 let loaded = try JSONDecoder().decode([ReadingDocument].self, from: Data(contentsOf: fileURL))
-                documents = Self.consolidatingDuplicateTranslations(in: loaded)
+                documents = Self.localizingBuiltInDocuments(in: Self.consolidatingDuplicateTranslations(in: loaded))
                 if documents != loaded { save() }
             } else {
                 documents = [.welcome]
@@ -63,6 +63,27 @@ final class LibraryStore {
             }
             errorMessage = String(format: String(localized: "La bibliothèque n’a pas pu être ouverte. Vos fichiers ont été conservés. %@"), error.localizedDescription)
         }
+    }
+
+    /// Built-in books follow the app language even when they were created by an
+    /// earlier version. Preserve the reader state and stable ID while refreshing
+    /// their localized metadata and passages.
+    private static func localizingBuiltInDocuments(in documents: [ReadingDocument]) -> [ReadingDocument] {
+        var result = documents
+        guard let index = result.firstIndex(where: {
+            $0.builtInID == "welcome" ||
+                ($0.translationOf == nil && $0.source == "DÉCOUVERTE" && $0.title == "Le goût des mots")
+        }) else { return result }
+        let previous = result[index]
+        var localized = ReadingDocument.welcome
+        localized.id = previous.id
+        localized.importedAt = previous.importedAt
+        localized.position = min(previous.position, max(localized.segments.count - 1, 0))
+        localized.isFinished = previous.isFinished
+        localized.bookmarks = Set(previous.bookmarks.filter { localized.segments.indices.contains($0) })
+        localized.preferredReadingID = previous.preferredReadingID
+        result[index] = localized
+        return result
     }
 
     /// A source book has one local edition per target language. Older versions of

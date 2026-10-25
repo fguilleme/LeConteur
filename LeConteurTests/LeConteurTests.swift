@@ -1909,6 +1909,30 @@ final class LeConteurTests: XCTestCase {
         XCTAssertEqual(try Data(contentsOf: url), data)
     }
 
+    @MainActor func testLegacyWelcomeBookIsRelocalizedWithoutLosingReaderState() throws {
+        let directory = URL.temporaryDirectory.appending(path: UUID().uuidString)
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: directory) }
+        var legacy = ReadingDocument(
+            title: "Le goût des mots",
+            author: "Bienvenue dans Le Conteur",
+            source: "DÉCOUVERTE",
+            segments: ["Ancien premier passage.", "Ancien second passage."]
+        )
+        legacy.position = 1
+        legacy.bookmarks = [1]
+        try JSONEncoder().encode([legacy]).write(to: directory.appending(path: "library.json"))
+
+        let localized = try XCTUnwrap(LibraryStore(directory: directory).documents.first)
+        XCTAssertEqual(localized.id, legacy.id)
+        XCTAssertEqual(localized.builtInID, "welcome")
+        XCTAssertEqual(localized.title, ReadingDocument.welcome.title)
+        XCTAssertEqual(localized.author, ReadingDocument.welcome.author)
+        XCTAssertEqual(localized.segments, ReadingDocument.welcome.segments)
+        XCTAssertEqual(localized.position, 1)
+        XCTAssertEqual(localized.bookmarks, [1])
+    }
+
     func testSharedFileIsCopiedBeforeProviderDisappears() throws {
         guard SharedInbox.directory != nil else { throw XCTSkip("App group unavailable on this test host") }
         let source = URL.temporaryDirectory.appending(path: "\(UUID().uuidString).txt")
@@ -1987,6 +2011,26 @@ final class LocalizationCatalogTests: XCTestCase {
     func testEverySupportedLanguageCoversActiveStringsAndPreservesFormatSpecifiers() throws {
         for language in ["ar", "de", "en", "es", "it", "ja", "ko", "pt", "ru", "zh-Hans"] {
             try assertCompleteLocalization(language)
+        }
+    }
+
+    func testAppDisplayNameIsLocalizedForEverySupportedLanguage() throws {
+        let repository = URL(fileURLWithPath: #filePath)
+            .deletingLastPathComponent()
+            .deletingLastPathComponent()
+        let catalogURL = repository.appending(path: "Shared/InfoPlist.xcstrings")
+        let data = try Data(contentsOf: catalogURL)
+        let catalog = try XCTUnwrap(JSONSerialization.jsonObject(with: data) as? [String: Any])
+        let strings = try XCTUnwrap(catalog["strings"] as? [String: Any])
+        let displayName = try XCTUnwrap(strings["CFBundleDisplayName"] as? [String: Any])
+        let localizations = try XCTUnwrap(displayName["localizations"] as? [String: Any])
+
+        for language in ["ar", "de", "en", "es", "it", "ja", "ko", "pt", "ru", "zh-Hans"] {
+            let localization = try XCTUnwrap(localizations[language] as? [String: Any], language)
+            let unit = try XCTUnwrap(localization["stringUnit"] as? [String: Any], language)
+            let value = try XCTUnwrap(unit["value"] as? String, language)
+            XCTAssertFalse(value.isEmpty, "Missing localized app name for \(language)")
+            XCTAssertNotEqual(value, "Le Conteur", "App name still uses French in \(language)")
         }
     }
 

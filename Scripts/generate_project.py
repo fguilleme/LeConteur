@@ -56,11 +56,12 @@ shared=['Shared/SharedInbox.swift']
 app_sources=[str(p.relative_to(ROOT)) for p in sorted((ROOT/'LeConteur').rglob('*.swift'))]+shared
 share_sources=[str(p.relative_to(ROOT)) for p in sorted((ROOT/'ConteurShare').glob('*.swift'))]+shared
 test_sources=[str(p.relative_to(ROOT)) for p in sorted((ROOT/'LeConteurTests').glob('*.swift'))]
-app_resources=[('LeConteur/Resources/VoiceAssets','folder'),('LeConteur/Resources/Assets.xcassets','folder.assetcatalog'),('LeConteur/Resources/ThirdPartyNotices.txt','text'),('LeConteur/Resources/QwenModelManifest.json','text.json'),('Shared/PrivacyInfo.xcprivacy','text.xml')]
+localized_resources=[('Shared/Localizable.xcstrings','text.json.xcstrings'),('Shared/InfoPlist.xcstrings','text.json.xcstrings')]
+app_resources=[('LeConteur/Resources/VoiceAssets','folder'),('LeConteur/Resources/Assets.xcassets','folder.assetcatalog'),('LeConteur/Resources/ThirdPartyNotices.txt','text'),('LeConteur/Resources/QwenModelManifest.json','text.json'),('Shared/PrivacyInfo.xcprivacy','text.xml')]+localized_resources
 app_phases=[phase('AppSources','PBXSourcesBuildPhase',[build_file(p,'sourcecode.swift','App') for p in app_sources]),phase('AppResources','PBXResourcesBuildPhase',[build_file(p,k,'App') for p,k in app_resources]),phase('AppFrameworks','PBXFrameworksBuildPhase',frameworks)]
 embed=obj('embedShare','PBXBuildFile',fileRef=products[1],settings={'ATTRIBUTES':['RemoveHeadersOnCopy']})
 app_phases.append(phase('EmbedExtensions','PBXCopyFilesBuildPhase',[embed],dstPath='',dstSubfolderSpec=13,name='Embed App Extensions'))
-share_phases=[phase('ShareSources','PBXSourcesBuildPhase',[build_file(p,'sourcecode.swift','Share') for p in share_sources]),phase('ShareResources','PBXResourcesBuildPhase',[build_file('Shared/PrivacyInfo.xcprivacy','text.xml','Share')]),phase('ShareFrameworks','PBXFrameworksBuildPhase',[])]
+share_phases=[phase('ShareSources','PBXSourcesBuildPhase',[build_file(p,'sourcecode.swift','Share') for p in share_sources]),phase('ShareResources','PBXResourcesBuildPhase',[build_file('Shared/PrivacyInfo.xcprivacy','text.xml','Share')]+[build_file(p,k,'Share') for p,k in localized_resources]),phase('ShareFrameworks','PBXFrameworksBuildPhase',[])]
 test_phases=[phase('TestSources','PBXSourcesBuildPhase',[build_file(p,'sourcecode.swift','Test') for p in test_sources]),phase('TestFrameworks','PBXFrameworksBuildPhase',[]),phase('TestResources','PBXResourcesBuildPhase',[build_file('LeConteurTests/Fixtures','folder','Test')])]
 project_id=uid('Project')
 def dependency(name,target):
@@ -76,7 +77,7 @@ obj('TestTarget','PBXNativeTarget',name='LeConteurTests',productName='LeConteurT
 product_group=obj('Products','PBXGroup',name='Products',sourceTree='<group>',children=products)
 file_refs=sorted(set(uid('file:'+p) for p in app_sources+share_sources+test_sources+[p for p,k in app_resources]))
 main_group=obj('Main','PBXGroup',sourceTree='<group>',children=file_refs+[product_group])
-obj('Project','PBXProject',attributes={'LastUpgradeCheck':'1600','TargetAttributes':{app_id:{'CreatedOnToolsVersion':'16.0'},share_id:{'CreatedOnToolsVersion':'16.0'},test_id:{'CreatedOnToolsVersion':'16.0','TestTargetID':app_id}}},buildConfigurationList=configs('Project',{'CLANG_ENABLE_OBJC_ARC':'YES','ENABLE_STRICT_OBJC_MSGSEND':'YES','GCC_C_LANGUAGE_STANDARD':'gnu17','CLANG_CXX_LANGUAGE_STANDARD':'c++17','SWIFT_STRICT_CONCURRENCY':'targeted'}),compatibilityVersion='Xcode 14.0',developmentRegion='fr',knownRegions=['fr','en','Base'],mainGroup=main_group,productRefGroup=product_group,projectDirPath='',projectRoot='',targets=[app_id,share_id,test_id],packageReferences=packages)
+obj('Project','PBXProject',attributes={'LastUpgradeCheck':'1600','TargetAttributes':{app_id:{'CreatedOnToolsVersion':'16.0'},share_id:{'CreatedOnToolsVersion':'16.0'},test_id:{'CreatedOnToolsVersion':'16.0','TestTargetID':app_id}}},buildConfigurationList=configs('Project',{'CLANG_ENABLE_OBJC_ARC':'YES','ENABLE_STRICT_OBJC_MSGSEND':'YES','GCC_C_LANGUAGE_STANDARD':'gnu17','CLANG_CXX_LANGUAGE_STANDARD':'c++17','SWIFT_STRICT_CONCURRENCY':'targeted'}),compatibilityVersion='Xcode 14.0',developmentRegion='fr',knownRegions=['fr','en','de','es','it','pt','zh-Hans','ja','ko','ru','ar','Base'],mainGroup=main_group,productRefGroup=product_group,projectDirPath='',projectRoot='',targets=[app_id,share_id,test_id],packageReferences=packages)
 def emit(v,depth=0):
     if isinstance(v,dict): return '{\n'+''.join('\t'*(depth+1)+json.dumps(str(k))+ ' = '+emit(x,depth+1)+';\n' for k,x in v.items())+'\t'*depth+'}'
     if isinstance(v,list): return '('+', '.join(emit(x,depth) for x in v)+')'
