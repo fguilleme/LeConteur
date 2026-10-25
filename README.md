@@ -34,6 +34,17 @@ Les couvertures EPUB 3 (`cover-image`), EPUB 2 (`meta name="cover"`) et les page
 
 Le projet utilise iOS 18 comme version minimale. Il a été compilé avec le SDK iOS 27.1 et testé sur le simulateur iOS 27.0 présent sur ce Mac. La compilation signée, l’installation et le lancement sur l’iPhone 15 Pro connecté ont également réussi dans Xcode le 24 octobre 2026.
 
+### Inclusion optionnelle de Qwen
+
+Qwen est activé par défaut par le réglage de cible `CONTEUR_QWEN_CONDITION = CONTEUR_QWEN`. Pour préparer une version centrée sur Supertonic et les voix Apple, remplacer cette valeur par `CONTEUR_NO_QWEN`, ou la surcharger en ligne de commande :
+
+```sh
+xcodebuild -project LeConteur.xcodeproj -scheme LeConteur \
+  CONTEUR_QWEN_CONDITION=CONTEUR_NO_QWEN build
+```
+
+Cette variante masque la carte Qwen, empêche sa sélection et son aperçu, ne crée aucune tâche de téléchargement Qwen et migre une ancienne préférence Qwen vers Supertonic lorsqu’il est installé, sinon vers une voix Apple. Elle ne supprime pas les poids déjà présents afin de rendre le changement de variante réversible. Le réglage reste `CONTEUR_QWEN` dans le projet pour la version actuelle.
+
 ## Qwen sur iPhone
 
 Dans **Voix → Qwen**, choisir un timbre parmi **Ryan, Aiden, Serena, Vivian, Uncle Fu, Ono Anna, Sohee, Dylan et Eric**, puis le style **Chaleureux**, **Sobre** ou **Théâtral** et **Écouter ce style**. Ces neuf timbres sont inclus dans le même modèle ; aucun téléchargement supplémentaire n’est nécessaire. La langue native affichée décrit le timbre : la lecture garde la langue du texte, y compris pour Dylan et Eric dont le dialecte chinois ne doit pas remplacer une langue explicitement demandée. Des accents peuvent varier selon la voix. Choisir un timbre ou un style active Qwen pour la lecture. Le choix est mémorisé indépendamment du style. Les descriptions suivent la [fiche officielle Qwen](https://huggingface.co/Qwen/Qwen3-TTS-12Hz-1.7B-CustomVoice). Le bouton **Utiliser pour mes livres** active le même moteur dans le lecteur. Les trois consignes d’intonation sont rédigées dans la langue du texte lu (français, anglais, espagnol, allemand, italien, portugais, russe, japonais, coréen ou chinois), puis envoyées au modèle avec la langue explicite. Pour une traduction, il s’agit de la langue cible. Une consigne commune demande une articulation complète et un accent constant à chaque passage ; elle ne garantit pas à elle seule la qualité de prononciation du modèle. Les versions 0,6B qui ignorent les consignes de style ne sont pas utilisées.
