@@ -37,6 +37,7 @@ final class PlaybackController: NSObject {
     private var preparedVoice: PreparedVoice?
     private var requestedEngine: VoiceEngine
     private var previewDocument: ReadingDocument?
+    private var previewEngine: VoiceEngine?
     private var qwenPlayer: QwenPassagePlayer?
     private var qwenSessionID: UUID?
     private var utterance: AVSpeechUtterance?
@@ -75,30 +76,43 @@ final class PlaybackController: NSObject {
     var qwenCompletedAudioSeconds: Double { qwenPlayer?.completedAudioSeconds ?? 0 }
     var qwenBufferedPlaybackSeconds: Double { qwenPlayer?.bufferedPlaybackSeconds ?? 0 }
     var isUsingAppleForTranslation: Bool {
-        !isPreview && settings.engine == .qwen && translationIsActive && document?.isTranslationPending == true
+        !isPreview && settings.engine != .system && translationIsActive && document?.isTranslationPending == true
     }
     var voiceFallbackMessage: String? {
         if isUsingAppleForTranslation {
             return String(localized: "Voix Apple pendant la traduction. Choisir Qwen met la traduction en pause pour lire les passages déjà prêts.")
         }
-        if settings.engine == .qwen, effectiveEngine == .system {
-            return String(localized: "Qwen ne prend pas en charge la langue de ce livre. Lecture avec la voix Apple \(voiceName).")
+        if settings.engine == .supertonic, !isSupertonicInstalled {
+            return SupertonicError.missing.localizedDescription
+        }
+        if settings.engine != .system, effectiveEngine == .system {
+            return String(format: String(localized: "%@ ne prend pas en charge la langue de ce livre. Lecture avec la voix Apple %@."), settings.engine.name, voiceName)
         }
         return nil
     }
+    private var isSupertonicInstalled: Bool {
+        VoiceDownloads.shared.snapshot("supertonic").installed
+    }
     var effectiveEngine: VoiceEngine {
-        if isPreview { return .qwen }
+        if isPreview { return previewEngine ?? .qwen }
         // Only active translation needs the temporary Apple voice. An unfinished
         // edition on disk must not override the reader's saved Qwen preference.
         if isUsingAppleForTranslation { return .system }
         switch settings.engine {
-        case .qwen: return NarrationStyle.languageName(for: document?.resolvedLanguage) != nil ? .qwen : .system
+        case .qwen:
+            guard VoiceFeatures.qwenEnabled else {
+                return isSupertonicInstalled && SupertonicModel.languageCode(for: document?.resolvedLanguage) != nil ? .supertonic : .system
+            }
+            return NarrationStyle.languageName(for: document?.resolvedLanguage) != nil ? .qwen : .system
+        case .supertonic:
+            return isSupertonicInstalled && SupertonicModel.languageCode(for: document?.resolvedLanguage) != nil ? .supertonic : .system
         case .system: return .system
         }
     }
     var voiceName: String {
         switch effectiveEngine {
         case .qwen: "\(settings.qwenSpeaker.name) · \(settings.qwenStyle.name)"
+        case .supertonic: "Supertonic · \(settings.supertonicVoice.name)"
         case .system: selectedVoice?.name ?? "Voix du texte"
         }
     }
@@ -110,6 +124,7 @@ final class PlaybackController: NSObject {
     private enum PreparedVoice: Equatable {
         case system(identifier: String?, rate: Float)
         case qwen(speaker: QwenSpeaker, style: NarrationStyle, language: String)
+        case supertonic(voice: SupertonicVoice, language: String)
     }
 
     private var chosenVoice: PreparedVoice {
@@ -117,6 +132,8 @@ final class PlaybackController: NSObject {
         case .system: .system(identifier: selectedVoice?.identifier, rate: SystemVoiceSelection.speechRate(for: settings.speed))
         case .qwen: .qwen(speaker: settings.qwenSpeaker, style: settings.qwenStyle,
                          language: NarrationStyle.languageName(for: document?.resolvedLanguage) ?? "French")
+        case .supertonic: .supertonic(voice: settings.supertonicVoice,
+                                     language: SupertonicModel.languageCode(for: document?.resolvedLanguage) ?? "fr")
         }
     }
 
@@ -182,6 +199,7 @@ final class PlaybackController: NSObject {
     func open(_ document: ReadingDocument, autoplay: Bool = false) {
         configureRemoteCommands()
         previewDocument = nil
+        previewEngine = nil
         if documentID != document.id {
             stopAudio()
             documentID = document.id
@@ -200,9 +218,12 @@ final class PlaybackController: NSObject {
         recordDiagnosticEvent("willResignActive")
         applicationIsActive = false
         qwenPlayer?.suspendGeneration()
-        if effectiveEngine == .qwen {
+        if effectiveEngine != .system {
             finishBackgroundTask()
-            Task { await QwenVoiceRenderer.shared.unload() }
+            Task {
+                await QwenVoiceRenderer.shared.unload()
+                await SupertonicVoiceRenderer.shared.unload()
+            }
         }
     }
 
@@ -263,9 +284,9 @@ final class PlaybackController: NSObject {
             updateNowPlaying()
             return
         }
-        if let qwenPlayer, effectiveEngine == .qwen {
-            qwenPlayer.rate = settings.qwenSpeed
-            qwenPlayer.setBufferPreset(settings.qwenBuffer)
+        if let qwenPlayer, effectiveEngine != .system {
+            qwenPlayer.rate = playbackSpeed
+            if effectiveEngine == .qwen { qwenPlayer.setBufferPreset(settings.qwenBuffer) }
             qwenPlayer.play()
         } else if speech.isPaused, utterance != nil, effectiveEngine == .system {
             speech.continueSpeaking()
@@ -299,6 +320,7 @@ final class PlaybackController: NSObject {
     func stop() {
         stopAudio()
         previewDocument = nil
+        previewEngine = nil
         documentID = nil
         for (command, target) in remoteCommandTargets { command.removeTarget(target) }
         remoteCommandTargets.removeAll()
@@ -329,11 +351,12 @@ final class PlaybackController: NSObject {
     }
 
     func selectEngine(_ engine: VoiceEngine) {
+        guard engine != .qwen || VoiceFeatures.qwenEnabled else { return }
         settings.engine = engine
         requestedEngine = engine
         // An explicit Qwen selection must take effect even if it was already
         // checked while a temporary Apple voice was reading the translation.
-        if engine == .qwen { suspendTranslation?() }
+        if engine != .system { suspendTranslation?() }
         settingsChanged()
     }
 
@@ -355,7 +378,7 @@ final class PlaybackController: NSObject {
     private func refreshRequestedEngine() {
         guard requestedEngine != settings.engine else { return }
         requestedEngine = settings.engine
-        if settings.engine == .qwen { suspendTranslation?() }
+        if settings.engine != .system { suspendTranslation?() }
     }
 
     func translationActivityChanged(_ active: Bool) {
@@ -371,6 +394,7 @@ final class PlaybackController: NSObject {
         if qwenPlayer != nil { stopAudio() }
         if let session { await QwenVoiceRenderer.shared.endSession(session) }
         await QwenVoiceRenderer.shared.unload()
+        await SupertonicVoiceRenderer.shared.unload()
     }
 
     @discardableResult private func discardObsoleteAudio() -> Bool {
@@ -387,10 +411,12 @@ final class PlaybackController: NSObject {
     }
 
     func speedChanged() {
-        if let qwenPlayer, effectiveEngine == .qwen {
-            qwenPlayer.rate = settings.qwenSpeed
+        if let qwenPlayer, effectiveEngine != .system {
+            qwenPlayer.rate = playbackSpeed
             updateNowPlaying()
-        } else if effectiveEngine != .qwen { settingsChanged() }
+        } else if effectiveEngine == .system {
+            settingsChanged()
+        }
     }
 
     func qwenBufferChanged() {
@@ -399,9 +425,23 @@ final class PlaybackController: NSObject {
     }
 
     func previewQwen() {
+        guard VoiceFeatures.qwenEnabled else { return }
         stopAudio()
         guard let sample = try? DocumentImporter.fromText(NarrationStyle.auditionText, title: "Trois façons de raconter", source: "APERÇU QWEN") else { return }
         previewDocument = sample
+        previewEngine = .qwen
+        documentID = sample.id
+        configureRemoteCommands()
+        position = 0
+        play()
+    }
+
+    func previewSupertonic() {
+        stopAudio()
+        guard let sample = try? DocumentImporter.fromText(NarrationStyle.auditionText,
+                                                           title: "Une voix plus fluide", source: "APERÇU SUPERTONIC") else { return }
+        previewDocument = sample
+        previewEngine = .supertonic
         documentID = sample.id
         configureRemoteCommands()
         position = 0
@@ -431,7 +471,7 @@ final class PlaybackController: NSObject {
         guard let document, document.segments.indices.contains(position) else { return }
         if let deadline = sleepDeadline, Date() >= deadline { pause(); setSleepTimer(minutes: nil); return }
         library.updatePosition(id: document.id, position: position)
-        let window = effectiveEngine == .qwen
+        let window = effectiveEngine != .system
             ? NarrationWindow(sentenceIn: document, at: position)
             : NarrationWindow(document: document, start: position)
         let text = window.text
@@ -456,6 +496,8 @@ final class PlaybackController: NSObject {
             armSystemSpeechWatchdog(for: next)
         case .qwen:
             startQwen(language: NarrationStyle.languageName(for: document.resolvedLanguage) ?? "French")
+        case .supertonic:
+            startSupertonic(language: SupertonicModel.languageCode(for: document.resolvedLanguage) ?? "fr")
         }
         updateNowPlaying()
     }
@@ -502,10 +544,10 @@ final class PlaybackController: NSObject {
         do {
             let style = settings.qwenStyle
             let speaker = settings.qwenSpeaker
-            let render = renderQwen
             qwenSessionID = currentToken
+            let render = renderQwen
             let passagePlayer = try QwenPassagePlayer(document: document, start: position, rate: settings.qwenSpeed,
-                                                    buffering: .init(preset: settings.qwenBuffer)) { text in
+                                                      buffering: .init(preset: settings.qwenBuffer)) { text in
                 try await render(text, style, language, speaker, currentToken)
             }
             qwenPlayer = passagePlayer
@@ -575,6 +617,65 @@ final class PlaybackController: NSObject {
             endQwenSession()
             stopAudio()
             errorMessage = error.localizedDescription
+        }
+    }
+
+    private func startSupertonic(language: String) {
+        guard let document else { return }
+        guard applicationIsActive else {
+            waitingForForegroundStart = true
+            isPreparing = true
+            notice = String(localized: "Ouvrez l’app pour préparer la lecture Supertonic.")
+            return
+        }
+        waitingForForegroundStart = false
+        let currentToken = UUID()
+        token = currentToken
+        isPreparing = true
+        preparationStatus = String(localized: "Préparation de la voix…")
+        do {
+            let voice = settings.supertonicVoice
+            let passagePlayer = try QwenPassagePlayer(document: document, start: position, rate: settings.speed,
+                                                      sampleRate: SupertonicModel.sampleRate,
+                                                      buffering: .init(preset: .automatic, minimumAutomaticSeconds: 1,
+                                                                       minimumAheadSeconds: 20),
+                                                      generationPriority: .utility,
+                                                      refillResumeSeconds: 1) { text in
+                try await SupertonicVoiceRenderer.shared.render(text, language: language, voice: voice)
+            }
+            qwenPlayer = passagePlayer
+            passagePlayer.onReserveChanged = { [weak self] reserve in
+                guard let self, self.token == currentToken else { return }
+                self.qwenReserve = reserve
+            }
+            passagePlayer.onStateChanged = { [weak self, weak passagePlayer] in
+                guard let self, let passagePlayer, self.token == currentToken else { return }
+                self.isPreparing = self.isPlaying && passagePlayer.isBuffering
+                self.preparationStatus = String(format: String(localized: "Préparation de la réserve · %lld s prêtes"), Int64(passagePlayer.bufferedPlaybackSeconds))
+                self.isGenerating = passagePlayer.isGenerating
+                self.updateNowPlaying()
+            }
+            passagePlayer.onPassageChanged = { [weak self] window in
+                guard let self, self.token == currentToken else { return }
+                self.spokenSegments = window.segments; self.spokenEndPosition = window.endPosition; self.wordRange = nil
+            }
+            passagePlayer.onWord = { [weak self] range in
+                guard let self, self.token == currentToken else { return }; self.updateSpokenRange(range)
+            }
+            passagePlayer.onFinished = { [weak self] in
+                guard let self, self.token == currentToken else { return }; self.advance()
+            }
+            passagePlayer.onNeedsForeground = { [weak self] nextPosition in
+                guard let self, self.token == currentToken else { return }
+                self.position = nextPosition; self.library.updatePosition(id: document.id, position: nextPosition)
+                self.notice = String(localized: "Ouvrez l’app pour préparer la suite.")
+            }
+            passagePlayer.onError = { [weak self] error in
+                guard let self, self.token == currentToken else { return }; self.stopAudio(); self.errorMessage = error.localizedDescription
+            }
+            passagePlayer.play()
+        } catch {
+            stopAudio(); errorMessage = error.localizedDescription
         }
     }
 
@@ -678,9 +779,12 @@ final class PlaybackController: NSObject {
 
     private func updateNowPlaying() {
         guard let document else { return }
+        let waitingLabel = effectiveEngine == .supertonic
+            ? String(localized: "Supertonic · ouvrez Le Conteur pour la suite")
+            : String(localized: "Qwen · ouvrez Le Conteur pour la suite")
         MPNowPlayingInfoCenter.default().nowPlayingInfo = [
             MPMediaItemPropertyTitle: document.title,
-            MPMediaItemPropertyArtist: qwenPlayer?.isWaitingForForeground == true || waitingForForegroundStart ? "Qwen · ouvrez Le Conteur pour la suite" : voiceName,
+            MPMediaItemPropertyArtist: qwenPlayer?.isWaitingForForeground == true || waitingForForegroundStart ? waitingLabel : voiceName,
             MPMediaItemPropertyAlbumTitle: "Le Conteur",
             MPNowPlayingInfoPropertyPlaybackRate: isPlaying && !isPreparing ? playbackSpeed : 0,
             MPNowPlayingInfoPropertyMediaType: MPNowPlayingInfoMediaType.audio.rawValue
@@ -760,13 +864,19 @@ struct NarrationWindow: Sendable {
         endPosition = position
     }
 
-    init(document: ReadingDocument, start: Int, characterLimit: Int = 900) {
+    /// Groups a few neighbouring sentences from the current paragraph into a
+    /// bounded Qwen request. Keeping paragraph boundaries as hard boundaries
+    /// avoids manufacturing pauses and pronunciation artefacts at joins.
+    init(document: ReadingDocument, start: Int, characterLimit: Int = 280,
+         sentenceLimit: Int = 3) {
         let paragraph = document.paragraphRanges.first { $0.contains(start) } ?? start..<(start + 1)
         var text = ""
         var mapping: [(index: Int, range: NSRange)] = []
         for index in start..<paragraph.upperBound where document.segments.indices.contains(index) {
+            guard mapping.count < max(1, sentenceLimit) else { break }
             let sentence = document.segments[index]
-            if !text.isEmpty && text.count + sentence.count + 1 > characterLimit { break }
+            let separatorLength = text.isEmpty ? 0 : 1
+            guard text.isEmpty || text.count + separatorLength + sentence.count <= characterLimit else { break }
             if !text.isEmpty { text += " " }
             let offset = text.utf16.count
             text += sentence

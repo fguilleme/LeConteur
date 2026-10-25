@@ -52,7 +52,9 @@ struct VoicesView: View {
                             .font(.caption).foregroundStyle(.secondary)
                     }.padding(22).background(ConteurTheme.card, in: RoundedRectangle(cornerRadius: 22))
 
-                    QwenVoiceCard()
+                    SupertonicVoiceCard()
+
+                    if VoiceFeatures.qwenEnabled { QwenVoiceCard() }
 
                     VStack(alignment: .leading, spacing: 12) {
                         Label("Votre bibliothèque vous appartient", systemImage: "lock.shield").font(.subheadline.weight(.semibold))
@@ -66,7 +68,8 @@ struct VoicesView: View {
             .toolbar(.hidden, for: .navigationBar)
             .task { refreshVoices() }
             .onReceive(NotificationCenter.default.publisher(for: AVSpeechSynthesizer.availableVoicesDidChangeNotification)) { _ in refreshVoices() }
-            .alert("Lecture Qwen", isPresented: Binding(get: { playback.errorMessage != nil }, set: { if !$0 { playback.errorMessage = nil } })) {
+            .alert(String(format: String(localized: "Lecture %@"), playback.effectiveEngine.name),
+                   isPresented: Binding(get: { playback.errorMessage != nil }, set: { if !$0 { playback.errorMessage = nil } })) {
                 Button("D’accord", role: .cancel) { playback.errorMessage = nil }
             } message: { Text(playback.errorMessage ?? "") }
             .sheet(isPresented: $showSystemVoices) { SystemVoicesList() }
@@ -87,13 +90,35 @@ struct VoicesView: View {
 
     private var licenseText: String {
         guard let url = Bundle.main.url(forResource: "ThirdPartyNotices", withExtension: "txt"),
-              let text = try? String(contentsOf: url, encoding: .utf8) else { return "Qwen3-TTS · MLX · ZIPFoundation" }
-        return text
+              let text = try? String(contentsOf: url, encoding: .utf8) else {
+            return VoiceFeatures.qwenEnabled
+                ? "Supertonic · ONNX Runtime · Qwen3-TTS · MLX · ZIPFoundation"
+                : "Supertonic · ONNX Runtime · ZIPFoundation"
+        }
+        return Self.visibleLicenseText(text, includesQwen: VoiceFeatures.qwenEnabled)
             .replacingOccurrences(of: "{{IOS_SPEECH}}", with: String(localized: "Synthèse vocale iOS : Apple AVFoundation."))
             .replacingOccurrences(of: "{{APPLE_TRANSLATION}}", with: String(localized: "Traduction locale : Apple Translation. Les langues doivent être installées sur l’appareil. Apple peut recueillir des métriques d’utilisation du framework, sans le contenu des textes."))
             .replacingOccurrences(of: "{{DEMO_TEXT}}", with: String(localized: "Le texte « Le goût des mots » est un texte de démonstration original créé pour Le Conteur."))
             .replacingOccurrences(of: "{{MLX_WEIGHTS}}", with: String(format: String(localized: "Poids quantifiés MLX (révision %@) :"), "f35faf19b0cc2160865af64ecf0f22f83d335135"))
             .replacingOccurrences(of: "{{QWEN_SUBSET}}", with: String(format: String(localized: "Sous-ensemble Qwen adapté depuis la révision %@."), "d8e2cafea891928075d3c8577b1a05b99396594e"))
+    }
+
+    static func visibleLicenseText(_ text: String, includesQwen: Bool) -> String {
+        let begin = "{{QWEN_BEGIN}}"
+        let end = "{{QWEN_END}}"
+        guard let beginRange = text.range(of: begin),
+              let endRange = text.range(of: end, range: beginRange.upperBound..<text.endIndex) else {
+            return text
+        }
+        if includesQwen {
+            var result = text
+            result.removeSubrange(endRange)
+            result.removeSubrange(beginRange)
+            return result
+        }
+        var result = text
+        result.removeSubrange(beginRange.lowerBound..<endRange.upperBound)
+        return result
     }
 
     private func selectionMark(_ selected: Bool) -> some View {

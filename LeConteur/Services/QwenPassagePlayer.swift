@@ -14,6 +14,8 @@ import Foundation
 
     private let document: ReadingDocument
     private let render: Renderer
+    private let generationPriority: TaskPriority
+    private let refillResumeSeconds: Double?
     private let audio: QwenStreamPlayer
     private var buffering: QwenPassageBufferPolicy
     private var wantsPlayback = false
@@ -80,15 +82,20 @@ import Foundation
     }
 
     init(document: ReadingDocument, start: Int, rate: Double, volume: Float = 1,
+         sampleRate: Int = 24_000,
          buffering: QwenPassageBufferPolicy = .init(),
+         generationPriority: TaskPriority = .userInitiated,
+         refillResumeSeconds: Double? = nil,
          render: @escaping Renderer) throws {
         self.document = document
         self.nextPosition = start
         self.render = render
         self.buffering = buffering
+        self.generationPriority = generationPriority
+        self.refillResumeSeconds = refillResumeSeconds
         // Each enqueue is already a complete passage; no estimated duration is
         // needed, even for speakers whose delivery is much slower than expected.
-        audio = try QwenStreamPlayer(rate: rate, volume: volume, minimumBufferSeconds: 0)
+        audio = try QwenStreamPlayer(sampleRate: sampleRate, rate: rate, volume: volume, minimumBufferSeconds: 0)
         audio.playbackAllowed = false
         audio.onStateChanged = { [weak self] in self?.updateState() }
         audio.onError = { [weak self] error in self?.onError?(error) }
@@ -172,7 +179,7 @@ import Foundation
         guard !isGenerationSuspended, !stopped, producer == nil else { return }
         let current = identity
         let currentGeneration = generationID
-        producer = Task { [weak self] in
+        producer = Task(priority: generationPriority) { [weak self] in
             guard let self else { return }
             do {
                 while document.segments.indices.contains(nextPosition) {
@@ -185,7 +192,10 @@ import Foundation
                     }
                     try Task.checkCancellation()
                     guard identity == current, generationID == currentGeneration else { return }
-                    let window = NarrationWindow(sentenceIn: document, at: nextPosition)
+                    // Give Qwen a short, coherent stretch of prose instead of a
+                    // succession of isolated sentences. NarrationWindow keeps
+                    // the request inside one paragraph and applies hard bounds.
+                    let window = NarrationWindow(document: document, start: nextPosition)
                     isGenerating = true
                     updateState()
                     recordDiagnosticEvent("qwen:renderStarted")
@@ -196,17 +206,8 @@ import Foundation
                     recordDiagnosticEvent("qwen:renderFinished")
                     let passage = Passage(window: window, start: audio.generatedSeconds, duration: result.metrics.audioSeconds,
                         wordTimeline: result.wordTimeline ?? .uniform(text: window.text, duration: result.metrics.audioSeconds))
-                    buffering.record(generationSeconds: result.metrics.generationSeconds,
-                                     audioSeconds: result.metrics.audioSeconds, characters: window.text.count)
+                    commit(result.metrics, characters: window.text.count)
                     passages.append(passage)
-                    generatedPassages += 1
-                    let old = metrics
-                    metrics = QwenRenderMetrics(
-                        generationSeconds: (old?.generationSeconds ?? 0) + result.metrics.generationSeconds,
-                        audioSeconds: (old?.audioSeconds ?? 0) + result.metrics.audioSeconds,
-                        mlxPeakBytes: max(old?.mlxPeakBytes ?? 0, result.metrics.mlxPeakBytes),
-                        observedFootprintBytes: max(old?.observedFootprintBytes ?? 0, result.metrics.observedFootprintBytes),
-                        modelLoads: (old?.modelLoads ?? 0) + result.metrics.modelLoads)
                     try audio.appendPassage(at: result.url) { [weak self] in
                         guard let self, self.identity == current else { return }
                         self.passages.removeAll { $0.id == passage.id }
@@ -235,20 +236,36 @@ import Foundation
         }
     }
 
+    private func commit(_ result: QwenRenderMetrics, characters: Int) {
+        buffering.record(generationSeconds: result.generationSeconds,
+                         audioSeconds: result.audioSeconds, characters: characters)
+        generatedPassages += 1
+        let old = metrics
+        metrics = QwenRenderMetrics(
+            generationSeconds: (old?.generationSeconds ?? 0) + result.generationSeconds,
+            audioSeconds: (old?.audioSeconds ?? 0) + result.audioSeconds,
+            mlxPeakBytes: max(old?.mlxPeakBytes ?? 0, result.mlxPeakBytes),
+            observedFootprintBytes: max(old?.observedFootprintBytes ?? 0, result.observedFootprintBytes),
+            modelLoads: (old?.modelLoads ?? 0) + result.modelLoads)
+    }
+
     private func updateState() {
         guard !stopped else { return }
         if passages.isEmpty { hasStartedCurrentReserve = false }
         else if audio.isAudible { hasStartedCurrentReserve = true }
         let nextCharacters = document.segments.indices.contains(nextPosition)
-            ? document.segments[nextPosition].count : 0
+            ? NarrationWindow(document: document, start: nextPosition).text.count : 0
         reserveTargetSeconds = buffering.startupSeconds(nextCharacters: nextCharacters, rate: rate)
         if !audio.isAudible {
             // A user pause or interruption does not empty the queue. Resume the
             // current passage immediately; refill only after an actual underrun.
             // The displayed target is listening time, not a minimum number of
             // passages. A single long passage can already satisfy that target.
+            let resumeTarget = audio.hasStarted
+                ? min(reserveTargetSeconds, refillResumeSeconds ?? reserveTargetSeconds)
+                : reserveTargetSeconds
             audio.playbackAllowed = hasStartedCurrentReserve || isGenerationSuspended || audio.inputEnded
-                || passages.count >= 128 || bufferedPlaybackSeconds >= reserveTargetSeconds
+                || passages.count >= 128 || bufferedPlaybackSeconds >= resumeTarget
         }
         if audio.hasStarted, firstAudioSeconds == nil, let startedAt {
             firstAudioSeconds = Date().timeIntervalSince(startedAt)
@@ -337,7 +354,8 @@ struct QwenPassageBufferPolicy {
     private var samples: [(seconds: Double, audio: Double, characters: Int)] = []
     private var seenFirst = false
 
-    init(preset: QwenBufferPreset = .automatic, minimumAutomaticSeconds: Double = 12, minimumAheadSeconds: Double = 60) {
+    init(preset: QwenBufferPreset = .automatic, minimumAutomaticSeconds: Double = 12,
+         minimumAheadSeconds: Double = 60) {
         self.preset = preset
         self.minimumAutomaticSeconds = minimumAutomaticSeconds
         self.minimumAheadSeconds = minimumAheadSeconds
@@ -355,12 +373,14 @@ struct QwenPassageBufferPolicy {
         if let seconds = preset.seconds { return seconds }
         let predicted = samples.map { $0.seconds * Double(max(1, nextCharacters)) / Double($0.characters) }.max() ?? 0
         // Bridging just the next paragraph is insufficient when every render is
-        // slower than listening. Also cover the measured deficit over the next
-        // minute of listening, with headroom for variable inference costs.
+        // slower than listening: a partial target merely causes short, repeated
+        // refill cycles. In that case, fill the whole bounded reserve before
+        // starting again. It cannot make inference real-time, but it makes the
+        // unavoidable waits much less frequent.
         let generationTime = samples.reduce(0) { $0 + $1.seconds }
         let generatedAudio = samples.reduce(0) { $0 + $1.audio }
         let throughput = generationTime > 0 ? generatedAudio / generationTime : rate
-        let deficit = samples.isEmpty ? 0 : max(0, 1 - throughput * 0.85 / rate)
-        return min(aheadSeconds, max(minimumAutomaticSeconds, predicted * 1.35 + 2, aheadSeconds * deficit))
+        if !samples.isEmpty, throughput * 0.85 < rate { return aheadSeconds }
+        return min(aheadSeconds, max(minimumAutomaticSeconds, predicted * 1.35 + 2))
     }
 }

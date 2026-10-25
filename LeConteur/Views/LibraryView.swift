@@ -37,7 +37,8 @@ struct LibraryView: View {
                         Text("Le plaisir de lire, les yeux fermés.").font(.subheadline).foregroundStyle(ConteurTheme.muted)
                     }
 
-                    if search.isEmpty, filter == 0, let featured = library.documents.first(where: { $0.position > 0 && !$0.isFinished }) ?? library.documents.first {
+                    if search.isEmpty, filter == 0,
+                       let featured = library.featuredDocument(activeID: playback.isPreview ? nil : playback.documentID) {
                         Button { open(featured) } label: {
                             HStack(alignment: .center, spacing: 21) {
                                 BookCover(title: featured.title, coverFileName: featured.coverFileName, large: true)

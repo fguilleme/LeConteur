@@ -4,7 +4,8 @@ import UIKit
 
 struct VoiceDownloadSpec: Sendable {
     static var defaults: [Self] {
-        var result = [Self.qwen].compactMap { $0 }
+        var result = [Self.supertonic].compactMap { $0 }
+        if VoiceFeatures.qwenEnabled, let qwen = Self.qwen { result.append(qwen) }
         #if DEBUG || CONTEUR_VALIDATION
         result.append(.validation)
         #endif
@@ -34,6 +35,14 @@ struct VoiceDownloadSpec: Sendable {
     static var qwen: Self? {
         guard let manifest = try? QwenManifest.bundled() else { return nil }
         return Self(id: "qwen", revision: manifest.revision, directory: QwenModel.directory, marker: "verified.revision",
+                    files: manifest.files.map { file in
+            File(path: file.path, url: URL(string: "https://huggingface.co/\(manifest.repository)/resolve/\(manifest.revision)/\(file.path)")!,
+                 bytes: file.bytes, sha256: file.sha256)
+        })
+    }
+    static var supertonic: Self? {
+        guard let manifest = try? SupertonicManifest.bundled() else { return nil }
+        return Self(id: "supertonic", revision: manifest.revision, directory: SupertonicModel.directory, marker: "verified.revision",
                     files: manifest.files.map { file in
             File(path: file.path, url: URL(string: "https://huggingface.co/\(manifest.repository)/resolve/\(manifest.revision)/\(file.path)")!,
                  bytes: file.bytes, sha256: file.sha256)

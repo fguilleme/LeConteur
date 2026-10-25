@@ -8,9 +8,105 @@ import ZIPFoundation
 @testable import LeConteur
 
 final class LeConteurTests: XCTestCase {
-    @MainActor func testQwenChainsGenerationWhilePreviouslyQueuedPassageIsStillPlaying() async throws {
-        let document = try DocumentImporter.fromText("Un passage assez long. Le passage suivant. Encore un passage.", title: "Génération continue")
-        let renderer = QwenTestRenderer(delays: [0.02, 0.25, 0.25], audioSeconds: [5])
+    func testCreditsMatchTheQwenBuildVariant() {
+        let source = "Before\n{{QWEN_BEGIN}}\nQwen credits\n{{QWEN_END}}\nSupertonic credits"
+        let withoutQwen = VoicesView.visibleLicenseText(source, includesQwen: false)
+        XCTAssertFalse(withoutQwen.contains("Qwen credits"))
+        XCTAssertTrue(withoutQwen.contains("Supertonic credits"))
+        XCTAssertFalse(withoutQwen.contains("{{QWEN_"))
+
+        let withQwen = VoicesView.visibleLicenseText(source, includesQwen: true)
+        XCTAssertTrue(withQwen.contains("Qwen credits"))
+        XCTAssertTrue(withQwen.contains("Supertonic credits"))
+        XCTAssertFalse(withQwen.contains("{{QWEN_"))
+    }
+
+    @MainActor func testFeaturedCardFollowsTheCurrentBookAndItsLatestState() throws {
+        let directory = URL.temporaryDirectory.appending(path: UUID().uuidString, directoryHint: .isDirectory)
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let library = LibraryStore(directory: directory)
+        for document in library.documents { library.delete(document.id) }
+
+        let current = try DocumentImporter.fromText("Le livre que je viens d’ouvrir.\n\nSa deuxième page.", title: "Actuel")
+        let previous = try DocumentImporter.fromText("Un ancien livre en cours.\n\nSa deuxième page.", title: "Précédent")
+        XCTAssertTrue(library.add(current))
+        XCTAssertTrue(library.add(previous))
+        library.updatePosition(id: previous.id, position: 1)
+
+        XCTAssertEqual(library.featuredDocument(activeID: nil)?.id, previous.id)
+        XCTAssertEqual(library.featuredDocument(activeID: current.id)?.id, current.id)
+
+        library.updatePosition(id: current.id, position: 1)
+        XCTAssertEqual(library.featuredDocument(activeID: current.id)?.position, 1)
+    }
+
+    @MainActor func testSupertonicIsTheDefaultWithoutOverwritingAnExistingVoiceChoice() {
+        let suite = "LeConteurTests.DefaultVoice.\(UUID().uuidString)"
+        let defaults = UserDefaults(suiteName: suite)!
+        defer { defaults.removePersistentDomain(forName: suite) }
+
+        let fresh = ReaderSettings(defaults: defaults)
+        XCTAssertEqual(fresh.engine, .supertonic)
+        XCTAssertEqual(defaults.string(forKey: "voice.engine"), VoiceEngine.supertonic.rawValue)
+
+        defaults.set(VoiceEngine.system.rawValue, forKey: "voice.engine")
+        XCTAssertEqual(ReaderSettings(defaults: defaults).engine, .system)
+    }
+
+    @MainActor func testDisabledQwenMigratesSavedSelectionToAvailableEngine() {
+        let suite = "LeConteurTests.QwenFeature.\(UUID().uuidString)"
+        let defaults = UserDefaults(suiteName: suite)!
+        defer { defaults.removePersistentDomain(forName: suite) }
+        defaults.set(VoiceEngine.qwen.rawValue, forKey: "voice.engine")
+        let settings = ReaderSettings(defaults: defaults, qwenEnabled: false)
+        XCTAssertNotEqual(settings.engine, .qwen)
+        XCTAssertEqual(defaults.string(forKey: "voice.engine"), settings.engine.rawValue)
+    }
+
+    func testSupertonicManifestIsPinnedAndComplete() throws {
+        let manifest = try SupertonicManifest.bundled()
+        XCTAssertEqual(manifest.revision, SupertonicModel.revision)
+        XCTAssertEqual(manifest.files.count, 8)
+        XCTAssertGreaterThan(manifest.totalBytes, 390_000_000)
+        XCTAssertTrue(manifest.files.allSatisfy { !$0.sha256.isEmpty && $0.bytes > 0 })
+    }
+
+    func testSupertonicLanguageVariantsAndAppleFallback() {
+        XCTAssertEqual(SupertonicModel.languageCode(for: "fr-FR"), "fr")
+        XCTAssertEqual(SupertonicModel.languageCode(for: "en-US"), "en")
+        XCTAssertEqual(SupertonicModel.languageCode(for: "pt-BR"), "pt")
+        XCTAssertEqual(SupertonicModel.languageCode(for: "ar-SA"), "ar")
+        XCTAssertEqual(SupertonicModel.languageCode(for: "ko-KR"), "ko")
+        XCTAssertNil(SupertonicModel.languageCode(for: "zh-Hans"))
+        XCTAssertNil(SupertonicModel.languageCode(for: nil))
+    }
+
+    @MainActor func testSupertonicPassageQueueAccepts44100HzAudio() async throws {
+        let document = try DocumentImporter.fromText("Une voix plus fluide.", title: "Supertonic")
+        let renderer = QwenTestRenderer(delays: [0.01], audioSeconds: [0.3], sampleRate: SupertonicModel.sampleRate)
+        let player = try QwenPassagePlayer(document: document, start: 0, rate: 1, volume: 0,
+                                           sampleRate: SupertonicModel.sampleRate,
+                                           buffering: .init(minimumAutomaticSeconds: 0.05)) {
+            try await renderer.render($0)
+        }
+        defer { player.stop() }
+        var error: Error?
+        player.onError = { error = $0 }
+        player.play()
+        let deadline = Date().addingTimeInterval(3)
+        while player.generatedPassages == 0 && error == nil && Date() < deadline {
+            try await Task.sleep(for: .milliseconds(20))
+        }
+        XCTAssertNil(error)
+        XCTAssertEqual(player.generatedPassages, 1)
+        XCTAssertGreaterThan(player.completedAudioSeconds + player.bufferedPlaybackSeconds, 0.2)
+    }
+
+    @MainActor func testQwenGroupsSentencesAndChainsTheNextParagraphDuringPlayback() async throws {
+        let document = try DocumentImporter.fromText(
+            "Un passage assez long. Le passage suivant.\n\nEncore un passage.",
+            title: "Génération continue")
+        let renderer = QwenTestRenderer(delays: [0.02, 0.25], audioSeconds: [5])
         let player = try QwenPassagePlayer(document: document, start: 0, rate: 1.25, volume: 0,
             buffering: .init(minimumAutomaticSeconds: 0.2)) { try await renderer.render($0) }
         defer { player.stop() }
@@ -26,11 +122,13 @@ final class LeConteurTests: XCTestCase {
         player.onError = { XCTFail("Unexpected error: \($0)") }
         player.play()
         let deadline = Date().addingTimeInterval(5)
-        while requests.count < 3 && Date() < deadline { try await Task.sleep(for: .milliseconds(20)) }
-        XCTAssertEqual(requests.count, 3)
+        while requests.count < 2 && Date() < deadline { try await Task.sleep(for: .milliseconds(20)) }
+        XCTAssertEqual(requests.count, 2)
         let rendered = await renderer.texts
-        XCTAssertEqual(document.paragraphRanges.count, 1)
-        XCTAssertEqual(rendered, document.segments, "Send each sentence separately, even within the same paragraph")
+        XCTAssertEqual(document.paragraphRanges.count, 2)
+        XCTAssertEqual(rendered, [NarrationWindow(document: document, start: 0).text,
+                                  NarrationWindow(document: document, start: 2).text],
+                       "Keep paragraph boundaries while grouping neighbouring sentences")
         for request in requests.dropFirst() {
             XCTAssertTrue(request.audible)
             XCTAssertGreaterThan(request.reserve, 2)
@@ -72,8 +170,8 @@ final class LeConteurTests: XCTestCase {
         XCTAssertLessThan(nextReserve, 2)
     }
 
-    @MainActor func testQwenSentenceQueueResumesMidParagraphAndReanchorsHighlightWithoutGaps() async throws {
-        let document = try DocumentImporter.fromText("La phrase déjà lue. Élodie voit l’océan 🌊. Puis elle reprend son récit.", title: "Phrase par phrase")
+    @MainActor func testQwenWindowResumesMidParagraphAndReanchorsHighlightWithoutGaps() async throws {
+        let document = try DocumentImporter.fromText("La phrase déjà lue. Élodie voit l’océan 🌊. Puis elle reprend son récit.", title: "Lecture continue")
         XCTAssertEqual(document.segments.count, 3)
         let renderer = QwenTestRenderer(delays: [0.02], audioSeconds: [0.9, 1.1])
         let player = try QwenPassagePlayer(document: document, start: 1, rate: 1.25, volume: 0,
@@ -87,8 +185,9 @@ final class LeConteurTests: XCTestCase {
         player.onPassageChanged = { window in
             current = window
             starts.append(window.endPosition)
-            XCTAssertEqual(window.segments.count, 1)
-            XCTAssertEqual(window.segments.first?.index, window.endPosition)
+            XCTAssertEqual(window.segments.count, 2)
+            XCTAssertEqual(window.segments.first?.index, 1)
+            XCTAssertEqual(window.segments.last?.index, window.endPosition)
         }
         player.onWord = { range in
             guard let window = current else { return XCTFail("Words need their sentence mapping first") }
@@ -103,12 +202,12 @@ final class LeConteurTests: XCTestCase {
         while !finished && Date() < deadline { try await Task.sleep(for: .milliseconds(20)) }
         XCTAssertTrue(finished)
         let rendered = await renderer.texts
-        XCTAssertEqual(rendered, Array(document.segments.dropFirst()), "Resuming must not repeat the start of the paragraph")
-        XCTAssertEqual(starts, [1, 2])
-        XCTAssertEqual(firstWords[1]?.location, 0)
-        XCTAssertEqual(firstWords[2]?.location, 0, "The next sentence must use its own audio timeline")
-        XCTAssertEqual(player.completedPassages, 2)
-        XCTAssertEqual(gaps, 0, "A sentence boundary must not empty or restart the reserve")
+        XCTAssertEqual(rendered, [document.segments.dropFirst().joined(separator: " ")],
+                       "Resuming must not repeat the start of the paragraph")
+        XCTAssertEqual(starts, [2])
+        XCTAssertEqual(firstWords[2]?.location, 0)
+        XCTAssertEqual(player.completedPassages, 1)
+        XCTAssertEqual(gaps, 0, "A grouped sentence boundary must not empty or restart the reserve")
     }
 
     @MainActor func testQwenStartsFromOnePassageOnceListeningReserveIsReached() async throws {
@@ -492,7 +591,8 @@ final class LeConteurTests: XCTestCase {
         let requests = await renderer.requests
         XCTAssertEqual(requests.map(\.speaker), [.ryan, .serena, .serena])
         XCTAssertEqual(requests.map(\.style), [.warm, .warm, .dramatic])
-        XCTAssertTrue(requests.allSatisfy { $0.text == document.segments[2] })
+        let expectedWindow = NarrationWindow(document: document, start: 2).text
+        XCTAssertTrue(requests.allSatisfy { $0.text == expectedWindow })
         playback.pause()
         settings.engine = .system // Exercise resume without any SwiftUI callback.
         playback.play()
@@ -883,8 +983,8 @@ final class LeConteurTests: XCTestCase {
         var slow = QwenPassageBufferPolicy()
         slow.record(generationSeconds: 90, audioSeconds: 8, characters: 100)
         slow.record(generationSeconds: 10, audioSeconds: 8, characters: 100)
-        XCTAssertEqual(slow.startupSeconds(nextCharacters: 100, rate: 2), 39.6, accuracy: 0.01)
-        XCTAssertEqual(slow.startupSeconds(nextCharacters: 100, rate: 1), 19.2, accuracy: 0.01)
+        XCTAssertEqual(slow.startupSeconds(nextCharacters: 100, rate: 2), 60, accuracy: 0.01)
+        XCTAssertEqual(slow.startupSeconds(nextCharacters: 100, rate: 1), 60, accuracy: 0.01)
     }
 
     @MainActor func testQwenReserveSettingPersistsIndependently() {
@@ -1659,10 +1759,9 @@ final class LeConteurTests: XCTestCase {
         var recovered: [String] = []
         var start = 0
         while start < document.segments.count {
-            let window = NarrationWindow(sentenceIn: document, at: start)
-            XCTAssertEqual(window.segments.count, 1)
-            XCTAssertEqual(window.endPosition, start)
-            XCTAssertLessThanOrEqual(window.text.count, 360)
+            let window = NarrationWindow(document: document, start: start)
+            XCTAssertLessThanOrEqual(window.segments.count, 3)
+            XCTAssertLessThanOrEqual(window.text.count, 280)
             recovered += window.segments.map { (window.text as NSString).substring(with: $0.range) }
             start = window.endPosition + 1
         }
@@ -1980,11 +2079,13 @@ private actor RecordingQwenVoiceRenderer {
 private actor QwenTestRenderer {
     let delays: [Double]
     let audioSeconds: [Double]
+    let sampleRate: Int
     private(set) var texts: [String] = []
     private(set) var outputFiles: [URL] = []
-    init(delays: [Double], audioSeconds: [Double] = [1]) {
+    init(delays: [Double], audioSeconds: [Double] = [1], sampleRate: Int = 24_000) {
         self.delays = delays
         self.audioSeconds = audioSeconds
+        self.sampleRate = sampleRate
     }
     func render(_ text: String) async throws -> QwenRenderedAudio {
         let delay = delays[min(texts.count, delays.count - 1)]
@@ -1992,8 +2093,8 @@ private actor QwenTestRenderer {
         texts.append(text)
         // Intentionally finish even if cancelled to exercise late-result cleanup.
         try? await Task.sleep(for: .seconds(delay))
-        let format = AVAudioFormat(standardFormatWithSampleRate: 24_000, channels: 1)!
-        let frames = Int(duration * 24_000)
+        let format = AVAudioFormat(standardFormatWithSampleRate: Double(sampleRate), channels: 1)!
+        let frames = Int(duration * Double(sampleRate))
         let buffer = AVAudioPCMBuffer(pcmFormat: format, frameCapacity: AVAudioFrameCount(frames))!
         buffer.frameLength = buffer.frameCapacity
         for frame in 0..<frames { buffer.floatChannelData![0][frame] = sin(Float(frame) * 0.1) * 0.01 }

@@ -167,8 +167,9 @@ final class QwenRecoveryTests: XCTestCase {
         playback.handleRemoteCommand(.play)
         try await wait { library.document(document.id)?.isFinished == true }
         let texts = await renderer.texts
-        XCTAssertEqual(texts.count, 5)
-        XCTAssertEqual(Array(texts.suffix(2)), Array(document.segments.suffix(2)))
+        XCTAssertEqual(texts.count, 4)
+        XCTAssertEqual(texts.last, document.segments.suffix(2).joined(separator: " "),
+                       "Retry the same coherent window without dropping its last sentence")
         XCTAssertEqual(library.document(document.id)?.isFinished, true)
         XCTAssertEqual(playback.effectiveEngine, .qwen)
         XCTAssertEqual(speech.calls, 0)

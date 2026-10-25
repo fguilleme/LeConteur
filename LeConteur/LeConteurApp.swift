@@ -10,6 +10,7 @@ struct LeConteurApp: App {
     @State private var playback: PlaybackController
     @State private var translation: TranslationCoordinator
     @State private var qwenStore = QwenModelStore()
+    @State private var supertonicStore = SupertonicModelStore()
 
     init() {
         let library = LibraryStore()
@@ -46,7 +47,7 @@ struct LeConteurApp: App {
                 #endif
             }
             .environment(library).environment(settings).environment(playback)
-            .environment(translation).environment(qwenStore)
+            .environment(translation).environment(qwenStore).environment(supertonicStore)
             .tint(ConteurTheme.green)
         }
     }
@@ -144,6 +145,7 @@ struct RootView: View {
         .onChange(of: settings.engine) { playback.settingsChanged() }
         .onChange(of: settings.qwenStyle) { playback.settingsChanged() }
         .onChange(of: settings.qwenSpeaker) { if playback.effectiveEngine == .qwen { playback.settingsChanged() } }
+        .onChange(of: settings.supertonicVoice) { if playback.effectiveEngine == .supertonic { playback.settingsChanged() } }
         .onChange(of: settings.systemVoiceIDs) { old, new in
             let language = SystemVoiceSelection.language(playback.document?.languageCode ?? TranslationCoordinator.phoneLanguage)
             if old[language] != new[language], playback.effectiveEngine == .system { playback.settingsChanged() }

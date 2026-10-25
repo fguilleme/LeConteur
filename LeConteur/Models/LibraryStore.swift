@@ -141,6 +141,16 @@ final class LibraryStore {
 
     func document(_ id: UUID) -> ReadingDocument? { documents.first { $0.id == id } }
 
+    /// The home card follows the edition currently owned by the player, including
+    /// a newly opened book at position zero or a progressive translation. When no
+    /// reader is active, retain the library's usual first-in-progress fallback.
+    func featuredDocument(activeID: UUID?) -> ReadingDocument? {
+        if let activeID, let active = document(activeID), !active.isFinished {
+            return active
+        }
+        return documents.first(where: { $0.position > 0 && !$0.isFinished }) ?? documents.first
+    }
+
     /// Library entries select an edition, not the last-used language. Offer automatic
     /// translation only until the original has a saved edition or a remembered opt-out.
     /// Selecting an unfinished translation resumes that edition directly.
@@ -281,12 +291,21 @@ final class LibraryStore {
     }
 }
 
+enum VoiceFeatures {
+    #if CONTEUR_QWEN
+    static let qwenEnabled = true
+    #else
+    static let qwenEnabled = false
+    #endif
+}
+
 enum VoiceEngine: String, CaseIterable, Identifiable {
-    case system, qwen
+    case system, supertonic, qwen
     var id: String { rawValue }
     var name: String {
         switch self {
         case .system: String(localized: "Voix iPhone")
+        case .supertonic: String(localized: "Supertonic · Temps réel")
         case .qwen: String(localized: "Qwen · Expressif")
         }
     }
@@ -299,6 +318,7 @@ final class ReaderSettings {
     var qwenStyle: NarrationStyle { didSet { defaults.set(qwenStyle.rawValue, forKey: "voice.qwenStyle") } }
     var qwenSpeaker: QwenSpeaker { didSet { defaults.set(qwenSpeaker.rawValue, forKey: "voice.qwenSpeaker") } }
     var qwenBuffer: QwenBufferPreset { didSet { defaults.set(qwenBuffer.rawValue, forKey: "voice.qwenBuffer") } }
+    var supertonicVoice: SupertonicVoice { didSet { defaults.set(supertonicVoice.rawValue, forKey: "voice.supertonicVoice") } }
     private(set) var systemVoiceIDs: [String: String] {
         didSet { defaults.set(systemVoiceIDs, forKey: "voice.identifiersByLanguage") }
     }
@@ -317,15 +337,32 @@ final class ReaderSettings {
     }
 
     init(defaults: UserDefaults = .standard,
+         qwenEnabled: Bool = VoiceFeatures.qwenEnabled,
          legacyVoiceLanguage: (String) -> String? = { AVSpeechSynthesisVoice(identifier: $0)?.language }) {
         self.defaults = defaults
         let savedEngine = defaults.string(forKey: "voice.engine") ?? ""
-        engine = VoiceEngine(rawValue: savedEngine) ?? .system
-        if savedEngine == "neural" { defaults.set(VoiceEngine.system.rawValue, forKey: "voice.engine") }
+        let restoredEngine: VoiceEngine
+        if savedEngine.isEmpty {
+            restoredEngine = .supertonic
+        } else {
+            restoredEngine = VoiceEngine(rawValue: savedEngine) ?? .system
+        }
+        let resolvedEngine: VoiceEngine
+        if restoredEngine == .qwen, !qwenEnabled {
+            resolvedEngine = (try? SupertonicManifest.bundled()).map { SupertonicModel.isInstalled($0) } == true ? .supertonic : .system
+            defaults.set(resolvedEngine.rawValue, forKey: "voice.engine")
+        } else {
+            resolvedEngine = restoredEngine
+        }
+        engine = resolvedEngine
+        if savedEngine.isEmpty || savedEngine == "neural" {
+            defaults.set(resolvedEngine.rawValue, forKey: "voice.engine")
+        }
         Self.removeLegacySiwisModel()
         qwenStyle = NarrationStyle(rawValue: defaults.string(forKey: "voice.qwenStyle") ?? "") ?? .warm
         qwenSpeaker = QwenSpeaker(rawValue: defaults.string(forKey: "voice.qwenSpeaker") ?? "") ?? .ryan
         qwenBuffer = QwenBufferPreset(rawValue: defaults.string(forKey: "voice.qwenBuffer") ?? "") ?? .automatic
+        supertonicVoice = SupertonicVoice(rawValue: defaults.string(forKey: "voice.supertonicVoice") ?? "") ?? .female
         if let saved = defaults.dictionary(forKey: "voice.identifiersByLanguage") as? [String: String] {
             systemVoiceIDs = saved
         } else {
