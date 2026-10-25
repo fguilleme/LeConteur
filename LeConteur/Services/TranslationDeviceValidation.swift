@@ -108,7 +108,7 @@ struct ReaderTranslationValidationView: View {
     }
 
     var body: some View {
-        ReadingSessionView(documentID: originalID, automaticallyTranslate: true)
+        ReadingSessionView(documentID: originalID, automaticallyTranslate: true, usesBackgroundTranslationSession: false)
             .environment(library).environment(settings).environment(playback).environment(coordinator)
             .translationTask(coordinator.configuration) { session in
                 await coordinator.translate(using: session)

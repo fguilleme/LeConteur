@@ -2,8 +2,8 @@ import Foundation
 import CryptoKit
 
 /// Translate neighbouring sentences together, without crossing paragraph boundaries.
-struct TranslationWork {
-    struct Block: Codable {
+struct TranslationWork: Sendable {
+    struct Block: Codable, Sendable {
         let text: String
         let paragraph: Int
     }
@@ -11,12 +11,13 @@ struct TranslationWork {
     let fingerprint: String
 
     init(document: ReadingDocument, source: String, target: String) {
+        let characterLimit = 420
         var blocks: [Block] = []
         for (paragraph, range) in document.paragraphRanges.enumerated() {
             var text = ""
             for index in range {
                 let sentence = document.segments[index]
-                if !text.isEmpty && text.count + sentence.count + 1 > 900 {
+                if !text.isEmpty && text.count + sentence.count + 1 > characterLimit {
                     blocks.append(Block(text: text, paragraph: paragraph))
                     text = ""
                 }
@@ -30,7 +31,7 @@ struct TranslationWork {
         encoder.outputFormatting = [.sortedKeys]
         let data = try! encoder.encode(blocks)
         var hash = SHA256()
-        hash.update(data: Data("paragraph-v2|\(source)|\(target)|\(document.title)|".utf8))
+        hash.update(data: Data("paragraph-v3-low-impact|\(source)|\(target)|\(document.title)|".utf8))
         hash.update(data: data)
         fingerprint = hash.finalize().map { String(format: "%02x", $0) }.joined()
     }
@@ -45,16 +46,31 @@ struct TranslationWork {
         return result
     }
 
-    func draft(original: ReadingDocument, language: String) -> ReadingDocument {
+    func draft(original: ReadingDocument, language: String, replacing previous: ReadingDocument? = nil) -> ReadingDocument {
         var result = ReadingDocument(title: original.title, author: original.author,
                                      source: "TRADUIT · \(language.uppercased())", segments: [])
+        if let previous {
+            result.id = previous.id
+            result.importedAt = previous.importedAt
+            result.position = previous.position
+            result.bookmarks = previous.bookmarks
+            result.isFinished = false
+            if previous.translationTitleComplete == true {
+                result.title = previous.title
+                result.translationTitleComplete = true
+            }
+            if previous.translationAuthorComplete == true {
+                result.author = previous.author
+                result.translationAuthorComplete = true
+            }
+        }
         result.translationOf = original.id
         result.coverFileName = original.coverFileName
         result.languageCode = language
         result.translationVersion = 1
         result.translationComplete = false
-        result.translationTitleComplete = false
-        result.translationAuthorComplete = false
+        result.translationTitleComplete = result.translationTitleComplete ?? false
+        result.translationAuthorComplete = result.translationAuthorComplete ?? false
         result.translatedBlocks = 0
         result.translationTotalBlocks = blocks.count
         result.translationFingerprint = fingerprint
@@ -83,11 +99,11 @@ struct TranslationWork {
 
 enum TranslationWorkError: LocalizedError {
     case incomplete
-    var errorDescription: String? { "Un passage n’a pas été traduit. Les passages terminés sont conservés pour réessayer." }
+    var errorDescription: String? { String(localized: "Un passage n’a pas été traduit. Les passages terminés sont conservés pour réessayer.") }
 }
 
 /// Each completed block is committed atomically. A crash cannot discard earlier blocks.
-struct TranslationCheckpoint {
+struct TranslationCheckpoint: Sendable {
     let directory: URL
     init(fingerprint: String, root: URL = URL.applicationSupportDirectory.appending(path: "Translations")) throws {
         directory = root.appending(path: fingerprint, directoryHint: .isDirectory)

@@ -9,7 +9,6 @@ struct LeConteurApp: App {
     @State private var settings: ReaderSettings
     @State private var playback: PlaybackController
     @State private var translation: TranslationCoordinator
-    @State private var modelStore = NeuralModelStore()
     @State private var qwenStore = QwenModelStore()
 
     init() {
@@ -19,7 +18,12 @@ struct LeConteurApp: App {
         _settings = State(initialValue: settings)
         let playback = PlaybackController(library: library, settings: settings)
         _playback = State(initialValue: playback)
-        _translation = State(initialValue: TranslationCoordinator(library: library, documentUpdated: { playback.translationUpdated($0) }))
+        let translation = TranslationCoordinator(library: library,
+            documentUpdated: { playback.translationUpdated($0) },
+            activityChanged: { playback.translationActivityChanged($0) },
+            prepareVoice: { await playback.prepareForTranslation() })
+        playback.suspendTranslation = { [weak translation] in translation?.suspend() }
+        _translation = State(initialValue: translation)
     }
 
     var body: some Scene {
@@ -28,6 +32,12 @@ struct LeConteurApp: App {
                 #if DEBUG || CONTEUR_VALIDATION
                 if CommandLine.arguments.contains("--voice-download-validation") {
                     VoiceDownloadValidationView()
+                } else if CommandLine.arguments.contains("--qwen-repeatability-validation") {
+                    QwenRepeatabilityValidationView()
+                } else if CommandLine.arguments.contains("--qwen-precision-validation") {
+                    QwenPrecisionValidationView()
+                } else if CommandLine.arguments.contains("--qwen-pronunciation-validation") || CommandLine.arguments.contains("--qwen-stability-validation") || CommandLine.arguments.contains("--qwen-silence-validation") || CommandLine.arguments.contains("--qwen-decoder-validation") || CommandLine.arguments.contains("--qwen-refill-validation") || CommandLine.arguments.contains("--qwen-short-text-validation") {
+                    QwenPronunciationValidationView()
                 } else if CommandLine.arguments.contains("--qwen-stream-validation") {
                     QwenStreamValidationView()
                 } else { normalContent }
@@ -36,14 +46,16 @@ struct LeConteurApp: App {
                 #endif
             }
             .environment(library).environment(settings).environment(playback)
-            .environment(translation).environment(modelStore).environment(qwenStore)
+            .environment(translation).environment(qwenStore)
             .tint(ConteurTheme.green)
         }
     }
 
     @ViewBuilder private var normalContent: some View {
         #if DEBUG
-        if CommandLine.arguments.contains("--reader-translation-validation") {
+        if CommandLine.arguments.contains("--reserve-gauge-validation") {
+            QwenReserveGaugeValidationView()
+        } else if CommandLine.arguments.contains("--reader-translation-validation") {
             ReaderTranslationValidationView()
         } else if CommandLine.arguments.contains("--qwen-validation") || CommandLine.arguments.contains("--translation-validation") {
             DeviceValidationView(store: qwenStore)
@@ -57,6 +69,7 @@ struct LeConteurApp: App {
 private struct ReaderSelection: Identifiable {
     let id: UUID
     var automaticallyTranslate = false
+    var keepsBackgroundTranslation = false
 }
 
 struct RootView: View {
@@ -82,10 +95,12 @@ struct RootView: View {
                 .tabItem { Label("Voix", systemImage: "waveform") }
         }
         .sheet(item: $reader) { selection in
-            ReadingSessionView(documentID: selection.id, automaticallyTranslate: selection.automaticallyTranslate)
+            ReadingSessionView(documentID: selection.id,
+                               automaticallyTranslate: selection.automaticallyTranslate,
+                               usesBackgroundTranslationSession: selection.keepsBackgroundTranslation)
         }
-        .translationTask(translation.configuration) { session in
-            await translation.translate(using: session)
+        .translationTask(reader == nil || reader?.keepsBackgroundTranslation == true ? translation.configuration : nil) { session in
+            await Task(priority: .utility) { await translation.translate(using: session) }.value
         }
         .sheet(isPresented: $showComposer) { ComposeView { document in if library.add(document) { open(document) } } }
         .fileImporter(isPresented: $showImporter, allowedContentTypes: [
@@ -102,7 +117,15 @@ struct RootView: View {
         }
         .onOpenURL { url in Task { await importFile(url) } }
         .task { await consumeInbox() }
-        .onChange(of: scenePhase) { _, phase in if phase == .active { VoiceDownloads.shared.foreground(); Task { await consumeInbox() } } else if phase == .background { translation.suspend() } }
+        .onChange(of: scenePhase) { _, phase in
+            if phase == .active {
+                VoiceDownloads.shared.foreground()
+                translation.applicationDidBecomeActive()
+                Task { await consumeInbox() }
+            } else if phase == .background {
+                translation.applicationDidEnterBackground()
+            }
+        }
         .onChange(of: settings.engine) { playback.settingsChanged() }
         .onChange(of: settings.qwenStyle) { playback.settingsChanged() }
         .onChange(of: settings.qwenSpeaker) { if playback.effectiveEngine == .qwen { playback.settingsChanged() } }
@@ -139,7 +162,11 @@ struct RootView: View {
                         Image(systemName: "waveform").font(.title2).frame(width: 36)
                         VStack(alignment: .leading, spacing: 3) {
                             Text(document.title).font(.subheadline.weight(.semibold)).lineLimit(1)
-                            Text(playback.isPreparing ? "Préparation de la voix…" : playback.voiceName).font(.caption).foregroundStyle(.secondary)
+                            if let reserve = playback.qwenReserve {
+                                QwenReserveGauge(reserve: reserve, compact: true)
+                            } else {
+                                Text(playback.isPreparing ? String(localized: "Préparation de la voix…") : playback.voiceName).font(.caption).foregroundStyle(.secondary)
+                            }
                         }
                         Spacer(minLength: 0)
                     }.contentShape(Rectangle())
@@ -156,7 +183,16 @@ struct RootView: View {
     private func open(_ document: ReadingDocument) {
         playback.pause()
         let route = library.readingRoute(for: document, phoneLanguage: TranslationCoordinator.phoneLanguage)
-        reader = ReaderSelection(id: route.document.id, automaticallyTranslate: route.translate)
+        // Opening a readable edition must not tear down and recreate an active
+        // Apple Translation session. The root keeps owning that session while
+        // the reader sheet simply displays the same progressively saved book.
+        let isActiveTranslation = translation.isTranslating
+            && translation.activeDocumentID == route.document.id
+        let keepCurrentSession = translation.isTranslating
+            && (!route.translate || isActiveTranslation)
+        reader = ReaderSelection(id: route.document.id,
+                                 automaticallyTranslate: route.translate && !isActiveTranslation,
+                                 keepsBackgroundTranslation: keepCurrentSession)
     }
 
     private func importFile(_ url: URL) async {

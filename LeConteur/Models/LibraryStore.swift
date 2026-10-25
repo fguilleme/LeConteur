@@ -2,19 +2,56 @@ import Foundation
 import Observation
 import AVFoundation
 
+private final class LibraryPersistence: @unchecked Sendable {
+    private let fileURL: URL
+    private let queue = DispatchQueue(label: "com.guilleme.conteur.library-persistence", qos: .utility)
+
+    init(fileURL: URL) { self.fileURL = fileURL }
+
+    func writeSync(_ documents: [ReadingDocument]) throws {
+        try queue.sync { try writeSnapshot(documents) }
+    }
+
+    func write(_ documents: [ReadingDocument]) async throws {
+        try await withCheckedThrowingContinuation { continuation in
+            queue.async { [self] in
+                do {
+                    try writeSnapshot(documents)
+                    continuation.resume()
+                } catch {
+                    continuation.resume(throwing: error)
+                }
+            }
+        }
+    }
+
+    private func writeSnapshot(_ documents: [ReadingDocument]) throws {
+        let data = try JSONEncoder().encode(documents)
+        try data.write(to: fileURL, options: [.atomic, .completeFileProtectionUntilFirstUserAuthentication])
+        var url = fileURL
+        var values = URLResourceValues()
+        values.isExcludedFromBackup = true
+        try url.setResourceValues(values)
+    }
+}
+
 @MainActor @Observable
 final class LibraryStore {
     private(set) var documents: [ReadingDocument] = []
     var errorMessage: String?
     private let fileURL: URL
+    private let persistence: LibraryPersistence
 
     init(directory: URL? = nil) {
         let root = directory ?? URL.applicationSupportDirectory.appending(path: "Library", directoryHint: .isDirectory)
         fileURL = root.appending(path: "library.json")
+        persistence = LibraryPersistence(fileURL: fileURL)
         do {
             try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
             if FileManager.default.fileExists(atPath: fileURL.path) {
-                documents = try JSONDecoder().decode([ReadingDocument].self, from: Data(contentsOf: fileURL))
+                let loaded = try JSONDecoder().decode([ReadingDocument].self, from: Data(contentsOf: fileURL))
+                documents = Self.consolidatingDuplicateTranslations(in: loaded)
+                if documents != loaded { save() }
             } else {
                 documents = [.welcome]
                 save()
@@ -24,8 +61,61 @@ final class LibraryStore {
                 let backup = root.appending(path: "library-recovery-\(UUID().uuidString).json")
                 try? FileManager.default.copyItem(at: fileURL, to: backup)
             }
-            errorMessage = "La bibliothèque n’a pas pu être ouverte. Vos fichiers ont été conservés. \(error.localizedDescription)"
+            errorMessage = String(format: String(localized: "La bibliothèque n’a pas pu être ouverte. Vos fichiers ont été conservés. %@"), error.localizedDescription)
         }
+    }
+
+    /// A source book has one local edition per target language. Older versions of
+    /// the progressive translator could create another edition when its block plan
+    /// changed. Keep the most advanced edition and merge its reader state.
+    private static func consolidatingDuplicateTranslations(in documents: [ReadingDocument]) -> [ReadingDocument] {
+        struct TranslationKey: Hashable {
+            let originalID: UUID
+            let language: String
+        }
+
+        let translations = documents.filter { $0.translationOf != nil }
+        let groups = Dictionary(grouping: translations) { document in
+            TranslationKey(
+                originalID: document.translationOf!,
+                language: SystemVoiceSelection.language(document.languageCode ?? "und")
+            )
+        }
+        var result = documents
+        var replacements: [UUID: UUID] = [:]
+
+        for group in groups.values where group.count > 1 {
+            let winner = group.max { lhs, rhs in
+                let lhsRank = (lhs.translationComplete == true ? 1 : 0,
+                               lhs.translatedBlocks ?? 0,
+                               lhs.isTranslationMetadataComplete ? 1 : 0,
+                               lhs.importedAt)
+                let rhsRank = (rhs.translationComplete == true ? 1 : 0,
+                               rhs.translatedBlocks ?? 0,
+                               rhs.isTranslationMetadataComplete ? 1 : 0,
+                               rhs.importedAt)
+                if lhsRank.0 != rhsRank.0 { return lhsRank.0 < rhsRank.0 }
+                if lhsRank.1 != rhsRank.1 { return lhsRank.1 < rhsRank.1 }
+                if lhsRank.2 != rhsRank.2 { return lhsRank.2 < rhsRank.2 }
+                return lhsRank.3 < rhsRank.3
+            }!
+            let duplicateIDs = Set(group.map(\.id)).subtracting([winner.id])
+            var merged = winner
+            merged.bookmarks.formUnion(group.flatMap(\.bookmarks))
+            merged.position = min(group.map(\.position).max() ?? winner.position,
+                                  max(winner.segments.count - 1, 0))
+            for duplicateID in duplicateIDs { replacements[duplicateID] = winner.id }
+            result.removeAll { duplicateIDs.contains($0.id) }
+            if let index = result.firstIndex(where: { $0.id == winner.id }) { result[index] = merged }
+        }
+
+        for index in result.indices {
+            if let preferred = result[index].preferredReadingID,
+               let replacement = replacements[preferred] {
+                result[index].preferredReadingID = replacement
+            }
+        }
+        return result
     }
 
     func document(_ id: UUID) -> ReadingDocument? { documents.first { $0.id == id } }
@@ -49,7 +139,27 @@ final class LibraryStore {
         save()
     }
 
+    /// Resolve a concurrent translation attempt to the edition already present
+    /// in the library. This is a final invariant at the persistence boundary in
+    /// addition to the coordinator's stable draft identifier.
+    func canonicalTranslation(_ draft: ReadingDocument) -> ReadingDocument {
+        guard let originalID = draft.translationOf else { return draft }
+        let language = SystemVoiceSelection.language(draft.languageCode ?? "und")
+        guard let existing = documents.first(where: {
+            $0.id != draft.id && $0.translationOf == originalID
+                && SystemVoiceSelection.language($0.languageCode ?? "und") == language
+        }) else { return draft }
+        var canonical = draft
+        canonical.id = existing.id
+        canonical.importedAt = existing.importedAt
+        canonical.position = existing.position
+        canonical.bookmarks.formUnion(existing.bookmarks)
+        canonical.coverFileName = canonical.coverFileName ?? existing.coverFileName
+        return canonical
+    }
+
     @discardableResult func saveTranslation(_ draft: ReadingDocument) -> Bool {
+        let draft = canonicalTranslation(draft)
         guard let index = documents.firstIndex(where: { $0.id == draft.id }) else { return add(draft) }
         let previous = documents[index]
         var updated = draft
@@ -60,6 +170,31 @@ final class LibraryStore {
         documents[index] = updated
         guard save() else { documents[index] = previous; return false }
         return true
+    }
+
+    /// Translation publishes frequently. Keep observable state on the main actor,
+    /// but serialize the expensive full-library encoding and atomic write elsewhere.
+    @discardableResult func saveTranslationWithoutBlocking(_ draft: ReadingDocument) async -> Bool {
+        let draft = canonicalTranslation(draft)
+        if let index = documents.firstIndex(where: { $0.id == draft.id }) {
+            let previous = documents[index]
+            var updated = draft
+            updated.position = previous.position
+            updated.bookmarks = previous.bookmarks
+            updated.coverFileName = draft.coverFileName ?? previous.coverFileName
+            updated.isFinished = previous.isFinished && !updated.isTranslationPending
+            documents[index] = updated
+        } else {
+            documents.insert(draft, at: 0)
+        }
+        let snapshot = documents
+        do {
+            try await persistence.write(snapshot)
+            return true
+        } catch {
+            errorMessage = String(format: String(localized: "La sauvegarde locale a échoué : %@"), error.localizedDescription)
+            return false
+        }
     }
 
     @discardableResult func add(_ document: ReadingDocument) -> Bool {
@@ -116,28 +251,22 @@ final class LibraryStore {
 
     @discardableResult private func save() -> Bool {
         do {
-            let data = try JSONEncoder().encode(documents)
-            try data.write(to: fileURL, options: [.atomic, .completeFileProtectionUntilFirstUserAuthentication])
-            var url = fileURL
-            var values = URLResourceValues()
-            values.isExcludedFromBackup = true
-            try url.setResourceValues(values)
+            try persistence.writeSync(documents)
             return true
         } catch {
-            errorMessage = "La sauvegarde locale a échoué : \(error.localizedDescription)"
+            errorMessage = String(format: String(localized: "La sauvegarde locale a échoué : %@"), error.localizedDescription)
             return false
         }
     }
 }
 
 enum VoiceEngine: String, CaseIterable, Identifiable {
-    case system, neural, qwen
+    case system, qwen
     var id: String { rawValue }
     var name: String {
         switch self {
-        case .system: "Voix iPhone"
-        case .neural: "Siwis"
-        case .qwen: "Qwen · Expressif"
+        case .system: String(localized: "Voix iPhone")
+        case .qwen: String(localized: "Qwen · Expressif")
         }
     }
 }
@@ -169,7 +298,10 @@ final class ReaderSettings {
     init(defaults: UserDefaults = .standard,
          legacyVoiceLanguage: (String) -> String? = { AVSpeechSynthesisVoice(identifier: $0)?.language }) {
         self.defaults = defaults
-        engine = VoiceEngine(rawValue: defaults.string(forKey: "voice.engine") ?? "") ?? .system
+        let savedEngine = defaults.string(forKey: "voice.engine") ?? ""
+        engine = VoiceEngine(rawValue: savedEngine) ?? .system
+        if savedEngine == "neural" { defaults.set(VoiceEngine.system.rawValue, forKey: "voice.engine") }
+        Self.removeLegacySiwisModel()
         qwenStyle = NarrationStyle(rawValue: defaults.string(forKey: "voice.qwenStyle") ?? "") ?? .warm
         qwenSpeaker = QwenSpeaker(rawValue: defaults.string(forKey: "voice.qwenSpeaker") ?? "") ?? .ryan
         qwenBuffer = QwenBufferPreset(rawValue: defaults.string(forKey: "voice.qwenBuffer") ?? "") ?? .automatic
@@ -189,5 +321,12 @@ final class ReaderSettings {
         speed = defaults.object(forKey: "voice.speed") as? Double ?? 1
         qwenSpeed = QwenStreamPlayer.clampedRate(defaults.object(forKey: "voice.qwenSpeed") as? Double ?? 2)
         textSize = defaults.object(forKey: "reader.textSize") as? Double ?? 22
+    }
+
+    private static func removeLegacySiwisModel() {
+        let directory = URL.applicationSupportDirectory.appending(path: "Voices", directoryHint: .isDirectory)
+        for name in ["fr_FR-siwis-medium.onnx", "verified.sha256"] {
+            try? FileManager.default.removeItem(at: directory.appending(path: name))
+        }
     }
 }

@@ -1,6 +1,13 @@
 import AVFoundation
 
 enum SystemVoiceSelection {
+    static func installedVoices() -> [AVSpeechSynthesisVoice] {
+        AVSpeechSynthesisVoice.speechVoices().sorted {
+            if $0.language.hasPrefix("fr") != $1.language.hasPrefix("fr") { return $0.language.hasPrefix("fr") }
+            return ($0.language, $0.name) < ($1.language, $1.name)
+        }
+    }
+
     static func speechRate(for speed: Double) -> Float {
         // The synthesizer's rate is not a playback multiplier: default * 2
         // reaches its extreme maximum. Keep 1× at the native natural pace and
@@ -17,6 +24,27 @@ enum SystemVoiceSelection {
 
     static func language(_ value: String) -> String {
         Locale.Language(identifier: value.replacingOccurrences(of: "_", with: "-")).languageCode?.identifier ?? value.lowercased()
+    }
+
+    /// Preserve a BCP-47 language variant for APIs such as Translation while
+    /// removing unrelated locale extensions (calendar, numbering system, etc.).
+    static func localeIdentifier(_ value: String) -> String {
+        let raw = value.replacingOccurrences(of: "_", with: "-")
+            .split(separator: "-").map(String.init)
+        guard let first = raw.first, !first.isEmpty else { return value.lowercased() }
+        var result = [first.lowercased()]
+        var index = 1
+        if raw.indices.contains(index), raw[index].count == 4, raw[index].allSatisfy(\.isLetter) {
+            result.append(raw[index].prefix(1).uppercased() + raw[index].dropFirst().lowercased())
+            index += 1
+        }
+        if raw.indices.contains(index) {
+            let region = raw[index]
+            if (region.count == 2 && region.allSatisfy(\.isLetter)) || (region.count == 3 && region.allSatisfy(\.isNumber)) {
+                result.append(region.uppercased())
+            }
+        }
+        return result.joined(separator: "-")
     }
 
     static func identifier(for textLanguage: String, preferred: String, voices: [Voice]) -> String? {

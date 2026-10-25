@@ -43,9 +43,9 @@ struct LibraryView: View {
                                 BookCover(title: featured.title, coverFileName: featured.coverFileName, large: true)
                                     .rotationEffect(.degrees(-4)).shadow(color: ConteurTheme.ink.opacity(0.18), radius: 8, x: 2, y: 6)
                                 VStack(alignment: .leading, spacing: 12) {
-                                    Eyebrow(text: featured.position > 0 ? "REPRENDRE" : "À ÉCOUTER")
+                                    Eyebrow(text: featured.position > 0 ? String(localized: "REPRENDRE") : String(localized: "À ÉCOUTER"))
                                     Text(featured.title).font(.system(size: 25, weight: .medium, design: .serif)).lineLimit(3)
-                                    Text("\(featured.minutes) min d’écoute estimées").font(.caption).foregroundStyle(ConteurTheme.muted)
+                                    Text(String(format: String(localized: "%lld min d’écoute estimées"), Int64(featured.minutes))).font(.caption).foregroundStyle(ConteurTheme.muted)
                                     if featured.isTranslationPending {
                                         BookTranslationGauge(progress: featured.translationProgress,
                                                              isActive: translation.isTranslating && translation.activeDocumentID == featured.id,
@@ -53,7 +53,7 @@ struct LibraryView: View {
                                     }
                                     HStack(spacing: 8) {
                                         Image(systemName: "play.fill").font(.system(size: 11))
-                                        Text(featured.position > 0 ? "Continuer" : "Ouvrir le lecteur").font(.caption.weight(.semibold))
+                                        Text(featured.position > 0 ? String(localized: "Continuer") : String(localized: "Ouvrir le lecteur")).font(.caption.weight(.semibold))
                                     }.padding(.horizontal, 14).padding(.vertical, 11).background(ConteurTheme.green, in: Capsule()).foregroundStyle(.white)
                                 }
                                 Spacer(minLength: 0)
@@ -75,7 +75,7 @@ struct LibraryView: View {
                         }.accessibilityLabel("Ajouter une lecture")
                     }
                     HStack(spacing: 8) {
-                        ForEach(Array(["Tout", "En cours", "Terminés"].enumerated()), id: \.offset) { index, title in
+                        ForEach(Array([String(localized: "Tout"), String(localized: "En cours"), String(localized: "Terminés")].enumerated()), id: \.offset) { index, title in
                             Button { filter = index } label: {
                                 Text(title).font(.caption.weight(.medium)).padding(.horizontal, 16).padding(.vertical, 10)
                                     .background(filter == index ? ConteurTheme.ink : ConteurTheme.card, in: Capsule())
@@ -92,7 +92,7 @@ struct LibraryView: View {
                         }.padding(13).background(ConteurTheme.card, in: RoundedRectangle(cornerRadius: 12))
                     }
                     if filtered.isEmpty {
-                        ContentUnavailableView(search.isEmpty ? "Un peu de place pour vos histoires" : "Aucun résultat", systemImage: "book", description: Text("Ajoutez un EPUB, un PDF ou votre propre texte."))
+                        ContentUnavailableView(search.isEmpty ? String(localized: "Un peu de place pour vos histoires") : String(localized: "Aucun résultat"), systemImage: "book", description: Text("Ajoutez un EPUB, un PDF ou votre propre texte."))
                         Button("Importer un document", action: importFile).buttonStyle(.borderedProminent).frame(maxWidth: .infinity)
                     } else {
                         LazyVStack(spacing: 0) {
@@ -108,7 +108,7 @@ struct LibraryView: View {
                                                 if document.source == "EPUB" {
                                                     Text("·  \(languageName(for: document))").font(.system(size: 9, weight: .semibold)).tracking(1)
                                                 }
-                                                Text("·  \(document.minutes) min").font(.caption)
+                                                Text(String(format: String(localized: "·  %lld min"), Int64(document.minutes))).font(.caption)
                                                 if document.isFinished { Image(systemName: "checkmark.circle.fill") }
                                             }.foregroundStyle(ConteurTheme.muted)
                                             if document.isTranslationPending {
@@ -137,6 +137,10 @@ struct LibraryView: View {
                         .font(.caption).foregroundStyle(ConteurTheme.muted).frame(maxWidth: .infinity).padding(.bottom, 16)
                 }.padding(.horizontal, 24).padding(.top, 16)
             }
+            .onScrollPhaseChange { _, phase in
+                translation.setInterfaceScrolling(phase != .idle)
+            }
+            .onDisappear { translation.setInterfaceScrolling(false) }
             .background(ConteurTheme.paper).foregroundStyle(ConteurTheme.ink)
             .toolbar(.hidden, for: .navigationBar)
             .confirmationDialog("Supprimer cette lecture ?", isPresented: Binding(get: { deleting != nil }, set: { if !$0 { deleting = nil } }), titleVisibility: .visible) {
@@ -155,13 +159,13 @@ struct LibraryView: View {
                 let url = try await Task.detached(priority: .userInitiated) { try EPUBExporter.export(document) }.value
                 sharedBook = SharedBook(url: url)
             } catch {
-                library.errorMessage = "Impossible de préparer l’EPUB : \(error.localizedDescription)"
+                library.errorMessage = String(format: String(localized: "Impossible de préparer l’EPUB : %@"), error.localizedDescription)
             }
         }
     }
 
     private func languageName(for document: ReadingDocument) -> String {
-        guard let languageCode = document.languageCode, !languageCode.isEmpty else { return "LANGUE INCONNUE" }
+        guard let languageCode = document.languageCode, !languageCode.isEmpty else { return String(localized: "LANGUE INCONNUE") }
         let code = SystemVoiceSelection.language(languageCode)
         return (Locale.current.localizedString(forLanguageCode: code) ?? code).localizedUppercase
     }
