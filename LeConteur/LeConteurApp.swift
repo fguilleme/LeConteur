@@ -73,26 +73,31 @@ private struct ReaderSelection: Identifiable {
 }
 
 struct RootView: View {
+    private enum Tab: Hashable { case library, voices }
+
     @Environment(LibraryStore.self) private var library
     @Environment(ReaderSettings.self) private var settings
     @Environment(PlaybackController.self) private var playback
     @Environment(TranslationCoordinator.self) private var translation
     @Environment(\.scenePhase) private var scenePhase
     @State private var reader: ReaderSelection?
+    @State private var selectedTab: Tab = CommandLine.arguments.contains("--localization-voices") ? .voices : .library
     @State private var showImporter = false
-    @State private var showComposer = false
+    @State private var showComposer = CommandLine.arguments.contains("--localization-compose")
     @State private var importing = false
     @State private var processingInbox = false
     @State private var error: String?
 
     var body: some View {
-        TabView {
+        TabView(selection: $selectedTab) {
             LibraryView(open: open, importFile: { showImporter = true }, compose: { showComposer = true })
                 .safeAreaInset(edge: .bottom, spacing: 0) { miniPlayer }
                 .tabItem { Label("Bibliothèque", systemImage: "books.vertical") }
+                .tag(Tab.library)
             VoicesView()
                 .safeAreaInset(edge: .bottom, spacing: 0) { miniPlayer }
                 .tabItem { Label("Voix", systemImage: "waveform") }
+                .tag(Tab.voices)
         }
         .sheet(item: $reader) { selection in
             ReadingSessionView(documentID: selection.id,
@@ -117,6 +122,16 @@ struct RootView: View {
         }
         .onOpenURL { url in Task { await importFile(url) } }
         .task { await consumeInbox() }
+        .task {
+            #if DEBUG
+            if CommandLine.arguments.contains("--localization-reader") {
+                try? await Task.sleep(for: .milliseconds(350))
+                if reader == nil, let document = library.documents.first {
+                    open(document)
+                }
+            }
+            #endif
+        }
         .onChange(of: scenePhase) { _, phase in
             if phase == .active {
                 VoiceDownloads.shared.foreground()

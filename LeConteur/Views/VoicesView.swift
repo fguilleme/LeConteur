@@ -5,8 +5,8 @@ struct VoicesView: View {
     @Environment(ReaderSettings.self) private var settings
     @Environment(PlaybackController.self) private var playback
     @State private var voices: [AVSpeechSynthesisVoice] = []
-    @State private var showLicenses = false
-    @State private var showSystemVoices = false
+    @State private var showLicenses = CommandLine.arguments.contains("--localization-licenses")
+    @State private var showSystemVoices = CommandLine.arguments.contains("--localization-system-voices")
 
     var body: some View {
         @Bindable var settings = settings
