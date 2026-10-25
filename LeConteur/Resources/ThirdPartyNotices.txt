@@ -3,22 +3,6 @@ LE CONTEUR — CRÉDITS
 Synthèse vocale iOS : Apple AVFoundation.
 Traduction locale : Apple Translation. Les langues doivent être installées sur l’appareil. Apple peut recueillir des métriques d’utilisation du framework, sans le contenu des textes.
 
-Voix neuronale : Piper, voix française fr_FR-siwis-medium.
-Corpus SIWIS : University of Edinburgh, licence Creative Commons Attribution 4.0.
-https://datashare.is.ed.ac.uk/handle/10283/2353
-Modèle converti par le projet sherpa-onnx :
-https://huggingface.co/csukuangfj/vits-piper-fr_FR-siwis-medium
-
-sherpa-onnx 1.13.8 — Copyright Xiaomi Corporation et contributeurs, Apache-2.0.
-https://github.com/k2-fsa/sherpa-onnx
-
-ONNX Runtime — Copyright Microsoft Corporation, MIT.
-https://github.com/microsoft/onnxruntime
-
-eSpeak NG — GPL-3.0-or-later.
-https://github.com/espeak-ng/espeak-ng
-Le moteur neuronal utilise eSpeak NG pour la phonémisation. Sa licence doit être respectée lors de la redistribution d’un binaire lié.
-
 ZIPFoundation 0.9.19 — Copyright Thomas Zoechling, MIT.
 https://github.com/weichsel/ZIPFoundation
 

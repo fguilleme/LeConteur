@@ -3,7 +3,6 @@ import AVFoundation
 
 struct VoicesView: View {
     @Environment(ReaderSettings.self) private var settings
-    @Environment(NeuralModelStore.self) private var model
     @Environment(PlaybackController.self) private var playback
     @State private var voices: [AVSpeechSynthesisVoice] = []
     @State private var showLicenses = false
@@ -14,12 +13,10 @@ struct VoicesView: View {
         NavigationStack {
             ScrollView {
                 VStack(alignment: .leading, spacing: 25) {
-                    Eyebrow(text: "UNE VOIX QUI VOUS RESSEMBLE")
+                    Eyebrow(text: String(localized: "UNE VOIX QUI VOUS RESSEMBLE"))
                     Text("L’art de raconter.").font(.system(size: 38, weight: .regular, design: .serif)).tracking(-1)
                     Text("Choisissez votre façon d’écouter.\nLe même plaisir, sans connexion.")
                         .font(.subheadline).foregroundStyle(ConteurTheme.muted)
-
-                    QwenVoiceCard()
 
                     VStack(alignment: .leading, spacing: 20) {
                         HStack {
@@ -30,7 +27,7 @@ struct VoicesView: View {
                             }
                             Spacer()
                             selectionMark(settings.engine == .system)
-                        }.contentShape(Rectangle()).onTapGesture { settings.engine = .system }
+                        }.contentShape(Rectangle()).onTapGesture { playback.selectEngine(.system) }
                         Button { showSystemVoices = true } label: {
                             HStack {
                                 Label("Voix préférées par langue", systemImage: "star")
@@ -45,7 +42,7 @@ struct VoicesView: View {
                                 HStack {
                                     Text(SystemVoicesList.languageName(language))
                                     Spacer()
-                                    Text(voices.first { $0.identifier == settings.systemVoiceID(for: language) }?.name ?? "Voix indisponible")
+                                    Text(voices.first { $0.identifier == settings.systemVoiceID(for: language) }?.name ?? String(localized: "Voix indisponible"))
                                         .foregroundStyle(.secondary)
                                 }.font(.subheadline)
                             }
@@ -53,42 +50,9 @@ struct VoicesView: View {
                         Text("Une voix préférée par langue. Elle est retrouvée automatiquement à la lecture, y compris après traduction.").font(.caption).foregroundStyle(.secondary)
                         Text("Ajoutez des voix de qualité améliorée dans Réglages → Accessibilité → Lire et énoncer → Voix. Le nom du menu peut varier selon iOS.")
                             .font(.caption).foregroundStyle(.secondary)
-                    }.padding(22).background(.white.opacity(0.7), in: RoundedRectangle(cornerRadius: 22))
+                    }.padding(22).background(ConteurTheme.card, in: RoundedRectangle(cornerRadius: 22))
 
-                    VStack(alignment: .leading, spacing: 18) {
-                        HStack {
-                            Image(systemName: "waveform").font(.title2)
-                            VStack(alignment: .leading, spacing: 4) {
-                                Text("Siwis").font(.system(size: 26, design: .serif))
-                                Text("VOIX NEURONALE · FRANÇAIS").font(.system(size: 9, weight: .semibold)).tracking(1.4)
-                            }
-                            Spacer()
-                            selectionMark(settings.engine == .neural)
-                        }
-                        Text("Une voix française générée directement sur votre iPhone, grâce au modèle Piper.")
-                            .font(.subheadline).foregroundStyle(ConteurTheme.muted)
-                        if model.isInstalled {
-                            Button {
-                                settings.engine = .neural
-                            } label: { Label(settings.engine == .neural ? "Voix sélectionnée" : "Choisir cette voix", systemImage: "checkmark.circle") }
-                                .buttonStyle(.borderedProminent)
-                            Text("Installée · Utilisable hors ligne").font(.caption).foregroundStyle(ConteurTheme.green)
-                        } else if model.isDownloading {
-                            ProgressView(value: model.progress)
-                            HStack {
-                                Text("\(model.status) · \(Int(model.progress * 100)) %").font(.caption)
-                                Spacer()
-                                Button("Annuler") { model.cancelDownload() }.font(.caption)
-                            }
-                        } else {
-                            Button { model.download() } label: { Label("Télécharger · 63 Mo", systemImage: "arrow.down.circle") }
-                                .buttonStyle(.borderedProminent)
-                            Text("Le téléchargement continue en Wi-Fi, même dans une autre app ou écran éteint.").font(.caption).foregroundStyle(.secondary)
-                        }
-                        if let error = model.errorMessage { Text(error).font(.caption).foregroundStyle(.red) }
-                        Text("Suivi des mots estimé. Pour les textes dans une autre langue, la voix iPhone correspondante prend le relais.")
-                            .font(.caption).foregroundStyle(.secondary)
-                    }.padding(22).background(ConteurTheme.wash, in: RoundedRectangle(cornerRadius: 22))
+                    QwenVoiceCard()
 
                     VStack(alignment: .leading, spacing: 12) {
                         Label("Votre bibliothèque vous appartient", systemImage: "lock.shield").font(.subheadline.weight(.semibold))
@@ -105,7 +69,7 @@ struct VoicesView: View {
             .alert("Lecture Qwen", isPresented: Binding(get: { playback.errorMessage != nil }, set: { if !$0 { playback.errorMessage = nil } })) {
                 Button("D’accord", role: .cancel) { playback.errorMessage = nil }
             } message: { Text(playback.errorMessage ?? "") }
-            .sheet(isPresented: $showSystemVoices) { SystemVoicesList(voices: voices) }
+            .sheet(isPresented: $showSystemVoices) { SystemVoicesList() }
             .sheet(isPresented: $showLicenses) {
                 NavigationStack {
                     ScrollView {
@@ -118,15 +82,12 @@ struct VoicesView: View {
     }
 
     private func refreshVoices() {
-        voices = AVSpeechSynthesisVoice.speechVoices().sorted {
-            if $0.language.hasPrefix("fr") != $1.language.hasPrefix("fr") { return $0.language.hasPrefix("fr") }
-            return ($0.language, $0.name) < ($1.language, $1.name)
-        }
+        voices = SystemVoiceSelection.installedVoices()
     }
 
     private var licenseText: String {
         guard let url = Bundle.main.url(forResource: "ThirdPartyNotices", withExtension: "txt"),
-              let text = try? String(contentsOf: url, encoding: .utf8) else { return "Piper · Siwis · sherpa-onnx · ONNX Runtime · eSpeak NG · ZIPFoundation" }
+              let text = try? String(contentsOf: url, encoding: .utf8) else { return "Qwen3-TTS · MLX · ZIPFoundation" }
         return text
     }
 
@@ -140,7 +101,7 @@ private struct SystemVoicesList: View {
     @Environment(ReaderSettings.self) private var settings
     @Environment(PlaybackController.self) private var playback
     @Environment(\.dismiss) private var dismiss
-    let voices: [AVSpeechSynthesisVoice]
+    @State private var voices: [AVSpeechSynthesisVoice] = []
     @State private var preview = AVSpeechSynthesizer()
     @State private var search = ""
 
@@ -181,7 +142,7 @@ private struct SystemVoicesList: View {
                 }
                 ForEach(languages, id: \.self) { language in
                     Section(Self.languageName(language)) {
-                        Button { settings.preferSystemVoice("", for: language) } label: {
+                        Button { playback.selectSystemVoice("", language: language) } label: {
                             HStack {
                                 Text("Automatique")
                                 Spacer()
@@ -196,22 +157,21 @@ private struct SystemVoicesList: View {
                         ForEach(displayedVoicesIn(language), id: \.identifier) { voice in
                             HStack(spacing: 16) {
                                 Button {
-                                    settings.preferSystemVoice(voice.identifier, for: language)
-                                    settings.engine = .system
+                                    playback.selectSystemVoice(voice.identifier, language: language)
                                 } label: {
                                     HStack(spacing: 12) {
                                         Image(systemName: settings.systemVoiceID(for: language) == voice.identifier ? "star.fill" : "star")
                                             .foregroundStyle(ConteurTheme.green)
                                         VStack(alignment: .leading, spacing: 3) {
                                             Text(voice.name).foregroundStyle(ConteurTheme.ink)
-                                            Text("\(voice.language)\(voice.quality == .premium ? " · Premium" : voice.quality == .enhanced ? " · Améliorée" : "")")
+                                            Text("\(voice.language)\(voice.quality == .premium ? String(localized: " · Premium") : voice.quality == .enhanced ? String(localized: " · Améliorée") : "")")
                                                 .font(.caption).foregroundStyle(.secondary)
                                         }
                                         Spacer(minLength: 0)
                                     }.contentShape(Rectangle())
                                 }.buttonStyle(.plain)
                                     .accessibilityLabel("\(voice.name), \(voice.language)")
-                                    .accessibilityValue(settings.systemVoiceID(for: language) == voice.identifier ? "Voix préférée" : "")
+                                    .accessibilityValue(settings.systemVoiceID(for: language) == voice.identifier ? String(localized: "Voix préférée") : "")
                                     .accessibilityHint("Choisir comme voix préférée pour \(Self.languageName(language))")
                                 Button { audition(voice) } label: {
                                     Image(systemName: "play.circle").font(.title2).frame(width: 44, height: 44)
@@ -224,6 +184,10 @@ private struct SystemVoicesList: View {
             .navigationTitle("Voix Apple")
             .searchable(text: $search, prompt: "Langue ou voix")
             .toolbar { ToolbarItem(placement: .confirmationAction) { Button("Terminer") { dismiss() } } }
+            .task { voices = SystemVoiceSelection.installedVoices() }
+            .onReceive(NotificationCenter.default.publisher(for: AVSpeechSynthesizer.availableVoicesDidChangeNotification)) { _ in
+                voices = SystemVoiceSelection.installedVoices()
+            }
             .onDisappear { preview.stopSpeaking(at: .immediate) }
         }.tint(ConteurTheme.green)
     }

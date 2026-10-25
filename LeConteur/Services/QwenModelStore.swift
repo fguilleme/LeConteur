@@ -3,16 +3,17 @@ import CryptoKit
 import Observation
 
 enum QwenError: LocalizedError {
-    case missing, invalidFile(String), insufficientSpace, unavailable, emptyAudio, foregroundRequired, insufficientMemory
+    case missing, invalidFile(String), insufficientSpace, unavailable, emptyAudio, foregroundRequired, insufficientMemory, generationLimitReached
     var errorDescription: String? {
         switch self {
-        case .missing: "Installez d’abord Qwen dans Voix."
-        case .invalidFile(let file): "Le fichier Qwen \(file) est incomplet ou invalide. Relancez l’installation."
-        case .insufficientSpace: "Libérez au moins 3 Go sur l’iPhone pour installer Qwen."
-        case .unavailable: "Qwen nécessite un iPhone avec au moins 8 Go de mémoire. Les voix iPhone et Siwis restent disponibles."
-        case .emptyAudio: "Qwen n’a pas produit d’audio utilisable. Réessayez sur un passage plus court."
-        case .insufficientMemory: "La mémoire disponible est insuffisante pour Qwen. Fermez les autres apps puis réessayez, ou choisissez une voix iPhone."
-        case .foregroundRequired: "Gardez Le Conteur ouvert pendant la préparation Qwen. Touchez Lire pour reprendre."
+        case .missing: String(localized: "Installez d’abord Qwen dans Voix.")
+        case .invalidFile(let file): String(localized: "Le fichier Qwen \(file) est incomplet ou invalide. Relancez l’installation.")
+        case .insufficientSpace: String(localized: "Libérez au moins 3 Go sur l’iPhone pour installer Qwen.")
+        case .unavailable: String(localized: "Qwen nécessite un iPhone avec au moins 8 Go de mémoire. Les voix iPhone restent disponibles.")
+        case .emptyAudio: String(localized: "Qwen n’a pas produit d’audio utilisable. Réessayez sur un passage plus court.")
+        case .generationLimitReached: String(localized: "Qwen n’a pas réussi à terminer ce passage. Touchez Lire pour le réessayer.")
+        case .insufficientMemory: String(localized: "La mémoire disponible est insuffisante pour Qwen. Fermez les autres apps puis réessayez, ou choisissez une voix iPhone.")
+        case .foregroundRequired: String(localized: "Gardez Le Conteur ouvert pendant la préparation Qwen. Touchez Lire pour reprendre.")
         }
     }
 }

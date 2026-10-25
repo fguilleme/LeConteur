@@ -319,6 +319,7 @@ public final class Qwen3TTSModel: Module, @unchecked Sendable {
         streamingInterval: Double = 2.0,
         onToken: ((Int) -> Void)? = nil,
         onInfo: ((AudioGenerationInfo) -> Void)? = nil,
+        onCodecFrames: (([[Int32]]) -> Void)? = nil,
         onAudioChunk: ((sending MLXArray) -> Void)? = nil
     ) throws -> MLXArray {
         guard let speechTokenizer, tokenizer != nil else {
@@ -375,7 +376,7 @@ public final class Qwen3TTSModel: Module, @unchecked Sendable {
             refCodes = nil
         }
 
-        // Cap max tokens based on text length
+        // Keep a hard bound on generation, including when EOS never arrives.
         let effectiveMaxTokens = maxTokens
 
         // Initialize cache and timing
@@ -450,13 +451,9 @@ public final class Qwen3TTSModel: Module, @unchecked Sendable {
                     codeInput, cache: codeCache, generationStep: codeIdx
                 )
 
-                let nextCode = sampleToken(
-                    codeLogits,
-                    temperature: temperature,
-                    topP: topP,
-                    topK: topK,
-                    minP: minP
-                )
+                // Residual acoustic codebooks use the model's independent
+                // subtalker defaults, not the French narration temperature.
+                let nextCode = categorical(QwenTokenSampling.codePredictorLogits(codeLogits)).reshaped(1, 1)
                 codeTokens.append(nextCode)
             }
 
@@ -513,10 +510,13 @@ public final class Qwen3TTSModel: Module, @unchecked Sendable {
         try Task.checkCancellation()
 
         guard reachedEnd else {
-            throw AudioGenerationError.generationFailed("La génération a atteint sa limite. Essayez un passage plus court.")
+            throw QwenGenerationError.tokenLimitReached
         }
         guard !generatedCodes.isEmpty else {
             return MLXArray.zeros([1])
+        }
+        if let onCodecFrames {
+            onCodecFrames(generatedCodes.map { $0.asArray(Int32.self) })
         }
 
         // Emit generation info
@@ -733,7 +733,7 @@ public final class Qwen3TTSModel: Module, @unchecked Sendable {
 
         // Reference text tokenization
         let refChatText = "<|im_start|>assistant\n\(refText)<|im_end|>\n"
-        let refIds = MLXArray(tokenizer.encode(text: refChatText).map { Int32($0) }).reshaped(1, -1)
+        let refIds = MLXArray(Self.encodeText(refChatText, using: tokenizer).map { Int32($0) }).reshaped(1, -1)
         let refCount = refIds.dim(1)
         let refStart = min(3, refCount)
         let refEnd = max(refStart, refCount - 2)
@@ -765,7 +765,7 @@ public final class Qwen3TTSModel: Module, @unchecked Sendable {
         }
 
         let targetChatText = "<|im_start|>assistant\n\(text)<|im_end|>\n<|im_start|>assistant\n"
-        let targetIds = MLXArray(tokenizer.encode(text: targetChatText).map { Int32($0) }).reshaped(1, -1)
+        let targetIds = MLXArray(Self.encodeText(targetChatText, using: tokenizer).map { Int32($0) }).reshaped(1, -1)
         let targetCount = targetIds.dim(1)
         let targetStart = min(3, targetCount)
         let targetEnd = max(targetStart, targetCount - 5)
@@ -898,7 +898,7 @@ public final class Qwen3TTSModel: Module, @unchecked Sendable {
 
         // Tokenize text with ChatML template
         let chatText = "<|im_start|>assistant\n\(text)<|im_end|>\n<|im_start|>assistant\n"
-        let inputIds = MLXArray(tokenizer.encode(text: chatText).map { Int32($0) }).reshaped(1, -1)
+        let inputIds = MLXArray(Self.encodeText(chatText, using: tokenizer).map { Int32($0) }).reshaped(1, -1)
 
         // Get text embeddings
         let textEmbed = talker.textProjection(talker.getTextEmbeddings()(inputIds))
@@ -972,7 +972,7 @@ public final class Qwen3TTSModel: Module, @unchecked Sendable {
         var instructEmbed: MLXArray?
         if let instruct, !instruct.isEmpty {
             let instructText = "<|im_start|>user\n\(instruct)<|im_end|>\n"
-            let instructIds = MLXArray(tokenizer.encode(text: instructText).map { Int32($0) }).reshaped(1, -1)
+            let instructIds = MLXArray(Self.encodeText(instructText, using: tokenizer).map { Int32($0) }).reshaped(1, -1)
             instructEmbed = talker.textProjection(talker.getTextEmbeddings()(instructIds))
         }
 
@@ -1017,110 +1017,13 @@ public final class Qwen3TTSModel: Module, @unchecked Sendable {
         eosTokenId: Int? = nil,
         minP: Float = 0.0
     ) -> MLXArray {
-        var logitsSlice = logits[0..., (-1)..., 0...].squeezed(axis: 1) // [batch, vocab_size]
-
-        // Suppress tokens by setting to -inf
-        if let suppress = suppressTokens, !suppress.isEmpty {
-            let suppressArr = MLXArray(suppress.map { Int32($0) }).reshaped(1, -1)
-            let negInf = MLXArray.full([1, suppress.count], values: MLXArray(-Float.infinity), dtype: logitsSlice.dtype)
-            logitsSlice = putAlong(logitsSlice, suppressArr, values: negInf, axis: -1)
-        }
-
-        // Repetition penalty
-        if let tokens = generatedTokens, !tokens.isEmpty, repetitionPenalty != 1.0 {
-            let unique = Array(Set(tokens)).filter { $0 < logitsSlice.dim(-1) }
-            if !unique.isEmpty {
-                let tokenIds = MLXArray(unique.map { Int32($0) }).reshaped(1, -1)
-                let selected = takeAlong(logitsSlice, tokenIds, axis: -1)
-                let penalized = which(
-                    selected .< 0,
-                    selected * repetitionPenalty,
-                    selected / repetitionPenalty
-                )
-                logitsSlice = putAlong(logitsSlice, tokenIds, values: penalized, axis: -1)
-            }
-        }
-
-        // Greedy if temperature 0
-        if temperature <= 0 {
-            return argMax(logitsSlice, axis: -1, keepDims: true)
-        }
-
-        // Preserve EOS logit so top-k/top-p/min-p do not permanently suppress it.
-        let eosLogit: MLXArray? = if let eosTokenId, eosTokenId >= 0, eosTokenId < logitsSlice.dim(-1) {
-            logitsSlice[0..., eosTokenId ..< (eosTokenId + 1)]
-        } else {
-            nil
-        }
-
-        // Apply top-k filtering (match mlx_lm.apply_top_k ordering and masking semantics)
-        var filteredLogits = logitsSlice
-        let vocabSize = logitsSlice.dim(-1)
-        if topK > 0, topK < vocabSize {
-            let kth = min(topK - 1, max(vocabSize - 1, 0))
-            if kth >= 0 {
-                let maskIdx = argPartition(-logitsSlice, kth: kth, axis: -1)[0..., topK...]
-                let negInf = MLXArray.full(maskIdx.shape, values: MLXArray(-Float.infinity), dtype: logitsSlice.dtype)
-                filteredLogits = putAlong(filteredLogits, maskIdx, values: negInf, axis: -1)
-            }
-        }
-
-        // Apply top-p (nucleus) sampling
-        if topP > 0, topP < 1.0 {
-            let probs = softmax(filteredLogits, axis: -1)
-
-            // Sort in ASCENDING order (like Python)
-            let sortedIndices = argSort(filteredLogits, axis: -1)
-            let sortedProbs = takeAlong(probs, sortedIndices, axis: -1)
-
-            // Cumulative probabilities
-            let cumProbs = cumsum(sortedProbs, axis: -1)
-
-            // Rearrange cumulative probs back to original order
-            // Create inverse index mapping using putAlong
-            let vocabSize = sortedIndices.dim(-1)
-            let arangeIndices = MLXArray(0 ..< vocabSize).reshaped(1, -1).asType(Int32.self)
-            let zeros = MLXArray.zeros(sortedIndices.shape, type: Int32.self)
-            let inverseIndices = putAlong(zeros, sortedIndices, values: arangeIndices, axis: -1)
-            let cumProbsOrigOrder = takeAlong(cumProbs, inverseIndices, axis: -1)
-
-            // Mask tokens where cumulative prob > (1 - top_p)
-            // Keep tokens that are in the top_p nucleus
-            let threshold = 1.0 - topP
-            let mask = cumProbsOrigOrder .> threshold
-            let negInf = MLXArray.full(filteredLogits.shape, values: MLXArray(-Float.infinity), dtype: filteredLogits.dtype)
-            filteredLogits = which(mask, filteredLogits, negInf)
-        }
-
-        // Apply min-p sampling behavior (default kept at 0.0 for now)
-        if minP > 0.0 {
-            let scaledMinP = Float(log(Double(minP)))
-            // Indices sorted in descending order (like Python `argsort(-logits)`)
-            let sortedIndices = argSort(-filteredLogits, axis: -1)
-            let sortedLogits = takeAlong(filteredLogits, sortedIndices, axis: -1)
-            let topLogits = sortedLogits[0..., 0 ..< 1]
-            let scaledMinPArray = MLXArray.full(
-                topLogits.shape,
-                values: MLXArray(scaledMinP),
-                dtype: sortedLogits.dtype
-            ) + topLogits
-            let removeMask = sortedLogits .< scaledMinPArray
-            let negInf = MLXArray.full(sortedLogits.shape, values: MLXArray(-Float.infinity), dtype: sortedLogits.dtype)
-            let filteredSortedLogits = which(removeMask, negInf, sortedLogits)
-
-            let invArange = MLXArray(0 ..< vocabSize).reshaped(1, -1).asType(Int32.self)
-            let inverseIndices = putAlong(MLXArray.zeros(sortedIndices.shape, type: Int32.self), sortedIndices, values: invArange, axis: -1)
-            filteredLogits = takeAlong(filteredSortedLogits, inverseIndices, axis: -1)
-        }
-
-        if let eosLogit, let eosTokenId {
-            let eosIdx = MLXArray([Int32(eosTokenId)]).reshaped(1, 1)
-            filteredLogits = putAlong(filteredLogits, eosIdx, values: eosLogit, axis: -1)
-        }
-
-        // Sample with temperature
-        let token = categorical(filteredLogits / temperature)
-        return token.reshaped(1, 1)
+        let filtered = QwenTokenSampling.filteredLogits(
+            logits, temperature: temperature, topP: topP, topK: topK,
+            repetitionPenalty: repetitionPenalty, generatedTokens: generatedTokens,
+            suppressTokens: suppressTokens, eosTokenId: eosTokenId, minP: minP
+        )
+        if temperature <= 0 { return argMax(filtered, axis: -1, keepDims: true) }
+        return categorical(filtered).reshaped(1, 1)
     }
 
     // MARK: - fromPretrained
@@ -1273,12 +1176,19 @@ public final class Qwen3TTSModel: Module, @unchecked Sendable {
         print("Loaded speech tokenizer decoder")
     }
 
+    /// Match Qwen2's NFC preparation, including on installations with an older
+    /// generated tokenizer.json that has no normalizer. Reader text and its
+    /// UTF-16 offsets stay unchanged; normalization is confined to model input.
+    static func encodeText(_ text: String, using tokenizer: Tokenizers.Tokenizer) -> [Int] {
+        tokenizer.encode(text: text.precomposedStringWithCanonicalMapping)
+    }
+
     // MARK: - Generate tokenizer.json from vocab.json + merges.txt
 
     /// Qwen3-TTS repos ship with a slow tokenizer (vocab.json + merges.txt) but
     /// swift-transformers requires tokenizer.json (fast tokenizer format). This
     /// generates the fast tokenizer JSON from the available files.
-    private static func generateTokenizerJson(
+    static func generateTokenizerJson(
         vocabPath: URL,
         mergesPath: URL,
         tokenizerConfigPath: URL,
@@ -1322,14 +1232,14 @@ public final class Qwen3TTSModel: Module, @unchecked Sendable {
             "truncation": NSNull(),
             "padding": NSNull(),
             "added_tokens": addedTokens,
-            "normalizer": NSNull(),
+            "normalizer": ["type": "NFC"],
             "pre_tokenizer": [
                 "type": "Sequence",
                 "pretokenizers": [
                     [
                         "type": "Split",
                         "pattern": [
-                            "Regex": "(?i:'s|'t|'re|'ve|'m|'ll|'d)|[^\\r\\n\\p{L}\\p{N}]?\\p{L}+|\\p{N}{1,3}| ?[^\\s\\p{L}\\p{N}]+[\\r\\n]*|\\s*[\\r\\n]+|\\s+(?!\\S)|\\s+"
+                            "Regex": "(?i:'s|'t|'re|'ve|'m|'ll|'d)|[^\\r\\n\\p{L}\\p{N}]?\\p{L}+|\\p{N}| ?[^\\s\\p{L}\\p{N}]+[\\r\\n]*|\\s*[\\r\\n]+|\\s+(?!\\S)|\\s+"
                         ],
                         "behavior": "Isolated",
                         "invert": false

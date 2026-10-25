@@ -21,13 +21,15 @@ struct QwenVoiceCard: View {
             }
             Text("Une narration expressive, créée sur votre iPhone. Choisissez l’émotion qui accompagne vos livres.")
                 .font(.subheadline).foregroundStyle(ConteurTheme.muted)
-            Picker("Voix Qwen", selection: $settings.qwenSpeaker) {
+            Text("Langues prises en charge : français, anglais, espagnol, allemand, italien, portugais, russe, japonais, coréen et chinois.")
+                .font(.caption).foregroundStyle(.secondary)
+            Picker("Voix Qwen", selection: Binding(get: { settings.qwenSpeaker }, set: { playback.selectQwenSpeaker($0) })) {
                 ForEach(QwenSpeaker.allCases) { voice in Text(voice.name).tag(voice) }
             }.accessibilityIdentifier("qwen-speaker-picker")
             Text(settings.qwenSpeaker.description).font(.caption).foregroundStyle(ConteurTheme.muted)
             Text("La langue indiquée est celle d’origine de la voix. La lecture suit la langue du livre ; l’accent peut varier.")
                 .font(.caption2).foregroundStyle(.secondary)
-            Picker("Style Qwen", selection: $settings.qwenStyle) {
+            Picker("Style Qwen", selection: Binding(get: { settings.qwenStyle }, set: { playback.selectQwenStyle($0) })) {
                 ForEach(NarrationStyle.allCases) { style in Text(style.name).tag(style) }
             }.pickerStyle(.segmented).accessibilityIdentifier("qwen-style-picker")
             Label(settings.qwenStyle.subtitle, systemImage: settings.qwenStyle.icon)
@@ -58,21 +60,24 @@ struct QwenVoiceCard: View {
                     Button("Annuler") { model.cancel() }.font(.caption)
                 }
             } else if model.isInstalled {
+                if let message = playback.voiceFallbackMessage {
+                    Text(message).font(.caption).foregroundStyle(ConteurTheme.muted)
+                }
                 Button {
-                    settings.engine = .qwen
+                    playback.selectEngine(.qwen)
                 } label: {
-                    Label(settings.engine == .qwen ? "Sélectionné pour vos livres" : "Utiliser pour mes livres", systemImage: "book")
+                    Label(playback.isUsingAppleForTranslation ? String(localized: "Écouter avec Qwen") : settings.engine == .qwen ? String(localized: "Sélectionné pour vos livres") : String(localized: "Utiliser pour mes livres"), systemImage: "book")
                 }.buttonStyle(.borderedProminent).foregroundStyle(.white).disabled(removing)
                     .accessibilityIdentifier("qwen-select-engine")
                 Button {
                     if playback.isPreview, playback.isPlaying || playback.isPreparing { playback.stop() }
                     else { playback.previewQwen() }
                 } label: {
-                    Label(playback.isPreview && (playback.isPlaying || playback.isPreparing) ? "Arrêter l’aperçu" : "Écouter ce style",
+                    Label(playback.isPreview && (playback.isPlaying || playback.isPreparing) ? String(localized: "Arrêter l’aperçu") : String(localized: "Écouter ce style"),
                           systemImage: playback.isPreview && (playback.isPlaying || playback.isPreparing) ? "stop.circle" : "play.circle")
                 }.disabled(removing).accessibilityIdentifier("qwen-preview")
-                if playback.isPreview, playback.isPreparing {
-                    HStack(spacing: 10) { ProgressView(); Text(playback.preparationStatus).font(.caption).monospacedDigit() }
+                if playback.isPreview, let reserve = playback.qwenReserve {
+                    QwenReserveGauge(reserve: reserve)
                 }
                 if playback.isPreview, let notice = playback.notice { Text(notice).font(.caption).foregroundStyle(ConteurTheme.muted) }
                 if let metrics = playback.qwenMetrics {
@@ -82,7 +87,7 @@ struct QwenVoiceCard: View {
                 DisclosureGroup("Le texte des trois aperçus") {
                     Text(NarrationStyle.auditionText).font(.system(.subheadline, design: .serif)).padding(.top, 8)
                 }.font(.caption)
-                Button(removing ? "Libération…" : "Supprimer le modèle · 2,31 Go", role: .destructive) {
+                Button(removing ? String(localized: "Libération…") : String(localized: "Supprimer le modèle · 2,31 Go"), role: .destructive) {
                     removing = true
                     Task {
                         await playback.releaseQwen()
@@ -98,7 +103,7 @@ struct QwenVoiceCard: View {
                     .font(.caption).foregroundStyle(.secondary)
             }
             if let error = model.errorMessage { Text(error).font(.caption).foregroundStyle(.red) }
-            Text("Qwen prépare plusieurs passages avant de lire et continue à prendre de l’avance pendant l’écoute. Automatique adapte la réserve à la vitesse et au temps de préparation. Gardez l’app ouverte pendant la génération. Le suivi des mots est estimé.")
+            Text("Qwen prépare plusieurs passages avant de lire et continue à prendre de l’avance pendant l’écoute. Automatique adapte la réserve à la vitesse et au temps de préparation. Écran éteint ou dans une autre app, la réserve reste lisible. Une fois vide, la lecture attend votre retour dans Le Conteur pour préparer la suite. Le suivi des mots est estimé.")
                 .font(.caption).foregroundStyle(.secondary)
         }
         .padding(22).background(ConteurTheme.wash, in: RoundedRectangle(cornerRadius: 22))

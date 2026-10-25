@@ -569,7 +569,15 @@ final class DecoderBlockUpsample: Module {
 
         if trimRight > 0 {
             let split = max(0, h.dim(2) - trimRight)
-            overflow = h[0..., 0..., split...]
+            let tail = h[0..., 0..., split...]
+            // The next chunk's convolution already adds its bias to the head.
+            // Carry only the previous input's contribution, otherwise overlap-add
+            // applies the bias twice at every streaming boundary.
+            if let bias = conv.bias {
+                overflow = tail - bias.reshaped(1, -1, 1)
+            } else {
+                overflow = tail
+            }
             h = h[0..., 0..., ..<split]
         } else {
             overflow = nil

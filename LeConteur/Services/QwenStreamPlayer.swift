@@ -21,6 +21,7 @@ import QuartzCore
     private(set) var hasStarted = false
     var onStateChanged: (() -> Void)?
     var onFinished: (() -> Void)?
+    var onError: ((Error) -> Void)?
     /// Higher-level passage buffering can hold the queue without turning a
     /// preparation wait into a user pause. Never interrupts audio already playing.
     var playbackAllowed = true {
@@ -28,7 +29,15 @@ import QuartzCore
     }
 
     var isBuffering: Bool { wantsPlayback && !inputEnded && !isAudible && !didFinish }
-    var isAudible: Bool { wantsPlayback && pending > 0 && node.isPlaying }
+    var isAudible: Bool { wantsPlayback && pending > 0 && engine.isRunning && node.isPlaying }
+    #if DEBUG || CONTEUR_VALIDATION
+    var diagnosticState: [String: Any] {
+        let playerTime = node.lastRenderTime.flatMap { node.playerTime(forNodeTime: $0) }
+        return ["engineRunning": engine.isRunning, "nodePlaying": node.isPlaying,
+                "playerSampleTime": playerTime?.sampleTime ?? -1,
+                "completedAudioSeconds": completedSeconds, "pendingBuffers": pending]
+    }
+    #endif
     var playedSeconds: Double {
         let elapsed = clockStart.map { (CACurrentMediaTime() - $0) * Double(tempo.rate) } ?? 0
         return min(generatedSeconds, max(completedSeconds, clockSeconds + elapsed))
@@ -124,6 +133,9 @@ import QuartzCore
     }
 
     func play() {
+        // An audio interruption can stop the engine while its PCM queue remains.
+        do { if pending > 0, !engine.isRunning { try engine.start() } }
+        catch { onError?(error); return }
         wantsPlayback = true
         updateState()
     }
@@ -134,6 +146,11 @@ import QuartzCore
         wantsPlayback = false
         node.pause()
         onStateChanged?()
+    }
+
+    func suspendEngineWhenEmpty() {
+        guard pending == 0 else { return }
+        engine.pause()
     }
 
     func finishInput() {
@@ -150,6 +167,7 @@ import QuartzCore
         engine.stop()
         onStateChanged = nil
         onFinished = nil
+        onError = nil
     }
 
     private func updateState() {

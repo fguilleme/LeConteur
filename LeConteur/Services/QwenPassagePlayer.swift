@@ -9,6 +9,7 @@ import Foundation
         let window: NarrationWindow
         let start: Double
         let duration: Double
+        let wordTimeline: QwenWordTimeline
     }
 
     private let document: ReadingDocument
@@ -20,10 +21,18 @@ import Foundation
     private var producer: Task<Void, Never>?
     private var tracker: Task<Void, Never>?
     private var identity = UUID()
+    private var generationID = UUID()
+    private var reportedForegroundWait = false
+    private var hasStartedCurrentReserve = false
+    private(set) var isGenerationSuspended = false
     private var startedAt: Date?
     private var stopped = false
     private var passages: [Passage] = []
     private var activeID: UUID?
+    private var reserveTargetSeconds = 0.0
+    private var lastReserve: QwenReserveProgress?
+    private var deferredError: Error?
+    private(set) var failedPosition: Int?
     private(set) var isGenerating = false
     private(set) var firstAudioSeconds: Double?
     private(set) var metrics: QwenRenderMetrics?
@@ -31,10 +40,12 @@ import Foundation
     private(set) var completedAudioSeconds = 0.0
     private(set) var generatedPassages = 0
     var onStateChanged: (() -> Void)?
+    var onReserveChanged: ((QwenReserveProgress) -> Void)?
     var onPassageChanged: ((NarrationWindow) -> Void)?
     var onWord: ((NSRange) -> Void)?
     var onFinished: (() -> Void)?
     var onError: ((Error) -> Void)?
+    var onNeedsForeground: ((Int) -> Void)?
 
     var hasPendingGeneration: Bool { producer != nil }
     var isBuffering: Bool { audio.isBuffering }
@@ -43,6 +54,26 @@ import Foundation
     var playedSeconds: Double { audio.playedSeconds }
     var bufferedPlaybackSeconds: Double { max(0, audio.generatedSeconds - audio.playedSeconds) / rate }
     var bufferedPassages: Int { passages.count }
+    #if DEBUG || CONTEUR_VALIDATION
+    var onDiagnosticEvent: ((String) -> Void)?
+    var diagnosticState: [String: Any] {
+        var state = audio.diagnosticState
+        state.merge(["nextGenerationPosition": nextPosition, "generatedPassages": generatedPassages,
+                     "completedPassages": completedPassages, "reserveSeconds": bufferedPlaybackSeconds,
+                     "generating": isGenerating, "audible": isAudible,
+                     "generationSuspended": isGenerationSuspended]) { _, new in new }
+        return state
+    }
+    #endif
+
+    private func recordDiagnosticEvent(_ event: String) {
+        #if DEBUG || CONTEUR_VALIDATION
+        onDiagnosticEvent?(event)
+        #endif
+    }
+    var isWaitingForForeground: Bool {
+        isGenerationSuspended && !audio.inputEnded && passages.isEmpty && wantsPlayback
+    }
     var rate: Double {
         get { audio.rate }
         set { audio.rate = newValue; updateState() }
@@ -60,22 +91,26 @@ import Foundation
         audio = try QwenStreamPlayer(rate: rate, volume: volume, minimumBufferSeconds: 0)
         audio.playbackAllowed = false
         audio.onStateChanged = { [weak self] in self?.updateState() }
+        audio.onError = { [weak self] error in self?.onError?(error) }
         audio.onFinished = { [weak self] in
             guard let self, !self.stopped else { return }
             self.tracker?.cancel()
-            self.onFinished?()
+            if let error = self.deferredError { self.onError?(error) }
+            else { self.onFinished?() }
         }
     }
 
     func play() {
         guard !stopped else { return }
         wantsPlayback = true
+        reportedForegroundWait = false
         if startedAt == nil {
             startedAt = Date()
             startProducer()
             tracker = Task { [weak self] in
                 while !Task.isCancelled {
                     self?.updateWord()
+                    self?.publishReserve()
                     try? await Task.sleep(for: .milliseconds(80))
                 }
             }
@@ -84,6 +119,26 @@ import Foundation
     }
 
     func pause() { wantsPlayback = false; audio.pause() }
+
+    /// Metal must stop when the app resigns active. PCM already queued belongs
+    /// to the audio session and remains playable, including from the lock screen.
+    func suspendGeneration() {
+        guard !stopped, !isGenerationSuspended else { return }
+        isGenerationSuspended = true
+        generationID = UUID()
+        producer?.cancel()
+        producer = nil
+        isGenerating = false
+        updateState()
+    }
+
+    func resumeGeneration() {
+        guard !stopped, isGenerationSuspended else { return }
+        isGenerationSuspended = false
+        reportedForegroundWait = false
+        if !audio.inputEnded { startProducer() }
+        updateState()
+    }
 
     func setBufferPreset(_ preset: QwenBufferPreset) {
         buffering.preset = preset
@@ -102,14 +157,21 @@ import Foundation
         passages.removeAll()
         isGenerating = false
         onStateChanged = nil
+        onReserveChanged = nil
         onPassageChanged = nil
         onWord = nil
         onFinished = nil
         onError = nil
+        onNeedsForeground = nil
+        #if DEBUG || CONTEUR_VALIDATION
+        onDiagnosticEvent = nil
+        #endif
     }
 
     private func startProducer() {
+        guard !isGenerationSuspended, !stopped, producer == nil else { return }
         let current = identity
+        let currentGeneration = generationID
         producer = Task { [weak self] in
             guard let self else { return }
             do {
@@ -122,15 +184,18 @@ import Foundation
                         try await Task.sleep(for: .milliseconds(100))
                     }
                     try Task.checkCancellation()
-                    guard identity == current else { return }
-                    let window = NarrationWindow(document: document, start: nextPosition, characterLimit: 360)
+                    guard identity == current, generationID == currentGeneration else { return }
+                    let window = NarrationWindow(sentenceIn: document, at: nextPosition)
                     isGenerating = true
-                    onStateChanged?()
-                    let result = try await render(window.text)
+                    updateState()
+                    recordDiagnosticEvent("qwen:renderStarted")
+                    let result = try await QwenRenderRecovery.render(window.text, using: render)
                     defer { try? FileManager.default.removeItem(at: result.url) }
                     try Task.checkCancellation()
-                    guard identity == current else { return }
-                    let passage = Passage(window: window, start: audio.generatedSeconds, duration: result.metrics.audioSeconds)
+                    guard identity == current, generationID == currentGeneration else { return }
+                    recordDiagnosticEvent("qwen:renderFinished")
+                    let passage = Passage(window: window, start: audio.generatedSeconds, duration: result.metrics.audioSeconds,
+                        wordTimeline: result.wordTimeline ?? .uniform(text: window.text, duration: result.metrics.audioSeconds))
                     buffering.record(generationSeconds: result.metrics.generationSeconds,
                                      audioSeconds: result.metrics.audioSeconds, characters: window.text.count)
                     passages.append(passage)
@@ -142,40 +207,77 @@ import Foundation
                         mlxPeakBytes: max(old?.mlxPeakBytes ?? 0, result.metrics.mlxPeakBytes),
                         observedFootprintBytes: max(old?.observedFootprintBytes ?? 0, result.metrics.observedFootprintBytes),
                         modelLoads: (old?.modelLoads ?? 0) + result.metrics.modelLoads)
-                    nextPosition = window.endPosition + 1
                     try audio.appendPassage(at: result.url) { [weak self] in
                         guard let self, self.identity == current else { return }
                         self.passages.removeAll { $0.id == passage.id }
                         self.completedPassages += 1
                         self.completedAudioSeconds = passage.start + passage.duration
                     }
+                    nextPosition = window.endPosition + 1
                     isGenerating = false
                     updateState()
+                    recordDiagnosticEvent("qwen:audioQueued")
                 }
                 producer = nil
                 audio.finishInput()
                 updateState()
             } catch {
-                guard identity == current, !Task.isCancelled else { return }
+                guard identity == current, generationID == currentGeneration, !Task.isCancelled else { return }
                 isGenerating = false
                 producer = nil
-                onError?(error)
+                // Let valid queued passages finish, even below the reserve
+                // target. A failed passage is never treated as the book's end.
+                deferredError = error
+                failedPosition = nextPosition
+                audio.finishInput()
+                updateState()
             }
         }
     }
 
     private func updateState() {
+        guard !stopped else { return }
+        if passages.isEmpty { hasStartedCurrentReserve = false }
+        else if audio.isAudible { hasStartedCurrentReserve = true }
+        let nextCharacters = document.segments.indices.contains(nextPosition)
+            ? document.segments[nextPosition].count : 0
+        reserveTargetSeconds = buffering.startupSeconds(nextCharacters: nextCharacters, rate: rate)
         if !audio.isAudible {
-            let nextCharacters = document.segments.indices.contains(nextPosition)
-                ? NarrationWindow(document: document, start: nextPosition, characterLimit: 360).text.count : 0
-            audio.playbackAllowed = audio.inputEnded || passages.count >= 128 || (passages.count >= 2
-                && bufferedPlaybackSeconds >= buffering.startupSeconds(nextCharacters: nextCharacters, rate: rate))
+            // A user pause or interruption does not empty the queue. Resume the
+            // current passage immediately; refill only after an actual underrun.
+            // The displayed target is listening time, not a minimum number of
+            // passages. A single long passage can already satisfy that target.
+            audio.playbackAllowed = hasStartedCurrentReserve || isGenerationSuspended || audio.inputEnded
+                || passages.count >= 128 || bufferedPlaybackSeconds >= reserveTargetSeconds
         }
         if audio.hasStarted, firstAudioSeconds == nil, let startedAt {
             firstAudioSeconds = Date().timeIntervalSince(startedAt)
         }
         updateWord()
+        publishReserve()
         onStateChanged?()
+        if !stopped, wantsPlayback, isGenerationSuspended, !audio.inputEnded, passages.isEmpty, !reportedForegroundWait {
+            reportedForegroundWait = true
+            audio.suspendEngineWhenEmpty()
+            onNeedsForeground?(nextPosition)
+        }
+    }
+
+    private func publishReserve() {
+        guard !stopped else { return }
+        // Publish draining PCM independently of speech callbacks. Half-second
+        // steps avoid invalidating SwiftUI and Now Playing on every audio tick.
+        let reserve = QwenReserveProgress(
+            readySeconds: floor(bufferedPlaybackSeconds * 2) / 2,
+            targetSeconds: reserveTargetSeconds,
+            isAutomatic: buffering.preset == .automatic,
+            hasStarted: audio.hasStarted, isBuffering: audio.isBuffering,
+            isPaused: !wantsPlayback, isGenerating: isGenerating,
+            isComplete: audio.inputEnded && deferredError == nil, passageCount: passages.count,
+            isGenerationSuspended: isGenerationSuspended, hasGenerationError: deferredError != nil)
+        guard reserve != lastReserve else { return }
+        lastReserve = reserve
+        onReserveChanged?(reserve)
     }
 
     private func updateWord() {
@@ -184,16 +286,45 @@ import Foundation
             activeID = passage.id
             onPassageChanged?(passage.window)
         }
-        // Complete audio gives a known duration. Word timing remains estimated;
-        // it no longer changes whenever another decoder chunk arrives.
-        let text = passage.window.text as NSString
-        let fraction = min(1, max(0, (audio.playedSeconds - passage.start) / max(0.1, passage.duration)))
-        let offset = Int(fraction * Double(text.length))
-        let expression = try? NSRegularExpression(pattern: "\\S+")
-        if let range = expression?.matches(in: passage.window.text, range: NSRange(location: 0, length: text.length))
-            .last(where: { $0.range.location <= offset })?.range {
+        // Use source-audio time: playback rate is already accounted for by the
+        // audio player. Long generated silences must not stretch word timing.
+        if let range = passage.wordTimeline.range(at: audio.playedSeconds - passage.start) {
             onWord?(range)
         }
+    }
+}
+
+/// Only committed audio counts; a render in flight has no reliable percentage.
+/// The target is the minimum reserve for starting/refilling, not queue capacity.
+struct QwenReserveProgress: Equatable {
+    let readySeconds: Double
+    let targetSeconds: Double
+    let isAutomatic: Bool
+    let hasStarted: Bool
+    let isBuffering: Bool
+    let isPaused: Bool
+    let isGenerating: Bool
+    let isComplete: Bool
+    let passageCount: Int
+    let isGenerationSuspended: Bool
+    var hasGenerationError: Bool = false
+
+    var fraction: Double { isComplete ? 1 : min(1, max(0, readySeconds / max(0.1, targetSeconds))) }
+    var amount: String {
+        isComplete ? "\(Int(readySeconds)) s prêtes" : "\(Int(readySeconds)) s · objectif \(Int(ceil(targetSeconds))) s"
+    }
+    var status: String {
+        if isPaused { return isGenerating ? String(localized: "En pause · préparation de la suite") : String(localized: "En pause · réserve conservée") }
+        if hasGenerationError { return String(localized: "Lecture de la réserve · la suite devra être réessayée") }
+        if isComplete { return String(localized: "Toute la suite est prête") }
+        if isGenerationSuspended {
+            return passageCount == 0 ? String(localized: "Ouvrez l’app pour préparer la suite") : String(localized: "Lecture de la réserve · génération en pause")
+        }
+        if isBuffering {
+            if !hasStarted && passageCount == 0 { return String(localized: "Préparation du premier passage…") }
+            return hasStarted ? String(localized: "Recharge avant reprise…") : String(localized: "Remplissage avant lecture…")
+        }
+        return isGenerating ? String(localized: "La suite se prépare pendant l’écoute") : String(localized: "Réserve disponible")
     }
 }
 

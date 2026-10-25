@@ -4,7 +4,7 @@ import UIKit
 
 struct VoiceDownloadSpec: Sendable {
     static var defaults: [Self] {
-        var result = [Self.qwen, .siwis].compactMap { $0 }
+        var result = [Self.qwen].compactMap { $0 }
         #if DEBUG || CONTEUR_VALIDATION
         result.append(.validation)
         #endif
@@ -38,10 +38,6 @@ struct VoiceDownloadSpec: Sendable {
             File(path: file.path, url: URL(string: "https://huggingface.co/\(manifest.repository)/resolve/\(manifest.revision)/\(file.path)")!,
                  bytes: file.bytes, sha256: file.sha256)
         })
-    }
-    static var siwis: Self {
-        Self(id: "siwis", revision: NeuralModel.sha256, directory: NeuralModel.directory, marker: "verified.sha256",
-             files: [.init(path: NeuralModel.fileName, url: NeuralModel.downloadURL, bytes: Int64(NeuralModel.byteCount), sha256: NeuralModel.sha256)])
     }
 }
 
@@ -389,7 +385,7 @@ struct VoiceDownloadSnapshot {
         }
         snapshots[id] = VoiceDownloadSnapshot(installed: installed, busy: busy,
             progress: installed ? 1 : min(0.99, Double(bytes) / Double(max(1, spec.totalBytes))),
-            status: installed ? "Installé · Hors ligne" : status ?? (busy ? "Téléchargement en arrière-plan · Wi-Fi" : "Fichiers terminés conservés"),
+            status: installed ? String(localized: "Installé · Hors ligne") : status ?? (busy ? String(localized: "Téléchargement en arrière-plan · Wi-Fi") : String(localized: "Fichiers terminés conservés")),
             error: plan?.error)
     }
 
@@ -460,7 +456,7 @@ private final class VoiceDownloadDelegate: NSObject, URLSessionDownloadDelegate,
         guard let tag = VoiceDownloadTag(downloadTask.taskDescription) else { return }
         let id = downloadTask.taskIdentifier
         do {
-            guard let status = (downloadTask.response as? HTTPURLResponse)?.statusCode, [200, 206].contains(status) else { throw NeuralVoiceError.invalidDownload }
+            guard let status = (downloadTask.response as? HTTPURLResponse)?.statusCode, [200, 206].contains(status) else { throw URLError(.badServerResponse) }
             let destination = root.appending(path: "Incoming/\(id).download")
             try VoiceDownloadDisk.directory(destination.deletingLastPathComponent())
             if FileManager.default.fileExists(atPath: destination.path) { try FileManager.default.removeItem(at: destination) }

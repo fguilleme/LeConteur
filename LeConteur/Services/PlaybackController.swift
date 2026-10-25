@@ -4,8 +4,19 @@ import Observation
 import UIKit
 import Darwin
 
+@MainActor protocol SpeechSynthesizing: AnyObject {
+    var delegate: AVSpeechSynthesizerDelegate? { get set }
+    var isPaused: Bool { get }
+    func speak(_ utterance: AVSpeechUtterance)
+    @discardableResult func pauseSpeaking(at boundary: AVSpeechBoundary) -> Bool
+    @discardableResult func continueSpeaking() -> Bool
+    @discardableResult func stopSpeaking(at boundary: AVSpeechBoundary) -> Bool
+}
+extension AVSpeechSynthesizer: SpeechSynthesizing {}
+
 @MainActor @Observable
 final class PlaybackController: NSObject {
+    typealias QwenRenderer = @Sendable (String, NarrationStyle, String, QwenSpeaker, UUID) async throws -> QwenRenderedAudio
     private(set) var documentID: UUID?
     private(set) var position = 0
     private(set) var isPlaying = false
@@ -14,30 +25,47 @@ final class PlaybackController: NSObject {
     private(set) var qwenFirstAudioSeconds: Double?
     private(set) var sleepDeadline: Date?
     private(set) var wordRange: NSRange?
-    private(set) var preparationStatus = "Préparation de la voix…"
+    private(set) var preparationStatus = String(localized: "Préparation de la voix…")
     private(set) var qwenMetrics: QwenRenderMetrics?
+    private(set) var qwenReserve: QwenReserveProgress?
     private(set) var notice: String?
     var errorMessage: String?
     private let library: LibraryStore
     let settings: ReaderSettings
-    private let speech = AVSpeechSynthesizer()
-    private let neural = NeuralVoiceRenderer()
+    private let speech: any SpeechSynthesizing
+    private let renderQwen: QwenRenderer
+    private var preparedVoice: PreparedVoice?
+    private var requestedEngine: VoiceEngine
     private var previewDocument: ReadingDocument?
-    private var player: AVAudioPlayer?
     private var qwenPlayer: QwenPassagePlayer?
     private var qwenSessionID: UUID?
-    private var audioURL: URL?
     private var utterance: AVSpeechUtterance?
     private var spokenSegments: [(index: Int, range: NSRange)] = []
     private var spokenEndPosition = 0
-    private var generation: Task<Void, Never>?
     private var token = UUID()
     private var timerTask: Task<Void, Never>?
-    private var wordTrackingTask: Task<Void, Never>?
+    private var systemSpeechWatchdog: Task<Void, Never>?
+    private var systemSpeechRecoveryAttempts = 0
     private var observers: [NSObjectProtocol] = []
+    @ObservationIgnored private var remoteCommandTargets: [(MPRemoteCommand, Any)] = []
     private var backgroundTask: UIBackgroundTaskIdentifier = .invalid
     private var nextTranslationPosition: Int?
-    private var systemVoiceForTranslation = false
+    private var translationIsActive = false
+    @ObservationIgnored var suspendTranslation: (() -> Void)?
+    private var applicationIsActive = UIApplication.shared.applicationState == .active
+    private var resumeAfterInterruption = false
+    private var waitingForForegroundStart = false
+    private let systemSpeechTimeout: Duration
+    #if DEBUG || CONTEUR_VALIDATION
+    @ObservationIgnored var onDiagnosticEvent: ((String) -> Void)?
+    var qwenDiagnosticState: [String: Any] { qwenPlayer?.diagnosticState ?? [:] }
+    #endif
+
+    private func recordDiagnosticEvent(_ event: String) {
+        #if DEBUG || CONTEUR_VALIDATION
+        onDiagnosticEvent?(event)
+        #endif
+    }
 
     var document: ReadingDocument? { previewDocument ?? documentID.flatMap { library.document($0) } }
     var isPreview: Bool { previewDocument != nil }
@@ -46,21 +74,31 @@ final class PlaybackController: NSObject {
     var qwenPlayedSeconds: Double { qwenPlayer?.playedSeconds ?? 0 }
     var qwenCompletedAudioSeconds: Double { qwenPlayer?.completedAudioSeconds ?? 0 }
     var qwenBufferedPlaybackSeconds: Double { qwenPlayer?.bufferedPlaybackSeconds ?? 0 }
+    var isUsingAppleForTranslation: Bool {
+        !isPreview && settings.engine == .qwen && translationIsActive && document?.isTranslationPending == true
+    }
+    var voiceFallbackMessage: String? {
+        if isUsingAppleForTranslation {
+            return String(localized: "Voix Apple pendant la traduction. Choisir Qwen met la traduction en pause pour lire les passages déjà prêts.")
+        }
+        if settings.engine == .qwen, effectiveEngine == .system {
+            return String(localized: "Qwen ne prend pas en charge la langue de ce livre. Lecture avec la voix Apple \(voiceName).")
+        }
+        return nil
+    }
     var effectiveEngine: VoiceEngine {
         if isPreview { return .qwen }
-        // Keep the multi-GB Qwen model out of memory while Apple translates ahead.
-        // Keep this voice for the current reading session to avoid a mid-sentence change.
-        if systemVoiceForTranslation { return .system }
+        // Only active translation needs the temporary Apple voice. An unfinished
+        // edition on disk must not override the reader's saved Qwen preference.
+        if isUsingAppleForTranslation { return .system }
         switch settings.engine {
-        case .qwen: return NarrationStyle.languageName(for: document?.languageCode) != nil ? .qwen : .system
-        case .neural: return (document?.languageCode ?? "fr").hasPrefix("fr") ? .neural : .system
+        case .qwen: return NarrationStyle.languageName(for: document?.resolvedLanguage) != nil ? .qwen : .system
         case .system: return .system
         }
     }
     var voiceName: String {
         switch effectiveEngine {
         case .qwen: "\(settings.qwenSpeaker.name) · \(settings.qwenStyle.name)"
-        case .neural: "Siwis · Neuronale"
         case .system: selectedVoice?.name ?? "Voix du texte"
         }
     }
@@ -69,15 +107,41 @@ final class PlaybackController: NSObject {
         return SystemVoiceSelection.resolve(language: language, preferred: settings.systemVoiceID(for: language))
     }
 
-    init(library: LibraryStore, settings: ReaderSettings) {
+    private enum PreparedVoice: Equatable {
+        case system(identifier: String?, rate: Float)
+        case qwen(speaker: QwenSpeaker, style: NarrationStyle, language: String)
+    }
+
+    private var chosenVoice: PreparedVoice {
+        switch effectiveEngine {
+        case .system: .system(identifier: selectedVoice?.identifier, rate: SystemVoiceSelection.speechRate(for: settings.speed))
+        case .qwen: .qwen(speaker: settings.qwenSpeaker, style: settings.qwenStyle,
+                         language: NarrationStyle.languageName(for: document?.resolvedLanguage) ?? "French")
+        }
+    }
+
+    init(library: LibraryStore, settings: ReaderSettings, speech: any SpeechSynthesizing = AVSpeechSynthesizer(),
+         systemSpeechTimeout: Duration = .seconds(20),
+         renderQwen: @escaping QwenRenderer = { text, style, language, speaker, session in
+             try await QwenVoiceRenderer.shared.render(text, style: style, language: language, speaker: speaker, sessionID: session)
+         }) {
         self.library = library
         self.settings = settings
+        self.speech = speech
+        self.systemSpeechTimeout = systemSpeechTimeout
+        self.renderQwen = renderQwen
+        requestedEngine = settings.engine
         super.init()
         speech.delegate = self
-        configureRemoteCommands()
         observers.append(NotificationCenter.default.addObserver(forName: AVAudioSession.interruptionNotification, object: nil, queue: .main) { [weak self] note in
             let kind = note.userInfo?[AVAudioSessionInterruptionTypeKey] as? UInt
-            if kind == AVAudioSession.InterruptionType.began.rawValue { Task { @MainActor in self?.pause() } }
+            let options = note.userInfo?[AVAudioSessionInterruptionOptionKey] as? UInt ?? 0
+            MainActor.assumeIsolated {
+                if kind == AVAudioSession.InterruptionType.began.rawValue { self?.audioInterruptionBegan() }
+                else if kind == AVAudioSession.InterruptionType.ended.rawValue {
+                    self?.audioInterruptionEnded(shouldResume: AVAudioSession.InterruptionOptions(rawValue: options).contains(.shouldResume))
+                }
+            }
         })
         observers.append(NotificationCenter.default.addObserver(forName: AVAudioSession.routeChangeNotification, object: nil, queue: .main) { [weak self] note in
             let reason = note.userInfo?[AVAudioSessionRouteChangeReasonKey] as? UInt
@@ -85,13 +149,14 @@ final class PlaybackController: NSObject {
         })
         observers.append(NotificationCenter.default.addObserver(forName: UIApplication.willResignActiveNotification, object: nil, queue: .main) { [weak self] _ in
             MainActor.assumeIsolated {
-                guard let self, self.effectiveEngine == .qwen else { return }
-                if self.qwenPlayer?.hasPendingGeneration == true {
-                    self.stopAudio()
-                    self.notice = QwenError.foregroundRequired.localizedDescription
-                }
-                Task { await QwenVoiceRenderer.shared.unload() }
+                self?.applicationWillResignActive()
             }
+        })
+        observers.append(NotificationCenter.default.addObserver(forName: UIApplication.didEnterBackgroundNotification, object: nil, queue: .main) { [weak self] _ in
+            MainActor.assumeIsolated { self?.applicationDidEnterBackground() }
+        })
+        observers.append(NotificationCenter.default.addObserver(forName: UIApplication.didBecomeActiveNotification, object: nil, queue: .main) { [weak self] _ in
+            MainActor.assumeIsolated { self?.applicationDidBecomeActive() }
         })
         observers.append(NotificationCenter.default.addObserver(forName: UIApplication.didReceiveMemoryWarningNotification, object: nil, queue: .main) { [weak self] _ in
             Task { @MainActor in
@@ -107,7 +172,7 @@ final class PlaybackController: NSObject {
                     // healthy stream on every global warning.
                     guard available < 700_000_000 else { return }
                     self.stopAudio()
-                    self.notice = "Préparation arrêtée pour libérer de la mémoire. Réessayez sur un passage plus court."
+                    self.notice = String(localized: "Préparation arrêtée pour libérer de la mémoire. Réessayez sur un passage plus court.")
                 }
                 await QwenVoiceRenderer.shared.unloadIfIdle()
             }
@@ -115,21 +180,70 @@ final class PlaybackController: NSObject {
     }
 
     func open(_ document: ReadingDocument, autoplay: Bool = false) {
+        configureRemoteCommands()
         previewDocument = nil
         if documentID != document.id {
             stopAudio()
             documentID = document.id
             position = document.isFinished ? 0 : document.position
-            systemVoiceForTranslation = document.isTranslationPending && settings.engine == .qwen
+            requestedEngine = settings.engine
         }
+        refreshRequestedEngine()
+        discardObsoleteAudio()
         updateNowPlaying()
         if autoplay { play() }
     }
 
     func toggle() { isPlaying || isPreparing ? pause() : play() }
 
+    func applicationWillResignActive() {
+        recordDiagnosticEvent("willResignActive")
+        applicationIsActive = false
+        qwenPlayer?.suspendGeneration()
+        if effectiveEngine == .qwen {
+            finishBackgroundTask()
+            Task { await QwenVoiceRenderer.shared.unload() }
+        }
+    }
+
+    func applicationDidEnterBackground() {
+        recordDiagnosticEvent("didEnterBackground")
+        applicationWillResignActive()
+    }
+
+    func applicationDidBecomeActive() {
+        recordDiagnosticEvent("didBecomeActive")
+        applicationIsActive = true
+        if qwenPlayer != nil {
+            notice = nil
+            qwenPlayer?.resumeGeneration()
+            if isPlaying { play() } // Reactivate the session if iOS suspended it after the reserve emptied.
+        }
+        else if waitingForForegroundStart, isPlaying { waitingForForegroundStart = false; play() }
+    }
+
+    func audioInterruptionBegan() {
+        recordDiagnosticEvent("interruptionBegan")
+        let wasPlaying = isPlaying
+        pause()
+        resumeAfterInterruption = wasPlaying
+    }
+
+    func audioInterruptionEnded(shouldResume: Bool) {
+        recordDiagnosticEvent("interruptionEnded:resume=\(shouldResume)")
+        let resume = resumeAfterInterruption && shouldResume
+        resumeAfterInterruption = false
+        if resume { play() }
+    }
+
     func play() {
+        resumeAfterInterruption = false
         guard let document, !document.segments.isEmpty else { return }
+        // A paused utterance / Qwen reserve belongs to the voice that produced it.
+        // Reconcile here too: returning to the book must not depend on a view's
+        // onChange having run before the user taps Play.
+        refreshRequestedEngine()
+        discardObsoleteAudio()
         if document.isFinished { position = 0 }
         notice = nil
         do {
@@ -144,22 +258,25 @@ final class PlaybackController: NSObject {
                 position = next
                 speakCurrent()
             } else if document.isTranslationPending {
-                notice = "La suite est en cours de traduction…"
+                notice = String(localized: "La suite est en cours de traduction…")
             } else { finishReading(document) }
             updateNowPlaying()
             return
         }
         if let qwenPlayer, effectiveEngine == .qwen {
+            qwenPlayer.rate = settings.qwenSpeed
+            qwenPlayer.setBufferPreset(settings.qwenBuffer)
             qwenPlayer.play()
         } else if speech.isPaused, utterance != nil, effectiveEngine == .system {
             speech.continueSpeaking()
-        } else if let player, effectiveEngine != .system {
-            player.play()
+            if let utterance { armSystemSpeechWatchdog(for: utterance) }
         } else { speakCurrent() }
         updateNowPlaying()
     }
 
     func pause() {
+        resumeAfterInterruption = false
+        waitingForForegroundStart = false
         isPlaying = false
         if let qwenPlayer {
             qwenPlayer.pause()
@@ -170,12 +287,11 @@ final class PlaybackController: NSObject {
         }
         if isPreparing {
             token = UUID()
-            generation?.cancel()
-            generation = nil
             isPreparing = false
         }
         speech.pauseSpeaking(at: .immediate)
-        player?.pause()
+        systemSpeechWatchdog?.cancel()
+        systemSpeechWatchdog = nil
         finishBackgroundTask()
         updateNowPlaying()
     }
@@ -184,6 +300,8 @@ final class PlaybackController: NSObject {
         stopAudio()
         previewDocument = nil
         documentID = nil
+        for (command, target) in remoteCommandTargets { command.removeTarget(target) }
+        remoteCommandTargets.removeAll()
         setSleepTimer(minutes: nil)
         MPNowPlayingInfoCenter.default().nowPlayingInfo = nil
         try? AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)
@@ -204,12 +322,63 @@ final class PlaybackController: NSObject {
     func settingsChanged() {
         if isPreview { stop(); return }
         let resume = isPlaying || isPreparing
+        refreshRequestedEngine()
+        let discarded = discardObsoleteAudio()
+        if discarded && resume { play() }
+        updateNowPlaying()
+    }
+
+    func selectEngine(_ engine: VoiceEngine) {
+        settings.engine = engine
+        requestedEngine = engine
+        // An explicit Qwen selection must take effect even if it was already
+        // checked while a temporary Apple voice was reading the translation.
+        if engine == .qwen { suspendTranslation?() }
+        settingsChanged()
+    }
+
+    func selectSystemVoice(_ identifier: String, language: String) {
+        settings.preferSystemVoice(identifier, for: language)
+        selectEngine(.system)
+    }
+
+    func selectQwenSpeaker(_ speaker: QwenSpeaker) {
+        settings.qwenSpeaker = speaker
+        selectEngine(.qwen)
+    }
+
+    func selectQwenStyle(_ style: NarrationStyle) {
+        settings.qwenStyle = style
+        selectEngine(.qwen)
+    }
+
+    private func refreshRequestedEngine() {
+        guard requestedEngine != settings.engine else { return }
+        requestedEngine = settings.engine
+        if settings.engine == .qwen { suspendTranslation?() }
+    }
+
+    func translationActivityChanged(_ active: Bool) {
+        let resume = isPlaying || isPreparing
+        translationIsActive = active
+        let discarded = discardObsoleteAudio()
+        if discarded && resume { play() }
+        updateNowPlaying()
+    }
+
+    func prepareForTranslation() async {
+        let session = qwenSessionID
+        if qwenPlayer != nil { stopAudio() }
+        if let session { await QwenVoiceRenderer.shared.endSession(session) }
+        await QwenVoiceRenderer.shared.unload()
+    }
+
+    @discardableResult private func discardObsoleteAudio() -> Bool {
+        guard let preparedVoice, preparedVoice != chosenVoice else { return false }
         let waitingPosition = nextTranslationPosition
         stopAudio()
         nextTranslationPosition = waitingPosition
-        systemVoiceForTranslation = document?.isTranslationPending == true && settings.engine == .qwen
-        if resume { play() }
-        if settings.engine != .qwen { Task { await QwenVoiceRenderer.shared.unload() } }
+        return true
     }
 
     func setSpeed(_ value: Double) {
@@ -234,6 +403,7 @@ final class PlaybackController: NSObject {
         guard let sample = try? DocumentImporter.fromText(NarrationStyle.auditionText, title: "Trois façons de raconter", source: "APERÇU QWEN") else { return }
         previewDocument = sample
         documentID = sample.id
+        configureRemoteCommands()
         position = 0
         play()
     }
@@ -257,22 +427,23 @@ final class PlaybackController: NSObject {
         }
     }
 
-    private func speakCurrent() {
+    private func speakCurrent(recoveringSystemSpeech: Bool = false) {
         guard let document, document.segments.indices.contains(position) else { return }
         if let deadline = sleepDeadline, Date() >= deadline { pause(); setSleepTimer(minutes: nil); return }
         library.updatePosition(id: document.id, position: position)
-        // Give the narrator a whole paragraph of context instead of restarting after every sentence.
-        let window = NarrationWindow(document: document, start: position, characterLimit: effectiveEngine == .qwen ? 360 : 900)
+        let window = effectiveEngine == .qwen
+            ? NarrationWindow(sentenceIn: document, at: position)
+            : NarrationWindow(document: document, start: position)
         let text = window.text
         spokenSegments = window.segments
         spokenEndPosition = window.endPosition
         wordRange = nil
-        // Siwis is French. Other languages use the corresponding system voice.
+        preparedVoice = chosenVoice
         switch effectiveEngine {
         case .system:
             guard let voice = selectedVoice else {
                 isPlaying = false
-                errorMessage = "Aucune voix n’est disponible pour la langue de ce texte. Ajoutez une voix dans les réglages d’accessibilité d’iOS."
+                errorMessage = String(localized: "Aucune voix n’est disponible pour la langue de ce texte. Ajoutez une voix dans les réglages d’accessibilité d’iOS.")
                 return
             }
             let next = AVSpeechUtterance(string: text)
@@ -280,71 +451,83 @@ final class PlaybackController: NSObject {
             next.rate = SystemVoiceSelection.speechRate(for: settings.speed)
             next.postUtteranceDelay = 0.18
             utterance = next
+            if !recoveringSystemSpeech { systemSpeechRecoveryAttempts = 0 }
             speech.speak(next)
+            armSystemSpeechWatchdog(for: next)
         case .qwen:
-            startQwen(language: NarrationStyle.languageName(for: document.languageCode) ?? "French")
-        case .neural:
-            isPreparing = true
-            preparationStatus = "Préparation de la voix…"
-            let currentToken = UUID()
-            token = currentToken
-            let speed = settings.speed
-            beginBackgroundTask()
-            generation = Task {
-                do {
-                    let url = try await neural.render(text, speed: speed)
-                    guard !Task.isCancelled, token == currentToken, isPlaying else {
-                        try? FileManager.default.removeItem(at: url)
-                        return
-                    }
-                    audioURL = url
-                    player = try AVAudioPlayer(contentsOf: url)
-                    player?.delegate = self
-                    player?.prepareToPlay()
-                    guard player?.play() == true else { throw NeuralVoiceError.generation }
-                    trackNeuralWords(text)
-                    isPreparing = false
-                    finishBackgroundTask()
-                } catch {
-                    guard token == currentToken, !Task.isCancelled else { return }
-                    stopAudio()
-                    errorMessage = error.localizedDescription
-                    updateNowPlaying()
-                }
-            }
+            startQwen(language: NarrationStyle.languageName(for: document.resolvedLanguage) ?? "French")
         }
         updateNowPlaying()
     }
 
+    /// AVSpeechSynthesizer can exceptionally stop producing callbacks while still
+    /// appearing active. Restart the current sentence locally instead of requiring
+    /// the reader view (and its synthesizer state) to be torn down and reopened.
+    private func armSystemSpeechWatchdog(for expectedUtterance: AVSpeechUtterance) {
+        systemSpeechWatchdog?.cancel()
+        systemSpeechWatchdog = Task { [weak self, weak expectedUtterance] in
+            guard let expectedUtterance else { return }
+            do { try await Task.sleep(for: self?.systemSpeechTimeout ?? .seconds(20)) }
+            catch { return }
+            guard let self, self.isPlaying, self.effectiveEngine == .system,
+                  self.utterance === expectedUtterance else { return }
+            if self.systemSpeechRecoveryAttempts < 2 {
+                self.systemSpeechRecoveryAttempts += 1
+                self.speech.stopSpeaking(at: .immediate)
+                self.utterance = nil
+                self.speakCurrent(recoveringSystemSpeech: true)
+            } else {
+                self.stopAudio()
+                self.errorMessage = String(localized: "La voix Apple ne répond plus. Touchez Lire pour reprendre le passage.")
+                self.updateNowPlaying()
+            }
+        }
+    }
+
     private func startQwen(language: String) {
         guard let document else { return }
-        guard UIApplication.shared.applicationState == .active else {
-            isPlaying = false
-            notice = QwenError.foregroundRequired.localizedDescription
+        guard applicationIsActive else {
+            waitingForForegroundStart = true
+            isPreparing = true
+            notice = String(localized: "Ouvrez l’app pour préparer la lecture Qwen.")
             return
         }
+        waitingForForegroundStart = false
         let currentToken = UUID()
         token = currentToken
         qwenMetrics = nil
         qwenFirstAudioSeconds = nil
         isPreparing = true
-        preparationStatus = "Préparation de la réserve audio…"
+        preparationStatus = String(localized: "Préparation de la réserve audio…")
         do {
             let style = settings.qwenStyle
             let speaker = settings.qwenSpeaker
+            let render = renderQwen
             qwenSessionID = currentToken
             let passagePlayer = try QwenPassagePlayer(document: document, start: position, rate: settings.qwenSpeed,
                                                     buffering: .init(preset: settings.qwenBuffer)) { text in
-                try await QwenVoiceRenderer.shared.render(text, style: style, language: language, speaker: speaker, sessionID: currentToken)
+                try await render(text, style, language, speaker, currentToken)
             }
             qwenPlayer = passagePlayer
+            #if DEBUG || CONTEUR_VALIDATION
+            passagePlayer.onDiagnosticEvent = { [weak self] event in
+                guard let self, self.token == currentToken else { return }
+                self.recordDiagnosticEvent(event)
+            }
+            #endif
+            passagePlayer.onReserveChanged = { [weak self] reserve in
+                guard let self, self.token == currentToken else { return }
+                self.qwenReserve = reserve
+            }
             passagePlayer.onStateChanged = { [weak self, weak passagePlayer] in
                 guard let self, let passagePlayer, self.token == currentToken else { return }
                 self.isPreparing = self.isPlaying && passagePlayer.isBuffering
-                self.preparationStatus = "\(passagePlayer.hasStarted ? "Reconstitution" : "Préparation") de la réserve · \(Int(passagePlayer.bufferedPlaybackSeconds)) s prêtes"
+                let action = passagePlayer.hasStarted ? String(localized: "Reconstitution") : String(localized: "Préparation")
+                self.preparationStatus = String(format: String(localized: "%@ de la réserve · %lld s prêtes"), action, Int64(passagePlayer.bufferedPlaybackSeconds))
                 self.qwenFirstAudioSeconds = passagePlayer.firstAudioSeconds
                 self.qwenMetrics = passagePlayer.metrics
-                if !passagePlayer.hasPendingGeneration { self.endQwenSession() }
+                if passagePlayer.hasPendingGeneration { self.qwenSessionID = currentToken }
+                else { self.endQwenSession() }
                 if self.isGenerating != passagePlayer.isGenerating {
                     self.isGenerating = passagePlayer.isGenerating
                     if self.isGenerating { self.beginBackgroundTask() }
@@ -369,8 +552,20 @@ final class PlaybackController: NSObject {
                 guard let self, self.token == currentToken else { return }
                 self.advance()
             }
-            passagePlayer.onError = { [weak self] error in
+            passagePlayer.onNeedsForeground = { [weak self] nextPosition in
                 guard let self, self.token == currentToken else { return }
+                self.position = nextPosition
+                self.wordRange = nil
+                self.library.updatePosition(id: document.id, position: nextPosition)
+                self.notice = String(localized: "Réserve Qwen épuisée. Ouvrez l’app pour préparer la suite.")
+                self.updateNowPlaying()
+            }
+            passagePlayer.onError = { [weak self, weak passagePlayer] error in
+                guard let self, self.token == currentToken else { return }
+                if let failedPosition = passagePlayer?.failedPosition {
+                    self.position = failedPosition
+                    self.library.updatePosition(id: document.id, position: failedPosition)
+                }
                 self.stopAudio()
                 self.errorMessage = error.localizedDescription
                 self.updateNowPlaying()
@@ -388,11 +583,9 @@ final class PlaybackController: NSObject {
         isPreparing = false
         qwenPlayer?.stop()
         qwenPlayer = nil
+        qwenReserve = nil
         endQwenSession()
-        clearAudioFile()
-        player = nil
         utterance = nil
-        wordTrackingTask?.cancel()
         wordRange = nil
         if spokenEndPosition + 1 < document.segments.count {
             position = spokenEndPosition + 1
@@ -400,7 +593,7 @@ final class PlaybackController: NSObject {
         } else if document.isTranslationPending {
             nextTranslationPosition = spokenEndPosition + 1
             position = document.segments.count - 1
-            notice = "La suite est en cours de traduction…"
+            notice = String(localized: "La suite est en cours de traduction…")
             library.updatePosition(id: document.id, position: position)
             updateNowPlaying()
         } else { finishReading(document) }
@@ -422,21 +615,21 @@ final class PlaybackController: NSObject {
     }
 
     private func stopAudio() {
+        resumeAfterInterruption = false
+        waitingForForegroundStart = false
+        preparedVoice = nil
         token = UUID()
-        generation?.cancel()
-        generation = nil
         isGenerating = false
         qwenPlayer?.stop()
         qwenPlayer = nil
+        qwenReserve = nil
         endQwenSession()
-        wordTrackingTask?.cancel()
-        wordTrackingTask = nil
+        systemSpeechWatchdog?.cancel()
+        systemSpeechWatchdog = nil
+        systemSpeechRecoveryAttempts = 0
         wordRange = nil
         utterance = nil
         speech.stopSpeaking(at: .immediate)
-        player?.stop()
-        player = nil
-        clearAudioFile()
         isPlaying = false
         isPreparing = false
         nextTranslationPosition = nil
@@ -452,27 +645,6 @@ final class PlaybackController: NSObject {
         }
     }
 
-    private func clearAudioFile() {
-        if let audioURL { try? FileManager.default.removeItem(at: audioURL) }
-        audioURL = nil
-    }
-
-    private func trackNeuralWords(_ text: String) {
-        wordTrackingTask?.cancel()
-        let nsText = text as NSString
-        let expression = try? NSRegularExpression(pattern: "\\S+")
-        let ranges = expression?.matches(in: text, range: NSRange(location: 0, length: nsText.length)).map(\.range) ?? []
-        wordTrackingTask = Task {
-            while !Task.isCancelled, let player {
-                if player.isPlaying, player.duration > 0 {
-                    let offset = Int(player.currentTime / player.duration * Double(nsText.length))
-                    if let range = ranges.last(where: { $0.location <= offset }) { updateSpokenRange(range) }
-                }
-                try? await Task.sleep(for: .milliseconds(80))
-            }
-        }
-    }
-
     private func updateSpokenRange(_ range: NSRange) {
         guard let item = spokenSegments.first(where: { NSIntersectionRange($0.range, range).length > 0 }) else { return }
         if position != item.index {
@@ -481,12 +653,21 @@ final class PlaybackController: NSObject {
         }
         let intersection = NSIntersectionRange(item.range, range)
         wordRange = NSRange(location: intersection.location - item.range.location, length: intersection.length)
+        if let utterance, effectiveEngine == .system {
+            systemSpeechRecoveryAttempts = 0
+            armSystemSpeechWatchdog(for: utterance)
+        }
     }
 
     private func beginBackgroundTask() {
         finishBackgroundTask()
         backgroundTask = UIApplication.shared.beginBackgroundTask(withName: "Narration") { [weak self] in
-            Task { @MainActor in self?.pause() }
+            Task { @MainActor in
+                guard let self else { return }
+                if let qwenPlayer = self.qwenPlayer { qwenPlayer.suspendGeneration() }
+                else { self.pause() }
+                self.finishBackgroundTask()
+            }
         }
     }
 
@@ -499,7 +680,7 @@ final class PlaybackController: NSObject {
         guard let document else { return }
         MPNowPlayingInfoCenter.default().nowPlayingInfo = [
             MPMediaItemPropertyTitle: document.title,
-            MPMediaItemPropertyArtist: voiceName,
+            MPMediaItemPropertyArtist: qwenPlayer?.isWaitingForForeground == true || waitingForForegroundStart ? "Qwen · ouvrez Le Conteur pour la suite" : voiceName,
             MPMediaItemPropertyAlbumTitle: "Le Conteur",
             MPNowPlayingInfoPropertyPlaybackRate: isPlaying && !isPreparing ? playbackSpeed : 0,
             MPNowPlayingInfoPropertyMediaType: MPNowPlayingInfoMediaType.audio.rawValue
@@ -507,12 +688,34 @@ final class PlaybackController: NSObject {
     }
 
     private func configureRemoteCommands() {
+        guard remoteCommandTargets.isEmpty else { return }
         let center = MPRemoteCommandCenter.shared()
-        center.playCommand.addTarget { [weak self] _ in Task { @MainActor in self?.play() }; return .success }
-        center.pauseCommand.addTarget { [weak self] _ in Task { @MainActor in self?.pause() }; return .success }
-        center.togglePlayPauseCommand.addTarget { [weak self] _ in Task { @MainActor in self?.toggle() }; return .success }
-        center.nextTrackCommand.addTarget { [weak self] _ in Task { @MainActor in self?.skip(1) }; return .success }
-        center.previousTrackCommand.addTarget { [weak self] _ in Task { @MainActor in self?.skip(-1) }; return .success }
+        for (command, action) in [(center.playCommand, RemotePlaybackCommand.play), (center.pauseCommand, .pause),
+                                  (center.togglePlayPauseCommand, .toggle), (center.nextTrackCommand, .next), (center.previousTrackCommand, .previous)] {
+            command.isEnabled = true
+            let target = command.addTarget { [weak self] _ in
+                guard self != nil else { return .noSuchContent }
+                Task { @MainActor in self?.handleRemoteCommand(action) }
+                return .success
+            }
+            remoteCommandTargets.append((command, target))
+        }
+    }
+
+    enum RemotePlaybackCommand { case play, pause, toggle, next, previous }
+
+    func handleRemoteCommand(_ command: RemotePlaybackCommand) {
+        recordDiagnosticEvent("remote:\(command)")
+        switch command {
+        case .play: play()
+        case .pause: pause()
+        // Now Playing shows Play while waiting for more PCM (playback rate 0).
+        // That visible Play must keep the request to resume, not turn it into a
+        // user pause just because the controller is still preparing audio.
+        case .toggle: isPlaying && !isPreparing ? pause() : play()
+        case .next: skip(1)
+        case .previous: skip(-1)
+        }
     }
 }
 
@@ -534,6 +737,9 @@ extension PlaybackController: AVSpeechSynthesizerDelegate {
     nonisolated func speechSynthesizer(_ synthesizer: AVSpeechSynthesizer, didFinish utterance: AVSpeechUtterance) {
         Task { @MainActor in
             guard self.utterance === utterance else { return }
+            self.systemSpeechWatchdog?.cancel()
+            self.systemSpeechWatchdog = nil
+            self.systemSpeechRecoveryAttempts = 0
             self.advance()
         }
     }
@@ -543,6 +749,16 @@ struct NarrationWindow: Sendable {
     let text: String
     let segments: [(index: Int, range: NSRange)]
     let endPosition: Int
+
+    /// Imported and translated segments already follow sentence boundaries.
+    /// Keep one per Qwen request, including the importer's bounded pieces for
+    /// exceptionally long sentences. Do not regroup them into a paragraph.
+    init(sentenceIn document: ReadingDocument, at position: Int) {
+        text = document.segments.indices.contains(position) ? document.segments[position] : ""
+        segments = document.segments.indices.contains(position)
+            ? [(position, NSRange(location: 0, length: text.utf16.count))] : []
+        endPosition = position
+    }
 
     init(document: ReadingDocument, start: Int, characterLimit: Int = 900) {
         let paragraph = document.paragraphRanges.first { $0.contains(start) } ?? start..<(start + 1)
@@ -559,15 +775,5 @@ struct NarrationWindow: Sendable {
         self.text = text
         segments = mapping
         endPosition = mapping.last?.index ?? start
-    }
-}
-
-extension PlaybackController: AVAudioPlayerDelegate {
-    nonisolated func audioPlayerDidFinishPlaying(_ player: AVAudioPlayer, successfully flag: Bool) {
-        Task { @MainActor in
-            guard self.player === player else { return }
-            if flag { self.advance() }
-            else { self.stopAudio(); self.errorMessage = "La lecture audio a été interrompue." }
-        }
     }
 }
