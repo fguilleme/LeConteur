@@ -1,5 +1,6 @@
 import SwiftUI
 import UIKit
+import NaturalLanguage
 
 /// Keep UTF-16 speech ranges in the coordinate system of the displayed paragraph.
 struct ReaderParagraphContent {
@@ -13,13 +14,27 @@ struct ReaderParagraphContent {
         isActive = segments.indices.contains(local)
         guard isActive else { highlight = nil; return }
         let sentence = segments[local]
-        let range = wordRange ?? sentence.range(of: #"\S+"#, options: .regularExpression).map { NSRange($0, in: sentence) }
+        let range = wordRange ?? Self.firstLinguisticWord(in: sentence)
         guard let range, range.length > 0, Range(range, in: sentence) != nil else { highlight = nil; return }
         let offset = segments.prefix(local).reduce(0) { $0 + $1.utf16.count + 1 }
         highlight = NSRange(location: offset + range.location, length: range.length)
     }
 
     var currentWord: String? { highlight.map { (text as NSString).substring(with: $0) } }
+
+    /// Whitespace is not a word boundary in Chinese or Japanese. Use Apple's
+    /// linguistic tokenizer for the short interval before AVSpeechSynthesizer
+    /// delivers its first exact speech range, so we never highlight a complete
+    /// CJK sentence as the "current word".
+    private static func firstLinguisticWord(in text: String) -> NSRange? {
+        let tokenizer = NLTokenizer(unit: .word)
+        tokenizer.string = text
+        if let language = NLLanguageRecognizer.dominantLanguage(for: text) {
+            tokenizer.setLanguage(language)
+        }
+        guard let token = tokenizer.tokens(for: text.startIndex..<text.endIndex).first else { return nil }
+        return NSRange(token, in: text)
+    }
 }
 
 struct ReaderWordFrame: Equatable {

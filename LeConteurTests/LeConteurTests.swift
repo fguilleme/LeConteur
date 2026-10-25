@@ -699,6 +699,18 @@ final class LeConteurTests: XCTestCase {
         XCTAssertNil(ReaderParagraphContent(segments: segments, start: 5, position: 6, wordRange: NSRange(location: 900, length: 3)).highlight)
     }
 
+    func testReaderHighlightUsesChineseWordBoundariesBeforeAppleVoiceCallback() throws {
+        let sentence = "当前章节已经准备好。"
+        let initial = ReaderParagraphContent(segments: [sentence], start: 0, position: 0, wordRange: nil)
+        XCTAssertEqual(initial.currentWord, "当前")
+        XCTAssertLessThan(try XCTUnwrap(initial.highlight).length, sentence.utf16.count,
+                          "A Chinese sentence must not be highlighted as one whitespace-delimited word")
+
+        let appleRange = (sentence as NSString).range(of: "准备")
+        let spoken = ReaderParagraphContent(segments: [sentence], start: 0, position: 0, wordRange: appleRange)
+        XCTAssertEqual(spoken.currentWord, "准备", "Keep Apple's exact UTF-16 speech range once available")
+    }
+
     @MainActor func testReaderHighlightMovesToActualLineWithoutChangingParagraph() throws {
         let text = "Début " + Array(repeating: "une longue phrase dans le même paragraphe", count: 20).joined(separator: " ") + " arrivée"
         let view = ReaderParagraphTextView()
