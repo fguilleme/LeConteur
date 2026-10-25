@@ -13,6 +13,12 @@ struct ReaderView: View {
     @State private var scrubPosition = 0.0
     @State private var isScrubbing = false
     @State private var showBookmarks = false
+    @State private var scrollPosition = ScrollPosition(edge: .top)
+    @State private var visibleRect = CGRect.zero
+    @State private var contentHeight: CGFloat = 0
+    @State private var currentWordFrame: ReaderWordFrame?
+    @State private var requestedOffset: CGFloat?
+    @State private var sharedBook: SharedBook?
 
     private var document: ReadingDocument? { library.document(documentID) }
     private var activeParagraph: Int {
@@ -22,6 +28,10 @@ struct ReaderView: View {
     var body: some View {
         NavigationStack {
             if let document {
+                // Read both observable values outside the lazy row closures so every
+                // speech callback invalidates the displayed highlight.
+                let position = playback.position
+                let wordRange = playback.wordRange
                 ScrollViewReader { proxy in
                     ScrollView {
                         VStack(alignment: .leading, spacing: 24) {
@@ -36,12 +46,12 @@ struct ReaderView: View {
                                         Text(document.author).font(.subheadline).foregroundStyle(ConteurTheme.muted)
                                     }
                                 }
-                                if document.isTranslationPending || document.resolvedLanguage != TranslationCoordinator.phoneLanguage {
+                                if !document.isTranslationPending && document.resolvedLanguage != TranslationCoordinator.phoneLanguage {
                                     Button {
                                         playback.pause()
                                         translate(document)
                                     } label: {
-                                        Label(document.isTranslationPending ? "Reprendre la traduction" : "Traduire en \(Locale(identifier: "fr").localizedString(forLanguageCode: TranslationCoordinator.phoneLanguage) ?? TranslationCoordinator.phoneLanguage)", systemImage: "translate")
+                                        Label("Traduire en \(Locale(identifier: "fr").localizedString(forLanguageCode: TranslationCoordinator.phoneLanguage) ?? TranslationCoordinator.phoneLanguage)", systemImage: "translate")
                                             .font(.subheadline.weight(.semibold))
                                             .padding(.horizontal, 14).padding(.vertical, 10)
                                             .background(ConteurTheme.wash, in: Capsule())
@@ -75,9 +85,8 @@ struct ReaderView: View {
                             Rectangle().fill(ConteurTheme.ink.opacity(0.1)).frame(height: 1).padding(.horizontal, 26)
                             LazyVStack(alignment: .leading, spacing: 8) {
                                 ForEach(Array(document.paragraphRanges.enumerated()), id: \.offset) { index, range in
-                                    Text(highlightedText(document, range: range))
-                                        .font(.system(size: settings.textSize, weight: .regular, design: .serif))
-                                        .lineSpacing(9)
+                                    let content = ReaderParagraphContent(segments: Array(document.segments[range]), start: range.lowerBound, position: position, wordRange: wordRange)
+                                    ReaderParagraphView(content: content, position: position, sourceRange: wordRange, textSize: settings.textSize)
                                         .frame(maxWidth: .infinity, alignment: .leading)
                                         .padding(.horizontal, 18).padding(.vertical, 16)
                                         .background(index == activeParagraph ? ConteurTheme.wash : Color.clear, in: RoundedRectangle(cornerRadius: 15))
@@ -90,25 +99,43 @@ struct ReaderView: View {
                                         .onTapGesture { playback.seek(to: range.lowerBound) }
                                         .accessibilityHint("Touchez deux fois pour reprendre la lecture à ce paragraphe")
                                         .accessibilityAddTraits(.isButton)
+                                        .accessibilityIdentifier("reader-paragraph-\(index)")
                                         .id(index)
                                 }
                             }.padding(.horizontal, 10)
                             Text(document.isTranslationPending ? "Les prochains passages apparaîtront ici." : "Vous êtes arrivé à la dernière page.").font(.caption).foregroundStyle(ConteurTheme.muted)
                                 .frame(maxWidth: .infinity).padding(.vertical, 26)
-                        }
+                        }.coordinateSpace(name: "reader-content")
+                    }
+                    .scrollPosition($scrollPosition)
+                    .onScrollGeometryChange(for: ReaderViewport.self) {
+                        let visible = ReaderFollowScroll.visibleTextRect(offset: $0.contentOffset, size: $0.containerSize, insets: $0.contentInsets)
+                        return ReaderViewport(visible: visible, contentHeight: $0.contentSize.height)
+                    } action: { _, viewport in
+                        visibleRect = viewport.visible
+                        contentHeight = viewport.contentHeight
+                    }
+                    .onPreferenceChange(ReaderWordFrameKey.self) { frame in
+                        guard let frame else { return }
+                        currentWordFrame = frame
+                        followWord(frame)
                     }
                     .onScrollPhaseChange { _, phase in if phase == .interacting { followsReading = false } }
                     .overlay(alignment: .bottomTrailing) {
                         if !followsReading {
                             Button {
                                 followsReading = true
-                                withAnimation { proxy.scrollTo(activeParagraph, anchor: .center) }
+                                requestedOffset = nil
+                                if let frame = currentWordFrame, frame.position == playback.position, frame.sourceRange == playback.wordRange { followWord(frame) }
+                                else { proxy.scrollTo(activeParagraph, anchor: .center) }
                             } label: { Label("Suivre la voix", systemImage: "arrow.down.to.line").font(.caption.weight(.semibold)) }
                                 .padding(12).background(.regularMaterial, in: Capsule()).padding(16)
                         }
                     }
                     .onChange(of: activeParagraph) { _, index in
-                        if followsReading { withAnimation(.easeInOut(duration: 0.4)) { proxy.scrollTo(index, anchor: .center) } }
+                        // Use the same resting point as word following. A short paragraph
+                        // must not flash at the top before its word frame recentres it.
+                        if followsReading { requestedOffset = nil; proxy.scrollTo(index, anchor: .center) }
                     }
                     .onAppear {
                         playback.open(document)
@@ -121,7 +148,25 @@ struct ReaderView: View {
                 .navigationBarTitleDisplayMode(.inline)
                 .toolbar {
                     ToolbarItem(placement: .topBarLeading) { Button { dismiss() } label: { Image(systemName: "chevron.down") }.accessibilityLabel("Fermer le lecteur") }
-                    ToolbarItem(placement: .principal) { Eyebrow(text: "LE PLAISIR D’ÉCOUTER") }
+                    ToolbarItem(placement: .principal) {
+                        HStack(spacing: 8) {
+                            if let image = BookCoverStore.image(named: document.coverFileName) {
+                                Image(uiImage: image)
+                                    .resizable()
+                                    .scaledToFill()
+                                    .frame(width: 24, height: 32)
+                                    .clipShape(RoundedRectangle(cornerRadius: 4))
+                                    .accessibilityHidden(true)
+                            }
+                            Text(document.title)
+                                .font(.subheadline.weight(.semibold))
+                                .lineLimit(1)
+                                .minimumScaleFactor(0.75)
+                        }
+                        .frame(maxWidth: 220)
+                        .accessibilityElement(children: .combine)
+                        .accessibilityLabel("Livre : \(document.title)")
+                    }
                     ToolbarItem(placement: .topBarTrailing) {
                         Menu {
                             if settings.engine == .qwen {
@@ -131,6 +176,9 @@ struct ReaderView: View {
                                 Divider()
                             }
                             Button("Mes signets", systemImage: "bookmark") { showBookmarks = true }
+                            if document.translationOf != nil && !document.isTranslationPending {
+                                Button("Partager la traduction", systemImage: "square.and.arrow.up") { export(document) }
+                            }
                             Button("Agrandir le texte", systemImage: "textformat.size.larger") { settings.textSize = min(34, settings.textSize + 2) }
                             Button("Réduire le texte", systemImage: "textformat.size.smaller") { settings.textSize = max(16, settings.textSize - 2) }
                         } label: { Image(systemName: "ellipsis") }.accessibilityLabel("Options de lecture")
@@ -154,6 +202,7 @@ struct ReaderView: View {
                             .toolbar { Button("Terminer") { showBookmarks = false } }
                     }.presentationDetents([.medium, .large])
                 }
+                .sheet(item: $sharedBook) { BookShareSheet(url: $0.url).ignoresSafeArea() }
                 .alert("Lecture", isPresented: Binding(get: { playback.errorMessage != nil }, set: { if !$0 { playback.errorMessage = nil } })) {
                     Button("D’accord", role: .cancel) { playback.errorMessage = nil }
                 } message: { Text(playback.errorMessage ?? "") }
@@ -161,23 +210,25 @@ struct ReaderView: View {
         }
     }
 
-    private func highlightedText(_ document: ReadingDocument, range: Range<Int>) -> AttributedString {
-        var result = AttributedString()
-        for index in range {
-            let sentence = document.segments[index]
-            var part = AttributedString(sentence)
-            part.foregroundColor = ConteurTheme.ink.opacity(range.contains(playback.position) ? 1 : 0.76)
-            if index == playback.position, let wordRange = playback.wordRange,
-               let stringRange = Range(wordRange, in: sentence),
-               let start = AttributedString.Index(stringRange.lowerBound, within: part),
-               let end = AttributedString.Index(stringRange.upperBound, within: part) {
-                part[start..<end].backgroundColor = ConteurTheme.green
-                part[start..<end].foregroundColor = .white
+    private func export(_ document: ReadingDocument) {
+        playback.pause()
+        Task {
+            do {
+                let url = try await Task.detached(priority: .userInitiated) { try EPUBExporter.export(document) }.value
+                sharedBook = SharedBook(url: url)
+            } catch {
+                playback.errorMessage = "Impossible de préparer l’EPUB : \(error.localizedDescription)"
             }
-            result.append(part)
-            if index < range.upperBound - 1 { result.append(AttributedString(" ")) }
         }
-        return result
+    }
+
+    private func followWord(_ frame: ReaderWordFrame) {
+        guard followsReading, !isScrubbing, frame.position == playback.position,
+              frame.sourceRange == playback.wordRange,
+              let offset = ReaderFollowScroll.offset(word: frame.rect, visible: visibleRect, contentHeight: contentHeight),
+              requestedOffset.map({ abs($0 - offset) > 1 }) ?? true else { return }
+        requestedOffset = offset
+        withAnimation(.easeInOut(duration: 0.22)) { scrollPosition.scrollTo(y: offset) }
     }
 
     private func controls(_ document: ReadingDocument) -> some View {
@@ -231,4 +282,9 @@ struct ReaderView: View {
         }.padding(.horizontal, 28).padding(.top, 16).padding(.bottom, 8)
             .background(ConteurTheme.paper.shadow(.drop(color: .black.opacity(0.05), radius: 12, y: -4)))
     }
+}
+
+private struct ReaderViewport: Equatable {
+    let visible: CGRect
+    let contentHeight: CGFloat
 }
