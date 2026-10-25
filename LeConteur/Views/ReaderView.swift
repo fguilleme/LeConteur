@@ -51,7 +51,7 @@ struct ReaderView: View {
                                         playback.pause()
                                         translate(document)
                                     } label: {
-                                        Label("Traduire en \(Locale(identifier: "fr").localizedString(forLanguageCode: TranslationCoordinator.phoneLanguage) ?? TranslationCoordinator.phoneLanguage)", systemImage: "translate")
+                                        Label("Traduire en \(Locale.current.localizedString(forLanguageCode: TranslationCoordinator.phoneLanguage) ?? TranslationCoordinator.phoneLanguage)", systemImage: "translate")
                                             .font(.subheadline.weight(.semibold))
                                             .padding(.horizontal, 14).padding(.vertical, 10)
                                             .background(ConteurTheme.wash, in: Capsule())
@@ -59,15 +59,21 @@ struct ReaderView: View {
                                         .disabled(translation.isTranslating)
                                 }
                                 if document.isTranslationPending {
-                                    HStack {
-                                        Text(translation.isTranslating ? "La suite se traduit · \(Int(translation.progress * 100)) %" : "Traduction en pause")
-                                            .font(.caption).foregroundStyle(ConteurTheme.muted)
-                                        if translation.isTranslating {
-                                            Button("Suspendre") { translation.cancel() }.font(.caption)
+                                    let isActive = translation.isTranslating && translation.activeDocumentID == document.id
+                                    if !isActive {
+                                        Button {
+                                            playback.pause()
+                                            translate(document)
+                                        } label: {
+                                            Label("Reprendre la traduction", systemImage: "translate")
+                                                .font(.subheadline.weight(.semibold))
+                                                .padding(.horizontal, 14).padding(.vertical, 10)
+                                                .background(ConteurTheme.wash, in: Capsule())
                                         }
+                                        .accessibilityIdentifier("reader-translate")
                                     }
-                                    if settings.engine == .qwen {
-                                        Text("Voix iPhone pour écouter pendant la traduction.").font(.caption2).foregroundStyle(ConteurTheme.muted)
+                                    if isActive {
+                                        Button("Suspendre") { translation.suspend() }.font(.caption.weight(.semibold))
                                     }
                                     if let message = translation.errorMessage {
                                         Text(message).font(.caption).foregroundStyle(ConteurTheme.muted)
@@ -81,6 +87,13 @@ struct ReaderView: View {
                                     Text(playback.voiceName)
                                     if playback.effectiveEngine != .system { Text("· Suivi des mots estimé") }
                                 }.font(.caption2).foregroundStyle(ConteurTheme.muted).padding(.top, 8)
+                                if let message = playback.voiceFallbackMessage {
+                                    Text(message).font(.caption).foregroundStyle(ConteurTheme.muted)
+                                    if playback.isUsingAppleForTranslation {
+                                        Button("Écouter avec Qwen") { playback.selectEngine(.qwen) }
+                                            .font(.caption.weight(.semibold))
+                                    }
+                                }
                             }.padding(.horizontal, 26).padding(.top, 16)
                             Rectangle().fill(ConteurTheme.ink.opacity(0.1)).frame(height: 1).padding(.horizontal, 26)
                             LazyVStack(alignment: .leading, spacing: 8) {
@@ -103,7 +116,7 @@ struct ReaderView: View {
                                         .id(index)
                                 }
                             }.padding(.horizontal, 10)
-                            Text(document.isTranslationPending ? "Les prochains passages apparaîtront ici." : "Vous êtes arrivé à la dernière page.").font(.caption).foregroundStyle(ConteurTheme.muted)
+                            Text(document.isTranslationPending ? String(localized: "Les prochains passages apparaîtront ici.") : String(localized: "Vous êtes arrivé à la dernière page.")).font(.caption).foregroundStyle(ConteurTheme.muted)
                                 .frame(maxWidth: .infinity).padding(.vertical, 26)
                         }.coordinateSpace(name: "reader-content")
                     }
@@ -120,7 +133,10 @@ struct ReaderView: View {
                         currentWordFrame = frame
                         followWord(frame)
                     }
-                    .onScrollPhaseChange { _, phase in if phase == .interacting { followsReading = false } }
+                    .onScrollPhaseChange { _, phase in
+                        translation.setInterfaceScrolling(phase != .idle)
+                        if phase == .interacting { followsReading = false }
+                    }
                     .overlay(alignment: .bottomTrailing) {
                         if !followsReading {
                             Button {
@@ -142,6 +158,7 @@ struct ReaderView: View {
                         scrubPosition = Double(playback.position)
                         if playback.position > 0 { proxy.scrollTo(activeParagraph, anchor: .center) }
                     }
+                    .onDisappear { translation.setInterfaceScrolling(false) }
                     .safeAreaInset(edge: .bottom, spacing: 0) { controls(document) }
                 }
                 .background(ConteurTheme.paper).foregroundStyle(ConteurTheme.ink)
@@ -149,29 +166,48 @@ struct ReaderView: View {
                 .toolbar {
                     ToolbarItem(placement: .topBarLeading) { Button { dismiss() } label: { Image(systemName: "chevron.down") }.accessibilityLabel("Fermer le lecteur") }
                     ToolbarItem(placement: .principal) {
-                        HStack(spacing: 8) {
-                            if let image = BookCoverStore.image(named: document.coverFileName) {
-                                Image(uiImage: image)
-                                    .resizable()
-                                    .scaledToFill()
-                                    .frame(width: 24, height: 32)
-                                    .clipShape(RoundedRectangle(cornerRadius: 4))
-                                    .accessibilityHidden(true)
+                        Button {
+                            followsReading = false
+                            requestedOffset = 0
+                            withAnimation(.easeInOut(duration: 0.3)) {
+                                scrollPosition.scrollTo(edge: .top)
                             }
-                            Text(document.title)
-                                .font(.subheadline.weight(.semibold))
-                                .lineLimit(1)
-                                .minimumScaleFactor(0.75)
+                        } label: {
+                            HStack(spacing: 8) {
+                                if let image = BookCoverStore.image(named: document.coverFileName) {
+                                    Image(uiImage: image)
+                                        .resizable()
+                                        .scaledToFill()
+                                        .frame(width: 24, height: 32)
+                                        .clipShape(RoundedRectangle(cornerRadius: 4))
+                                        .accessibilityHidden(true)
+                                }
+                                VStack(alignment: .leading, spacing: 3) {
+                                    Text(document.title)
+                                        .font(.subheadline.weight(.semibold))
+                                        .lineLimit(1)
+                                        .minimumScaleFactor(0.75)
+                                    if document.isTranslationPending {
+                                        let isActive = translation.isTranslating && translation.activeDocumentID == document.id
+                                        ReaderTranslationGauge(
+                                            progress: isActive ? max(translation.progress, document.translationProgress) : document.translationProgress,
+                                            isActive: isActive
+                                        )
+                                    }
+                                }
+                            }
+                            .frame(maxWidth: 220)
+                            .contentShape(Rectangle())
                         }
-                        .frame(maxWidth: 220)
-                        .accessibilityElement(children: .combine)
-                        .accessibilityLabel("Livre : \(document.title)")
+                        .buttonStyle(.plain)
+                        .accessibilityLabel("Revenir au début de \(document.title)")
+                        .accessibilityIdentifier("reader-scroll-to-top")
                     }
                     ToolbarItem(placement: .topBarTrailing) {
                         Menu {
                             if settings.engine == .qwen {
                                 ForEach(NarrationStyle.allCases) { style in
-                                    Button(style.name, systemImage: settings.qwenStyle == style ? "checkmark" : style.icon) { settings.qwenStyle = style }
+                                    Button(style.name, systemImage: settings.qwenStyle == style ? "checkmark" : style.icon) { playback.selectQwenStyle(style) }
                                 }
                                 Divider()
                             }
@@ -181,7 +217,13 @@ struct ReaderView: View {
                             }
                             Button("Agrandir le texte", systemImage: "textformat.size.larger") { settings.textSize = min(34, settings.textSize + 2) }
                             Button("Réduire le texte", systemImage: "textformat.size.smaller") { settings.textSize = max(16, settings.textSize - 2) }
-                        } label: { Image(systemName: "ellipsis") }.accessibilityLabel("Options de lecture")
+                        } label: {
+                            Image(systemName: "ellipsis")
+                                .frame(width: 44, height: 44)
+                                .contentShape(Rectangle())
+                        }
+                        .accessibilityLabel("Options de lecture")
+                        .accessibilityIdentifier("reader-options")
                     }
                 }
                 .sheet(isPresented: $showBookmarks) {
@@ -195,6 +237,14 @@ struct ReaderView: View {
                                             Text("Passage \(index + 1)").font(.caption).foregroundStyle(.secondary)
                                             Text(document.segments[index]).lineLimit(3)
                                         }
+                                    }
+                                    .swipeActions(edge: .trailing, allowsFullSwipe: true) {
+                                        Button(role: .destructive) {
+                                            library.toggleBookmark(id: document.id, position: index)
+                                        } label: {
+                                            Label("Supprimer", systemImage: "trash")
+                                        }
+                                        .accessibilityIdentifier("delete-bookmark-\(index)")
                                     }
                                 }
                             }
@@ -217,7 +267,7 @@ struct ReaderView: View {
                 let url = try await Task.detached(priority: .userInitiated) { try EPUBExporter.export(document) }.value
                 sharedBook = SharedBook(url: url)
             } catch {
-                playback.errorMessage = "Impossible de préparer l’EPUB : \(error.localizedDescription)"
+                playback.errorMessage = String(format: String(localized: "Impossible de préparer l’EPUB : %@"), error.localizedDescription)
             }
         }
     }
@@ -234,8 +284,9 @@ struct ReaderView: View {
     private func controls(_ document: ReadingDocument) -> some View {
         VStack(spacing: 12) {
             if let notice = playback.notice { Text(notice).font(.caption).foregroundStyle(ConteurTheme.muted) }
+            if let reserve = playback.qwenReserve { QwenReserveGauge(reserve: reserve) }
             HStack {
-                Text(playback.isWaitingForTranslation ? "En attente de la suite…" : playback.isPreparing ? playback.preparationStatus : document.isFinished ? "Lecture terminée" : "Passage \(playback.position + 1) sur \(document.segments.count)")
+                Text(playback.isWaitingForTranslation ? String(localized: "En attente de la suite…") : playback.isPreparing && playback.qwenReserve == nil ? playback.preparationStatus : document.isFinished ? String(localized: "Lecture terminée") : String(format: String(localized: "Passage %lld sur %lld"), Int64(playback.position + 1), Int64(document.segments.count)))
                 Spacer()
                 Text("\(Int(document.progress * 100)) %")
             }.font(.caption2).monospacedDigit().foregroundStyle(ConteurTheme.muted)
@@ -261,7 +312,7 @@ struct ReaderView: View {
                         if playback.isPreparing || playback.isWaitingForTranslation { ProgressView().tint(.white) }
                         else { Image(systemName: playback.isPlaying ? "pause.fill" : "play.fill").font(.system(size: 25)).foregroundStyle(.white) }
                     }
-                }.accessibilityLabel(playback.isPlaying ? "Pause" : "Lire")
+                }.accessibilityLabel(playback.isPlaying ? String(localized: "Pause") : String(localized: "Lire"))
                 Button { playback.skip(1) } label: { Image(systemName: "forward.end.fill").font(.title3).frame(width: 44, height: 48) }
                     .accessibilityLabel("Passage suivant").disabled(playback.position >= document.segments.count - 1)
                 Spacer()
@@ -270,7 +321,7 @@ struct ReaderView: View {
                 }.accessibilityLabel("Marquer ce passage")
             }.foregroundStyle(ConteurTheme.ink)
             Menu {
-                ForEach([5, 15, 30, 60], id: \.self) { minutes in Button("\(minutes) minutes") { playback.setSleepTimer(minutes: minutes) } }
+                ForEach([5, 15, 30, 60], id: \.self) { minutes in Button(String(format: String(localized: "%lld minutes"), Int64(minutes))) { playback.setSleepTimer(minutes: minutes) } }
                 Button("Désactiver la minuterie") { playback.setSleepTimer(minutes: nil) }
             } label: {
                 HStack(spacing: 6) {
@@ -281,6 +332,31 @@ struct ReaderView: View {
             }
         }.padding(.horizontal, 28).padding(.top, 16).padding(.bottom, 8)
             .background(ConteurTheme.paper.shadow(.drop(color: .black.opacity(0.05), radius: 12, y: -4)))
+    }
+}
+
+private struct ReaderTranslationGauge: View {
+    let progress: Double
+    let isActive: Bool
+
+    private var value: Double { min(1, max(0, progress)) }
+    private var percentage: Int { Int((value * 100).rounded(.down)) }
+
+    var body: some View {
+        HStack(spacing: 5) {
+            Image(systemName: isActive ? "translate" : "pause.circle")
+                .font(.system(size: 8, weight: .semibold))
+            ProgressView(value: value)
+                .tint(isActive ? ConteurTheme.green : ConteurTheme.muted)
+                .frame(maxWidth: 105)
+            Text("\(percentage) %")
+                .font(.system(size: 8, weight: .semibold))
+                .monospacedDigit()
+        }
+        .foregroundStyle(ConteurTheme.muted)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(isActive ? String(localized: "Traduction en cours") : String(localized: "Traduction en pause"))
+        .accessibilityValue(String(format: String(localized: "%lld pour cent"), Int64(percentage)))
     }
 }
 

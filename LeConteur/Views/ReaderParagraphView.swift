@@ -78,7 +78,7 @@ struct ReaderParagraphView: View {
         .preference(key: ReaderWordFrameKey.self, value: wordFrame)
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(content.text)
-        .accessibilityValue(content.currentWord.map { "Mot en cours : \($0)" } ?? "")
+        .accessibilityValue(content.currentWord.map { String(localized: "Mot en cours : \($0)") } ?? "")
     }
 }
 

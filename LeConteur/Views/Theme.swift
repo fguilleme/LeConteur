@@ -79,7 +79,7 @@ struct BookTranslationGauge: View {
     var body: some View {
         VStack(alignment: .leading, spacing: compact ? 4 : 7) {
             HStack(spacing: 8) {
-                Label(isActive ? "Traduction en cours" : "Traduction en pause",
+                Label(isActive ? String(localized: "Traduction en cours") : String(localized: "Traduction en pause"),
                       systemImage: isActive ? "translate" : "pause.circle")
                 Spacer(minLength: 8)
                 Text("\(Int((value * 100).rounded(.down))) %").monospacedDigit()
@@ -90,7 +90,7 @@ struct BookTranslationGauge: View {
                 .tint(isActive ? ConteurTheme.green : ConteurTheme.muted)
         }
         .accessibilityElement(children: .combine)
-        .accessibilityLabel(isActive ? "Traduction en cours" : "Traduction en pause")
-        .accessibilityValue("\(Int((value * 100).rounded(.down))) pour cent")
+        .accessibilityLabel(isActive ? String(localized: "Traduction en cours") : String(localized: "Traduction en pause"))
+        .accessibilityValue(String(format: String(localized: "%lld pour cent"), Int64((value * 100).rounded(.down))))
     }
 }
