@@ -499,6 +499,20 @@
 			"files" = ("5B6CB5200BDCA04FFE53024D", "5E7041182A2EE79C7FE953A6", "AAA100000000000000000003");
 			"runOnlyForDeploymentPostprocessing" = 0;
 		};
+		"AAA100000000000000000018" = {
+			"isa" = "PBXShellScriptBuildPhase";
+			"alwaysOutOfDate" = 1;
+			"buildActionMask" = 2147483647;
+			"files" = ();
+			"inputFileListPaths" = ();
+			"inputPaths" = ();
+			"name" = "Prepare ONNX Runtime Framework";
+			"outputFileListPaths" = ();
+			"outputPaths" = ();
+			"runOnlyForDeploymentPostprocessing" = 0;
+			"shellPath" = "/bin/sh";
+			"shellScript" = "set -eu\n\nframework_dir=\"${TARGET_BUILD_DIR}/${FRAMEWORKS_FOLDER_PATH}/onnxruntime.framework\"\nframework_plist=\"${framework_dir}/Info.plist\"\nframework_binary=\"${framework_dir}/onnxruntime\"\n\nif [ ! -f \"$framework_plist\" ]; then\n    exit 0\nfi\n\n/usr/libexec/PlistBuddy -c \"Delete :MinimumOSVersion\" \"$framework_plist\" 2>/dev/null || true\n/usr/libexec/PlistBuddy -c \"Add :MinimumOSVersion string ${IPHONEOS_DEPLOYMENT_TARGET}\" \"$framework_plist\"\n\nif [ \"${CODE_SIGNING_ALLOWED:-NO}\" = \"YES\" ] && [ -n \"${EXPANDED_CODE_SIGN_IDENTITY:-}\" ]; then\n    /usr/bin/codesign --force --sign \"${EXPANDED_CODE_SIGN_IDENTITY}\" --preserve-metadata=identifier,entitlements,flags \"$framework_dir\"\nfi\n\n# Microsoft's binary XCFramework does not ship its dSYM. dsymutil can still\n# emit the UUID-bearing symbol bundle required by App Store Connect.\nif [ \"${DEBUG_INFORMATION_FORMAT:-}\" = \"dwarf-with-dsym\" ] && [ -f \"$framework_binary\" ]; then\n    /usr/bin/dsymutil \"$framework_binary\" -o \"${DWARF_DSYM_FOLDER_PATH}/onnxruntime.framework.dSYM\" >/dev/null 2>&1\nfi\n";
+		};
 		"F8368B887969478BA14C66B2" = {
 			"isa" = "PBXBuildFile";
 			"fileRef" = "1351541F690E2A1A1DBF1796";
@@ -658,7 +672,8 @@
 				"SWIFT_VERSION" = "5.0";
 				"TARGETED_DEVICE_FAMILY" = "1";
 				"CODE_SIGN_STYLE" = "Automatic";
-				"CURRENT_PROJECT_VERSION" = "1";
+				CURRENT_PROJECT_VERSION = 7;
+				VERSIONING_SYSTEM = apple-generic;
 				"MARKETING_VERSION" = "1.0";
 				"CLANG_ENABLE_MODULES" = "YES";
 				"SWIFT_EMIT_LOC_STRINGS" = "YES";
@@ -671,6 +686,7 @@
 				"DEVELOPMENT_TEAM" = "96JK7HBZ58";
 				"PROVISIONING_PROFILE_SPECIFIER" = "";
 				"CODE_SIGN_IDENTITY" = "Apple Development";
+				"ENABLE_USER_SCRIPT_SANDBOXING" = "NO";
 				"CONTEUR_QWEN_CONDITION" = "CONTEUR_QWEN";
 				"SWIFT_ACTIVE_COMPILATION_CONDITIONS" = "$(inherited) $(CONTEUR_QWEN_CONDITION)";
 			};
@@ -684,7 +700,8 @@
 				"SWIFT_VERSION" = "5.0";
 				"TARGETED_DEVICE_FAMILY" = "1";
 				"CODE_SIGN_STYLE" = "Automatic";
-				"CURRENT_PROJECT_VERSION" = "1";
+				CURRENT_PROJECT_VERSION = 7;
+				VERSIONING_SYSTEM = apple-generic;
 				"MARKETING_VERSION" = "1.0";
 				"CLANG_ENABLE_MODULES" = "YES";
 				"SWIFT_EMIT_LOC_STRINGS" = "YES";
@@ -697,6 +714,7 @@
 				"DEVELOPMENT_TEAM" = "96JK7HBZ58";
 				"PROVISIONING_PROFILE_SPECIFIER" = "";
 				"CODE_SIGN_IDENTITY" = "Apple Development";
+				"ENABLE_USER_SCRIPT_SANDBOXING" = "NO";
 				"CONTEUR_QWEN_CONDITION" = "CONTEUR_QWEN";
 				"SWIFT_ACTIVE_COMPILATION_CONDITIONS" = "$(inherited) $(CONTEUR_QWEN_CONDITION)";
 			};
@@ -726,7 +744,7 @@
 			"productType" = "com.apple.product-type.application";
 			"productReference" = "93AB18FB8A67012E36B97E96";
 			"buildConfigurationList" = "E74637B165740ECB46DC56F6";
-			"buildPhases" = ("6805EC6AFDAFDBE18E2FF355", "2AC7AB26953A78AD46B49603", "0F91A57B11B30F1A7980649D", "F41F965F5B0C983783F6B95E");
+			"buildPhases" = ("6805EC6AFDAFDBE18E2FF355", "2AC7AB26953A78AD46B49603", "0F91A57B11B30F1A7980649D", "F41F965F5B0C983783F6B95E", "AAA100000000000000000018");
 			"buildRules" = ();
 			"dependencies" = ("A7C58F3B180F1E0BBFAFFDCE");
 			"packageProductDependencies" = ("0C6F96D1810223C61BFDFC8B", "9E5BB75C67AEC41E324EB0E3", "AAA100000000000000000002");
@@ -740,7 +758,8 @@
 				"SWIFT_VERSION" = "5.0";
 				"TARGETED_DEVICE_FAMILY" = "1";
 				"CODE_SIGN_STYLE" = "Automatic";
-				"CURRENT_PROJECT_VERSION" = "1";
+				CURRENT_PROJECT_VERSION = 7;
+				VERSIONING_SYSTEM = apple-generic;
 				"MARKETING_VERSION" = "1.0";
 				"CLANG_ENABLE_MODULES" = "YES";
 				"SWIFT_EMIT_LOC_STRINGS" = "YES";
@@ -762,7 +781,8 @@
 				"SWIFT_VERSION" = "5.0";
 				"TARGETED_DEVICE_FAMILY" = "1";
 				"CODE_SIGN_STYLE" = "Automatic";
-				"CURRENT_PROJECT_VERSION" = "1";
+				CURRENT_PROJECT_VERSION = 7;
+				VERSIONING_SYSTEM = apple-generic;
 				"MARKETING_VERSION" = "1.0";
 				"CLANG_ENABLE_MODULES" = "YES";
 				"SWIFT_EMIT_LOC_STRINGS" = "YES";
@@ -801,7 +821,8 @@
 				"SWIFT_VERSION" = "5.0";
 				"TARGETED_DEVICE_FAMILY" = "1";
 				"CODE_SIGN_STYLE" = "Automatic";
-				"CURRENT_PROJECT_VERSION" = "1";
+				CURRENT_PROJECT_VERSION = 7;
+				VERSIONING_SYSTEM = apple-generic;
 				"MARKETING_VERSION" = "1.0";
 				"CLANG_ENABLE_MODULES" = "YES";
 				"SWIFT_EMIT_LOC_STRINGS" = "YES";
@@ -822,7 +843,8 @@
 				"SWIFT_VERSION" = "5.0";
 				"TARGETED_DEVICE_FAMILY" = "1";
 				"CODE_SIGN_STYLE" = "Automatic";
-				"CURRENT_PROJECT_VERSION" = "1";
+				CURRENT_PROJECT_VERSION = 7;
+				VERSIONING_SYSTEM = apple-generic;
 				"MARKETING_VERSION" = "1.0";
 				"CLANG_ENABLE_MODULES" = "YES";
 				"SWIFT_EMIT_LOC_STRINGS" = "YES";
