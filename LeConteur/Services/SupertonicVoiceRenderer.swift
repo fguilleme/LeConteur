@@ -4,6 +4,61 @@ import Foundation
 import AVFoundation
 import OnnxRuntimeBindings
 
+/// Background audio may continue working, but iOS terminates sustained neural
+/// inference above its CPU budget. Pace every ONNX stage so that a single long
+/// paragraph cannot monopolise the CPU before passage-level pacing can run.
+final class SupertonicInferencePacer: @unchecked Sendable {
+    static let shared = SupertonicInferencePacer()
+    static let backgroundDutyCycle = 0.35
+    static let foregroundDiffusionSteps = 6
+    // Four is the lowest setting that preserves acceptable narration quality.
+    // Continuity below that point is not worth the audible degradation.
+    static let backgroundDiffusionSteps = 4
+
+    private let lock = NSLock()
+    private var dutyCycle: Double?
+
+    func setBackgrounded(_ backgrounded: Bool) {
+        lock.lock()
+        dutyCycle = backgrounded ? Self.backgroundDutyCycle : nil
+        lock.unlock()
+    }
+
+    /// Background execution is CPU-budgeted by iOS even while another app keeps
+    /// the display awake. Fewer diffusion iterations reduce the amount of work,
+    /// rather than raising the duty cycle that previously triggered termination.
+    func diffusionSteps() -> Int {
+        lock.lock()
+        let backgrounded = dutyCycle != nil
+        lock.unlock()
+        return backgrounded ? Self.backgroundDiffusionSteps : Self.foregroundDiffusionSteps
+    }
+
+    func coolDown(afterWorkSeconds workSeconds: TimeInterval) {
+        guard workSeconds.isFinite, workSeconds > 0 else { return }
+        lock.lock()
+        let initialDutyCycle = dutyCycle
+        lock.unlock()
+        guard let initialDutyCycle else { return }
+
+        let deadline = Date().addingTimeInterval(Self.cooldownDuration(
+            workSeconds: workSeconds, dutyCycle: initialDutyCycle))
+        while Date() < deadline {
+            lock.lock()
+            let remainsBackgrounded = dutyCycle != nil
+            lock.unlock()
+            guard remainsBackgrounded else { return }
+            Thread.sleep(forTimeInterval: max(0, min(0.05, deadline.timeIntervalSinceNow)))
+        }
+    }
+
+    static func cooldownDuration(workSeconds: TimeInterval, dutyCycle: Double) -> TimeInterval {
+        guard workSeconds.isFinite, workSeconds > 0 else { return 0 }
+        let dutyCycle = min(1, max(0.05, dutyCycle))
+        return workSeconds * (1 / dutyCycle - 1)
+    }
+}
+
 private struct SupertonicConfig: Decodable {
     struct AE: Decodable { let sample_rate: Int; let base_chunk_size: Int }
     struct TTL: Decodable { let chunk_compress_factor: Int; let latent_dim: Int }
@@ -89,17 +144,24 @@ private final class SupertonicRuntime {
         return try SupertonicStyle(ttl: tensor(style.style_ttl), dp: tensor(style.style_dp))
     }
 
-    func synthesize(text: String, language: String, style: SupertonicStyle, steps: Int = 6, speed: Float = 1.05) throws -> [Float] {
+    func synthesize(text: String, language: String, style: SupertonicStyle, speed: Float = 1.05) throws -> [Float] {
+        // Snapshot the mode for the whole utterance. Changing applications in
+        // the middle of a render must not alter tensor shapes or step counters.
+        let steps = SupertonicInferencePacer.shared.diffusionSteps()
         let (textIDs, textMask) = try processor.tensors(text, language: language)
-        let durationOutput = try duration.run(withInputs: ["text_ids": textIDs, "style_dp": style.dp, "text_mask": textMask],
-                                              outputNames: ["duration"], runOptions: nil)
+        let durationOutput = try paced {
+            try duration.run(withInputs: ["text_ids": textIDs, "style_dp": style.dp, "text_mask": textMask],
+                             outputNames: ["duration"], runOptions: nil)
+        }
         let durationData = try durationOutput["duration"]!.tensorData() as Data
         let predicted = durationData.withUnsafeBytes { Array($0.bindMemory(to: Float.self)) }
         guard let predictedSeconds = predicted.first else { throw QwenError.emptyAudio }
         let seconds = predictedSeconds / speed
         guard seconds.isFinite, seconds > 0.05 else { throw QwenError.emptyAudio }
-        let encoded = try encoder.run(withInputs: ["text_ids": textIDs, "style_ttl": style.ttl, "text_mask": textMask],
-                                      outputNames: ["text_emb"], runOptions: nil)["text_emb"]!
+        let encoded = try paced {
+            try encoder.run(withInputs: ["text_ids": textIDs, "style_ttl": style.ttl, "text_mask": textMask],
+                            outputNames: ["text_emb"], runOptions: nil)
+        }["text_emb"]!
 
         let chunk = config.ae.base_chunk_size * config.ttl.chunk_compress_factor
         let latentLength = max(1, (Int(seconds * Float(sampleRate)) + chunk - 1) / chunk)
@@ -114,19 +176,30 @@ private final class SupertonicRuntime {
             try Task.checkCancellation()
             let latentValue = try Self.tensor(latent, shape: [1, NSNumber(value: latentDimension), NSNumber(value: latentLength)])
             let currentValue = try Self.tensor([Float(step)], shape: [1])
-            let output = try estimator.run(withInputs: [
-                "noisy_latent": latentValue, "text_emb": encoded, "style_ttl": style.ttl,
-                "latent_mask": maskValue, "text_mask": textMask,
-                "current_step": currentValue, "total_step": totalValue
-            ], outputNames: ["denoised_latent"], runOptions: nil)
+            let output = try paced {
+                try estimator.run(withInputs: [
+                    "noisy_latent": latentValue, "text_emb": encoded, "style_ttl": style.ttl,
+                    "latent_mask": maskValue, "text_mask": textMask,
+                    "current_step": currentValue, "total_step": totalValue
+                ], outputNames: ["denoised_latent"], runOptions: nil)
+            }
             let data = try output["denoised_latent"]!.tensorData() as Data
             latent = data.withUnsafeBytes { Array($0.bindMemory(to: Float.self)) }
         }
         let final = try Self.tensor(latent, shape: [1, NSNumber(value: latentDimension), NSNumber(value: latentLength)])
-        let output = try vocoder.run(withInputs: ["latent": final], outputNames: ["wav_tts"], runOptions: nil)
+        let output = try paced {
+            try vocoder.run(withInputs: ["latent": final], outputNames: ["wav_tts"], runOptions: nil)
+        }
         let data = try output["wav_tts"]!.tensorData() as Data
         let samples = data.withUnsafeBytes { Array($0.bindMemory(to: Float.self)) }
         return Array(samples.prefix(min(samples.count, Int(seconds * Float(sampleRate)))))
+    }
+
+    private func paced<T>(_ work: () throws -> T) rethrows -> T {
+        let started = Date()
+        let result = try work()
+        SupertonicInferencePacer.shared.coolDown(afterWorkSeconds: Date().timeIntervalSince(started))
+        return result
     }
 
     private static func tensor(_ values: [Float], shape: [NSNumber]) throws -> ORTValue {

@@ -35,16 +35,23 @@ private final class LibraryPersistence: @unchecked Sendable {
     }
 }
 
+private struct LibraryState: Codable {
+    var currentDocumentID: UUID?
+}
+
 @MainActor @Observable
 final class LibraryStore {
     private(set) var documents: [ReadingDocument] = []
+    private(set) var currentDocumentID: UUID?
     var errorMessage: String?
     private let fileURL: URL
+    private let stateURL: URL
     private let persistence: LibraryPersistence
 
     init(directory: URL? = nil) {
         let root = directory ?? URL.applicationSupportDirectory.appending(path: "Library", directoryHint: .isDirectory)
         fileURL = root.appending(path: "library.json")
+        stateURL = root.appending(path: "library-state.json")
         persistence = LibraryPersistence(fileURL: fileURL)
         do {
             try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
@@ -62,6 +69,13 @@ final class LibraryStore {
                 try? FileManager.default.copyItem(at: fileURL, to: backup)
             }
             errorMessage = String(format: String(localized: "La bibliothèque n’a pas pu être ouverte. Vos fichiers ont été conservés. %@"), error.localizedDescription)
+        }
+
+        if let data = try? Data(contentsOf: stateURL),
+           let state = try? JSONDecoder().decode(LibraryState.self, from: data),
+           let id = state.currentDocumentID,
+           documents.contains(where: { $0.id == id }) {
+            currentDocumentID = id
         }
     }
 
@@ -141,12 +155,30 @@ final class LibraryStore {
 
     func document(_ id: UUID) -> ReadingDocument? { documents.first { $0.id == id } }
 
+    /// Remember the edition most recently opened by the reader. This state is
+    /// intentionally separate from playback: relaunching restores the title and
+    /// position without starting audio automatically.
+    @discardableResult func rememberCurrentDocument(_ id: UUID) -> Bool {
+        guard document(id) != nil else { return false }
+        guard currentDocumentID != id else { return true }
+        let previous = currentDocumentID
+        currentDocumentID = id
+        guard saveState() else {
+            currentDocumentID = previous
+            return false
+        }
+        return true
+    }
+
     /// The home card follows the edition currently owned by the player, including
     /// a newly opened book at position zero or a progressive translation. When no
     /// reader is active, retain the library's usual first-in-progress fallback.
     func featuredDocument(activeID: UUID?) -> ReadingDocument? {
         if let activeID, let active = document(activeID), !active.isFinished {
             return active
+        }
+        if let currentDocumentID, let current = document(currentDocumentID), !current.isFinished {
+            return current
         }
         return documents.first(where: { $0.position > 0 && !$0.isFinished }) ?? documents.first
     }
@@ -278,6 +310,25 @@ final class LibraryStore {
     func delete(_ id: UUID) {
         documents.removeAll { $0.id == id }
         save()
+        if currentDocumentID == id {
+            currentDocumentID = nil
+            saveState()
+        }
+    }
+
+    @discardableResult private func saveState() -> Bool {
+        do {
+            let data = try JSONEncoder().encode(LibraryState(currentDocumentID: currentDocumentID))
+            try data.write(to: stateURL, options: [.atomic, .completeFileProtectionUntilFirstUserAuthentication])
+            var url = stateURL
+            var values = URLResourceValues()
+            values.isExcludedFromBackup = true
+            try url.setResourceValues(values)
+            return true
+        } catch {
+            errorMessage = String(format: String(localized: "La sauvegarde locale a échoué : %@"), error.localizedDescription)
+            return false
+        }
     }
 
     @discardableResult private func save() -> Bool {

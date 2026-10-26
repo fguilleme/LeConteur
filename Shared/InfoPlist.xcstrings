@@ -2,18 +2,91 @@
   "sourceLanguage" : "fr",
   "strings" : {
     "CFBundleDisplayName" : {
+      "comment" : "Bundle display name",
+      "extractionState" : "extracted_with_value",
       "localizations" : {
-        "ar" : { "stringUnit" : { "state" : "translated", "value" : "الراوي" } },
-        "de" : { "stringUnit" : { "state" : "translated", "value" : "Erzähler" } },
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Storyteller" } },
-        "es" : { "stringUnit" : { "state" : "translated", "value" : "Narrador" } },
-        "it" : { "stringUnit" : { "state" : "translated", "value" : "Narratore" } },
-        "ja" : { "stringUnit" : { "state" : "translated", "value" : "語り手" } },
-        "ko" : { "stringUnit" : { "state" : "translated", "value" : "이야기꾼" } },
-        "pt" : { "stringUnit" : { "state" : "translated", "value" : "Contador" } },
-        "ru" : { "stringUnit" : { "state" : "translated", "value" : "Рассказчик" } },
-        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "讲述者" } }
+        "ar" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "الراوي"
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Erzähler"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Storyteller"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Narrador"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Le Conteur"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Narratore"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "語り手"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "이야기꾼"
+          }
+        },
+        "pt" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Contador"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Рассказчик"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "讲述者"
+          }
+        }
       }
+    },
+    "CFBundleName" : {
+      "comment" : "Bundle name",
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "ConteurShare"
+          }
+        }
+      }
+    },
+    "EPUB" : {
+
     }
   },
   "version" : "1.0"

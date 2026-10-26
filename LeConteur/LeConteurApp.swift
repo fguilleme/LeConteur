@@ -39,7 +39,7 @@ struct LeConteurApp: App {
                     QwenPrecisionValidationView()
                 } else if CommandLine.arguments.contains("--qwen-pronunciation-validation") || CommandLine.arguments.contains("--qwen-stability-validation") || CommandLine.arguments.contains("--qwen-silence-validation") || CommandLine.arguments.contains("--qwen-decoder-validation") || CommandLine.arguments.contains("--qwen-refill-validation") || CommandLine.arguments.contains("--qwen-short-text-validation") {
                     QwenPronunciationValidationView()
-                } else if CommandLine.arguments.contains("--qwen-stream-validation") {
+                } else if CommandLine.arguments.contains("--qwen-stream-validation") || CommandLine.arguments.contains("--supertonic-stream-validation") {
                     QwenStreamValidationView()
                 } else { normalContent }
                 #else
@@ -207,6 +207,7 @@ struct RootView: View {
             && translation.activeDocumentID == route.document.id
         let keepCurrentSession = translation.isTranslating
             && (!route.translate || isActiveTranslation)
+        library.rememberCurrentDocument(route.document.id)
         reader = ReaderSelection(id: route.document.id,
                                  automaticallyTranslate: route.translate && !isActiveTranslation,
                                  keepsBackgroundTranslation: keepCurrentSession)

@@ -40,6 +40,49 @@ final class LeConteurTests: XCTestCase {
         XCTAssertEqual(library.featuredDocument(activeID: current.id)?.position, 1)
     }
 
+    @MainActor func testCurrentBookSurvivesLibraryAndPlayerRelaunch() throws {
+        let directory = URL.temporaryDirectory.appending(path: UUID().uuidString, directoryHint: .isDirectory)
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let library = LibraryStore(directory: directory)
+        for document in library.documents { library.delete(document.id) }
+
+        let previous = try DocumentImporter.fromText("Ancien livre.\n\nSuite.", title: "Précédent")
+        let current = try DocumentImporter.fromText("Livre courant.\n\nSuite.", title: "Courant")
+        XCTAssertTrue(library.add(current))
+        XCTAssertTrue(library.add(previous))
+        library.updatePosition(id: previous.id, position: 1)
+        library.updatePosition(id: current.id, position: 1)
+        XCTAssertTrue(library.rememberCurrentDocument(current.id))
+
+        let relaunchedLibrary = LibraryStore(directory: directory)
+        XCTAssertEqual(relaunchedLibrary.currentDocumentID, current.id)
+        XCTAssertEqual(relaunchedLibrary.featuredDocument(activeID: nil)?.id, current.id)
+
+        let suite = "LeConteurTests.CurrentBook.\(UUID().uuidString)"
+        let defaults = UserDefaults(suiteName: suite)!
+        defer { defaults.removePersistentDomain(forName: suite) }
+        let playback = PlaybackController(library: relaunchedLibrary,
+                                          settings: ReaderSettings(defaults: defaults))
+        XCTAssertEqual(playback.documentID, current.id)
+        XCTAssertEqual(playback.document?.title, "Courant")
+        XCTAssertEqual(playback.position, 1)
+        XCTAssertFalse(playback.isPlaying)
+    }
+
+    @MainActor func testDeletingCurrentBookClearsPersistedSelection() throws {
+        let directory = URL.temporaryDirectory.appending(path: UUID().uuidString, directoryHint: .isDirectory)
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let library = LibraryStore(directory: directory)
+        let current = try DocumentImporter.fromText("Livre courant.", title: "Courant")
+        XCTAssertTrue(library.add(current))
+        XCTAssertTrue(library.rememberCurrentDocument(current.id))
+
+        library.delete(current.id)
+
+        XCTAssertNil(library.currentDocumentID)
+        XCTAssertNil(LibraryStore(directory: directory).currentDocumentID)
+    }
+
     @MainActor func testSupertonicIsTheDefaultWithoutOverwritingAnExistingVoiceChoice() {
         let suite = "LeConteurTests.DefaultVoice.\(UUID().uuidString)"
         let defaults = UserDefaults(suiteName: suite)!
@@ -69,6 +112,31 @@ final class LeConteurTests: XCTestCase {
         XCTAssertEqual(manifest.files.count, 8)
         XCTAssertGreaterThan(manifest.totalBytes, 390_000_000)
         XCTAssertTrue(manifest.files.allSatisfy { !$0.sha256.isEmpty && $0.bytes > 0 })
+    }
+
+    func testSupertonicBackgroundPacingStaysBelowSystemCPUBudget() {
+        let work = 1.0
+        let cooldown = SupertonicInferencePacer.cooldownDuration(
+            workSeconds: work, dutyCycle: SupertonicInferencePacer.backgroundDutyCycle)
+        let resultingDutyCycle = work / (work + cooldown)
+
+        XCTAssertEqual(resultingDutyCycle, SupertonicInferencePacer.backgroundDutyCycle, accuracy: 0.001)
+        XCTAssertLessThan(resultingDutyCycle, 0.5)
+
+        let pacer = SupertonicInferencePacer.shared
+        pacer.setBackgrounded(false)
+        XCTAssertEqual(pacer.diffusionSteps(), 6)
+        pacer.setBackgrounded(true)
+        XCTAssertEqual(pacer.diffusionSteps(), 4)
+        pacer.setBackgrounded(false)
+    }
+
+    func testTranslationInferencePacingIsBounded() {
+        XCTAssertEqual(TranslationInferencePacer.cooldown(after: .milliseconds(10)), .milliseconds(350))
+        XCTAssertEqual(TranslationInferencePacer.cooldown(after: .seconds(10)), .milliseconds(1_500))
+        let oneSecond = TranslationInferencePacer.cooldown(after: .seconds(1))
+        XCTAssertGreaterThan(oneSecond, .seconds(1))
+        XCTAssertLessThan(oneSecond, .seconds(1.5))
     }
 
     func testSupertonicLanguageVariantsAndAppleFallback() {

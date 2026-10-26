@@ -10,13 +10,16 @@ struct QwenStreamValidationView: View {
     @State private var userStopped = false
     @State private var validationDocument: ReadingDocument?
     private var backgroundProbe: Bool { CommandLine.arguments.contains("--background-validation") }
+    private var supertonicProbe: Bool { CommandLine.arguments.contains("--supertonic-stream-validation") }
     private var partialTranslationProbe: Bool { CommandLine.arguments.contains("--partial-translation-validation") }
     private var generationProbe: Bool { CommandLine.arguments.contains("--continuous-generation-validation") }
 
     init() {
         let folder = URL.documentsDirectory.appending(path: "QwenStreamValidation/library")
         let settings = ReaderSettings(defaults: UserDefaults(suiteName: "qwen-stream-validation")!)
-        settings.engine = .qwen
+        let supertonicProbe = CommandLine.arguments.contains("--supertonic-stream-validation")
+        settings.engine = supertonicProbe ? .supertonic : .qwen
+        settings.speed = 1
         settings.qwenStyle = .warm
         settings.qwenSpeaker = CommandLine.arguments.contains("--serena") ? .serena : .ryan
         let generationProbe = CommandLine.arguments.contains("--continuous-generation-validation")
@@ -59,11 +62,12 @@ struct QwenStreamValidationView: View {
     var body: some View {
         VStack(spacing: 20) {
             Image(systemName: "waveform").font(.largeTitle)
-            Text("Essai Qwen en continu").font(.title2)
+            Text(supertonicProbe ? "Mesure Supertonic" : "Essai Qwen en continu").font(.title2)
             Text(status).multilineTextAlignment(.center)
-            Text(playback.isPreparing ? playback.preparationStatus : playback.isPlaying ? "Lecture à \(playback.settings.qwenSpeed.formatted())×" : "Pause")
+            Text(playback.isPreparing ? playback.preparationStatus : playback.isPlaying
+                 ? "Lecture à \((supertonicProbe ? playback.settings.speed : playback.settings.qwenSpeed).formatted())×" : "Pause")
             if let reserve = playback.qwenReserve { QwenReserveGauge(reserve: reserve) }
-            if backgroundProbe, playback.qwenFirstAudioSeconds != nil {
+                if backgroundProbe, playback.qwenFirstAudioSeconds != nil, !supertonicProbe {
                 Button(playback.isPlaying ? "Pause" : "Lire puis verrouiller l’iPhone") { playback.toggle() }
                     .buttonStyle(.borderedProminent)
                 Text("Depuis l’écran verrouillé, essayez Pause puis Lire. Attendez la fin de la réserve, puis revenez dans Le Conteur.")
@@ -74,6 +78,9 @@ struct QwenStreamValidationView: View {
             .task {
                 guard !started else { return }
                 started = true
+                let keepsScreenAwake = CommandLine.arguments.contains("--keep-screen-awake")
+                if keepsScreenAwake { UIApplication.shared.isIdleTimerDisabled = true }
+                defer { if keepsScreenAwake { UIApplication.shared.isIdleTimerDisabled = false } }
                 let activationDeadline = Date().addingTimeInterval(30)
                 while UIApplication.shared.applicationState != .active, Date() < activationDeadline {
                     try? await Task.sleep(for: .milliseconds(100))
@@ -100,6 +107,7 @@ struct QwenStreamValidationView: View {
                 var backgroundResumeRequested = false
                 var exhaustedAt: Double?
                 var resumedInForeground = false
+                var finishedBook = false
                 var foregroundResumeAt: Date?
                 var completedAtExhaustion = 0.0
                 var events: [[String: Any]] = []
@@ -124,7 +132,7 @@ struct QwenStreamValidationView: View {
                 if let validationDocument { playback.open(validationDocument, autoplay: true) }
                 else { playback.previewQwen() }
                 while !Task.isCancelled, Date().timeIntervalSince(start) < 300 {
-                    if backgroundProbe || generationProbe {
+                    if backgroundProbe || generationProbe || supertonicProbe {
                         let elapsed = Date().timeIntervalSince(start)
                         if elapsed >= nextTrace {
                             nextTrace = elapsed + 1
@@ -179,7 +187,11 @@ struct QwenStreamValidationView: View {
                     if playback.qwenFirstAudioSeconds != nil, !observedFirstAudio {
                         observedFirstAudio = true
                         reserveAtStart = playback.qwenBufferedPlaybackSeconds
-                        if backgroundProbe { playback.pause(); status = "Réserve prête. Vous pouvez lancer l’essai écran verrouillé." }
+                        if backgroundProbe, !supertonicProbe {
+                            playback.pause(); status = "Réserve prête. Vous pouvez lancer l’essai écran verrouillé."
+                        } else if backgroundProbe {
+                            status = "Lecture en cours. Verrouillez maintenant l’iPhone."
+                        }
                     }
                     if playback.qwenFirstAudioSeconds != nil, playback.isGenerating {
                         audioBeforeEnd = true
@@ -198,7 +210,7 @@ struct QwenStreamValidationView: View {
                         playback.play()
                         pausedAndResumed = playback.qwenFirstAudioSeconds == generationBeforePause
                     }
-                    let finishedBook = observedFirstAudio && playback.document?.isFinished == true
+                    finishedBook = observedFirstAudio && playback.document?.isFinished == true
                     if userStopped || playback.errorMessage != nil || (partialTranslationProbe && playback.isWaitingForTranslation)
                         || (backgroundProbe ? resumedInForeground || finishedBook : !playback.isPlaying && !playback.isGenerating) { break }
                     try? await Task.sleep(for: .milliseconds(100))
@@ -207,13 +219,18 @@ struct QwenStreamValidationView: View {
                 let reachedEnd = validationDocument.map { playback.position == $0.segments.count - 1 } ?? true
                 let playbackComplete = partialTranslationProbe ? playback.isWaitingForTranslation : !playback.isPlaying
                 let expectedNotice = partialTranslationProbe && playback.isWaitingForTranslation
-                let success = backgroundProbe ? (backgroundAudio && backgroundPause && backgroundResume && resumedInForeground && playback.errorMessage == nil) : (!continuousProbe || (audioBeforeEnd && pauses == 0)) && playback.qwenFirstAudioSeconds != nil
+                let success = backgroundProbe
+                    ? (supertonicProbe
+                       ? backgroundAudio && finishedBook && playback.errorMessage == nil
+                       : backgroundAudio && backgroundPause && backgroundResume && resumedInForeground && playback.errorMessage == nil)
+                    : (!continuousProbe || (audioBeforeEnd && pauses == 0)) && playback.qwenFirstAudioSeconds != nil
                     && playback.qwenMetrics != nil && playback.errorMessage == nil && (playback.notice == nil || expectedNotice)
                     && playbackComplete && reachedEnd && midPassageUnderruns == 0
                 var report: [String: Any] = [
-                    "status": success ? "passed" : backgroundProbe && playback.errorMessage == nil ? "incomplete" : "failed", "playbackSpeed": playback.settings.qwenSpeed,
+                    "status": success ? "passed" : backgroundProbe && playback.errorMessage == nil ? "incomplete" : "failed", "playbackSpeed": playback.playbackSpeed,
                     "buffering": "time-reserve-with-continuous-prefetch", "multiplePassages": validationDocument != nil,
-                    "bufferPreset": playback.settings.qwenBuffer.rawValue,
+                    "bufferPreset": supertonicProbe ? "seconds10" : playback.settings.qwenBuffer.rawValue,
+                    "supertonicProbe": supertonicProbe,
                     "partialTranslationProbe": partialTranslationProbe,
                     "actualEngine": playback.effectiveEngine.rawValue,
                     "waitingForTranslationAfterAudio": playback.isWaitingForTranslation,
@@ -256,7 +273,8 @@ struct QwenStreamValidationView: View {
                     try? data.write(to: folder.appending(path: "report.json"), options: .atomic)
                 }
                 playback.stop()
-                await QwenVoiceRenderer.shared.unload()
+                if supertonicProbe { await SupertonicVoiceRenderer.shared.unload() }
+                else { await QwenVoiceRenderer.shared.unload() }
                 status = success ? "Essai terminé." : "Essai interrompu."
                 print("QWEN_STREAM_VALIDATION \(success ? "passed" : "failed")")
             }

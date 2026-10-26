@@ -148,6 +148,11 @@ final class PlaybackController: NSObject {
         self.systemSpeechTimeout = systemSpeechTimeout
         self.renderQwen = renderQwen
         requestedEngine = settings.engine
+        if let restoredID = library.currentDocumentID,
+           let restoredDocument = library.document(restoredID) {
+            documentID = restoredID
+            position = restoredDocument.isFinished ? 0 : restoredDocument.position
+        }
         super.init()
         speech.delegate = self
         observers.append(NotificationCenter.default.addObserver(forName: AVAudioSession.interruptionNotification, object: nil, queue: .main) { [weak self] note in
@@ -200,6 +205,7 @@ final class PlaybackController: NSObject {
         configureRemoteCommands()
         previewDocument = nil
         previewEngine = nil
+        library.rememberCurrentDocument(document.id)
         if documentID != document.id {
             stopAudio()
             documentID = document.id
@@ -216,25 +222,49 @@ final class PlaybackController: NSObject {
 
     func applicationWillResignActive() {
         recordDiagnosticEvent("willResignActive")
-        applicationIsActive = false
-        qwenPlayer?.suspendGeneration()
-        if effectiveEngine != .system {
-            finishBackgroundTask()
-            Task {
-                await QwenVoiceRenderer.shared.unload()
-                await SupertonicVoiceRenderer.shared.unload()
-            }
-        }
+        prepareForBackgroundPlayback()
     }
 
     func applicationDidEnterBackground() {
         recordDiagnosticEvent("didEnterBackground")
-        applicationWillResignActive()
+        prepareForBackgroundPlayback()
+    }
+
+    private func prepareForBackgroundPlayback() {
+        let wasActive = applicationIsActive
+        applicationIsActive = false
+        SupertonicInferencePacer.shared.setBackgrounded(true)
+        guard wasActive else { return }
+
+        switch effectiveEngine {
+        case .system:
+            // AVSpeechSynthesizer continues through the .playback audio session.
+            break
+        case .qwen:
+            // Qwen uses Metal, which cannot start new work while the application
+            // is inactive. Keep its already queued PCM playing from the lock screen.
+            qwenPlayer?.suspendGeneration()
+            finishBackgroundTask()
+            Task { await QwenVoiceRenderer.shared.unload() }
+        case .supertonic:
+            if isPlaying {
+                // Supertonic is CPU/ONNX based. Its queued audio and producer can
+                // therefore keep refilling while the background-audio session is
+                // active. Pace inference below iOS's background CPU watchdog;
+                // queued PCM keeps playing while the producer briefly rests.
+                if isGenerating { beginBackgroundTask() }
+            } else {
+                qwenPlayer?.suspendGeneration()
+                finishBackgroundTask()
+                Task { await SupertonicVoiceRenderer.shared.unload() }
+            }
+        }
     }
 
     func applicationDidBecomeActive() {
         recordDiagnosticEvent("didBecomeActive")
         applicationIsActive = true
+        SupertonicInferencePacer.shared.setBackgrounded(false)
         if qwenPlayer != nil {
             notice = nil
             qwenPlayer?.resumeGeneration()
@@ -260,6 +290,7 @@ final class PlaybackController: NSObject {
     func play() {
         resumeAfterInterruption = false
         guard let document, !document.segments.isEmpty else { return }
+        configureRemoteCommands()
         // A paused utterance / Qwen reserve belongs to the voice that produced it.
         // Reconcile here too: returning to the book must not depend on a view's
         // onChange having run before the user taps Play.
@@ -631,19 +662,31 @@ final class PlaybackController: NSObject {
         waitingForForegroundStart = false
         let currentToken = UUID()
         token = currentToken
+        qwenMetrics = nil
+        qwenFirstAudioSeconds = nil
         isPreparing = true
         preparationStatus = String(localized: "Préparation de la voix…")
         do {
             let voice = settings.supertonicVoice
             let passagePlayer = try QwenPassagePlayer(document: document, start: position, rate: settings.speed,
                                                       sampleRate: SupertonicModel.sampleRate,
-                                                      buffering: .init(preset: .automatic, minimumAutomaticSeconds: 1,
-                                                                       minimumAheadSeconds: 20),
+                                                      // Supertonic's background throughput is deliberately throttled
+                                                      // below iOS's CPU watchdog limit. A fixed startup reserve avoids
+                                                      // the automatic mode starting after one second and underrunning
+                                                      // as soon as the display is locked.
+                                                      buffering: .init(preset: .seconds10,
+                                                                       minimumAheadSeconds: 30),
                                                       generationPriority: .utility,
-                                                      refillResumeSeconds: 1) { text in
+                                                      refillResumeSeconds: 4) { text in
                 try await SupertonicVoiceRenderer.shared.render(text, language: language, voice: voice)
             }
             qwenPlayer = passagePlayer
+            #if DEBUG || CONTEUR_VALIDATION
+            passagePlayer.onDiagnosticEvent = { [weak self] event in
+                guard let self, self.token == currentToken else { return }
+                self.recordDiagnosticEvent("supertonic:\(event)")
+            }
+            #endif
             passagePlayer.onReserveChanged = { [weak self] reserve in
                 guard let self, self.token == currentToken else { return }
                 self.qwenReserve = reserve
@@ -652,7 +695,13 @@ final class PlaybackController: NSObject {
                 guard let self, let passagePlayer, self.token == currentToken else { return }
                 self.isPreparing = self.isPlaying && passagePlayer.isBuffering
                 self.preparationStatus = String(format: String(localized: "Préparation de la réserve · %lld s prêtes"), Int64(passagePlayer.bufferedPlaybackSeconds))
-                self.isGenerating = passagePlayer.isGenerating
+                self.qwenFirstAudioSeconds = passagePlayer.firstAudioSeconds
+                self.qwenMetrics = passagePlayer.metrics
+                if self.isGenerating != passagePlayer.isGenerating {
+                    self.isGenerating = passagePlayer.isGenerating
+                    if self.isGenerating, !self.applicationIsActive { self.beginBackgroundTask() }
+                    else if !self.isGenerating { self.finishBackgroundTask() }
+                }
                 self.updateNowPlaying()
             }
             passagePlayer.onPassageChanged = { [weak self] window in
@@ -765,8 +814,12 @@ final class PlaybackController: NSObject {
         backgroundTask = UIApplication.shared.beginBackgroundTask(withName: "Narration") { [weak self] in
             Task { @MainActor in
                 guard let self else { return }
-                if let qwenPlayer = self.qwenPlayer { qwenPlayer.suspendGeneration() }
-                else { self.pause() }
+                // Expiration is expected after a short grace period. Supertonic
+                // may continue under the audio background mode while sound is
+                // playing, so ending this task must not turn into a user pause.
+                if self.effectiveEngine == .qwen || !self.isPlaying {
+                    self.qwenPlayer?.suspendGeneration()
+                }
                 self.finishBackgroundTask()
             }
         }

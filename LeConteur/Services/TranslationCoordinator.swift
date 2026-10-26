@@ -34,6 +34,7 @@ final class TranslationCoordinator {
     private var backgroundTask: UIBackgroundTaskIdentifier = .invalid
     private var resumeAfterBackground = false
     private var isInBackground = false
+    private var translatedSinceProgressUpdate = 0
     @ObservationIgnored private var interfaceIsScrolling = false
     private let library: LibraryStore
     private let prepareVoice: () async -> Void
@@ -126,28 +127,38 @@ final class TranslationCoordinator {
         guard requestID == request else { return }
         guard !Task.isCancelled else { cancel(); return }
         preparationProgress = 0.15
-        var availability = await languageStatus(source, target)
         var useLowLatency = false
-        guard requestID == request else { return }
-        guard !Task.isCancelled else { cancel(); return }
-        preparationProgress = 0.25
-        // Prefer a high-fidelity model only when it is already installed. Otherwise,
-        // use the smaller low-latency model shared with Translate when available,
-        // instead of making the reader wait for a much larger optional download.
-        if #available(iOS 26.4, *), availability != .installed {
-            let fallback = await fallbackLanguageStatus(source, target)
+        let availability: LanguageAvailability.Status
+        if #available(iOS 26.4, *) {
+            // A whole book is sustained background work, not an isolated sentence.
+            // Prefer Apple's smaller low-latency model even when the high-fidelity
+            // model is installed: it leaves substantially more CPU/GPU time to the UI.
+            let lowLatencyAvailability = await fallbackLanguageStatus(source, target)
             guard requestID == request else { return }
             guard !Task.isCancelled else { cancel(); return }
-            if fallback != .unsupported {
-                availability = fallback
+            preparationProgress = 0.25
+            if lowLatencyAvailability != .unsupported {
+                availability = lowLatencyAvailability
                 useLowLatency = true
+            } else {
+                availability = await languageStatus(source, target)
+                guard requestID == request else { return }
+                guard !Task.isCancelled else { cancel(); return }
             }
-            preparationProgress = 0.35
-        } else if availability == .unsupported {
-            availability = await fallbackLanguageStatus(source, target)
+        } else {
+            let primaryAvailability = await languageStatus(source, target)
             guard requestID == request else { return }
             guard !Task.isCancelled else { cancel(); return }
+            preparationProgress = 0.25
+            if primaryAvailability == .unsupported {
+                availability = await fallbackLanguageStatus(source, target)
+                guard requestID == request else { return }
+                guard !Task.isCancelled else { cancel(); return }
+            } else {
+                availability = primaryAvailability
+            }
         }
+        preparationProgress = 0.35
         guard availability != .unsupported else {
             errorMessage = String(localized: "Cette paire de langues n’est pas prise en charge par la traduction Apple. L’original reste disponible.")
             cancel()
@@ -300,6 +311,7 @@ final class TranslationCoordinator {
                 return
             }
             isPreparing = false
+            translatedSinceProgressUpdate = 0
             updateProgress()
             let remaining = work.blocks.indices.filter { output[$0].isEmpty }
             // Translate one block at a time at utility priority. Brief gaps let scrolling,
@@ -308,7 +320,9 @@ final class TranslationCoordinator {
                 try await waitForInterfaceIdle(request: request)
                 guard requestID == request, activeSessionToken == sessionToken else { return }
                 armWatchdog(request: request)
+                let inferenceStarted = ContinuousClock.now
                 let response = try await session.translate(work.blocks[index].text)
+                let inferenceDuration = inferenceStarted.duration(to: .now)
                 try Task.checkCancellation()
                 guard requestID == request, activeSessionToken == sessionToken else { return }
                 let translatedText = response.targetText.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -322,9 +336,16 @@ final class TranslationCoordinator {
                 if unpublished >= 8 || (draft.translatedBlocks ?? 0) == 0 || contiguous == output.count {
                     try await publishAvailable()
                 }
-                updateProgress()
+                translatedSinceProgressUpdate += 1
+                if unpublished >= 8 || contiguous == output.count || translatedSinceProgressUpdate >= 3 {
+                    updateProgress()
+                    translatedSinceProgressUpdate = 0
+                }
                 armWatchdog(request: request)
-                try await Task.sleep(for: .milliseconds(250))
+                let cooldown = isInBackground
+                    ? Duration.milliseconds(100)
+                    : TranslationInferencePacer.cooldown(after: inferenceDuration)
+                try await Task.sleep(for: cooldown)
                 watchdog?.cancel()
             }
             try await publishAvailable()
@@ -474,4 +495,27 @@ final class TranslationCoordinator {
         resumeAfterBackground = false
     }
 
+}
+
+/// Apple Translation performs its inference outside Swift concurrency, so task
+/// priority alone cannot protect animation frames. Match each inference burst
+/// with a bounded rest period to avoid sustained resource saturation.
+enum TranslationInferencePacer {
+    static let foregroundDutyCycle = 0.45
+    static let minimumCooldown = Duration.milliseconds(350)
+    static let maximumCooldown = Duration.milliseconds(1_500)
+
+    static func cooldown(after work: Duration) -> Duration {
+        let seconds = max(0, Double(work.components.seconds)
+            + Double(work.components.attoseconds) / 1_000_000_000_000_000_000)
+        let desired = seconds * (1 / foregroundDutyCycle - 1)
+        let minimum = durationSeconds(minimumCooldown)
+        let maximum = durationSeconds(maximumCooldown)
+        return .milliseconds(Int64((min(maximum, max(minimum, desired)) * 1_000).rounded()))
+    }
+
+    private static func durationSeconds(_ duration: Duration) -> Double {
+        Double(duration.components.seconds)
+            + Double(duration.components.attoseconds) / 1_000_000_000_000_000_000
+    }
 }
