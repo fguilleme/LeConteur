@@ -20,7 +20,8 @@ enum ImportFailure: LocalizedError {
 enum DocumentImporter {
     static func fromText(_ text: String, title: String, source: String = String(localized: "TEXTE"), author: String = String(localized: "Texte personnel")) throws -> ReadingDocument {
         guard text.count <= 2_000_000 else { throw ImportFailure.tooLarge }
-        let paragraphs = text.replacingOccurrences(of: "\r\n", with: "\n")
+        let normalizedText = ChapterTitles.normalizingHeadings(in: text)
+        let paragraphs = normalizedText.replacingOccurrences(of: "\r\n", with: "\n")
             .replacingOccurrences(of: "\n[\t ]*\n", with: "\u{001e}", options: .regularExpression)
             .components(separatedBy: "\u{001e}")
         var segments: [String] = []
@@ -30,11 +31,13 @@ enum DocumentImporter {
             if !parts.isEmpty { starts.append(segments.count); segments.append(contentsOf: parts) }
         }
         guard !segments.isEmpty else { throw ImportFailure.empty }
-        let cleanTitle = title.trimmingCharacters(in: .whitespacesAndNewlines)
+        let cleanTitle = title.split(whereSeparator: \.isWhitespace).joined(separator: " ")
         var document = ReadingDocument(title: cleanTitle.isEmpty ? String(segments[0].prefix(60)) : cleanTitle,
                                author: author, source: source, segments: segments)
         document.paragraphStarts = starts
-        document.languageCode = NLLanguageRecognizer.dominantLanguage(for: String(text.prefix(4000)))?.rawValue
+        document.languageCode = NLLanguageRecognizer.dominantLanguage(for: String(normalizedText.prefix(4000)))?.rawValue
+        let chapters = ChapterTitles.inferred(in: document)
+        if !chapters.isEmpty { document.chapters = chapters }
         return document
     }
 
@@ -59,6 +62,7 @@ enum DocumentImporter {
         var author = String(localized: "Document importé")
         var declaredLanguage: String?
         var coverData: Data?
+        var importedChapters: [ReadingChapter]?
         let text: String
         switch url.pathExtension.lowercased() {
         case "pdf":
@@ -81,6 +85,7 @@ enum DocumentImporter {
             if !book.author.isEmpty { author = book.author }
             if !book.language.isEmpty { declaredLanguage = SystemVoiceSelection.language(book.language) }
             coverData = book.cover
+            importedChapters = book.chapters
         case "docx":
             let document = try readDOCX(url)
             text = document.text
@@ -97,6 +102,7 @@ enum DocumentImporter {
         }
         var document = try fromText(text, title: title, source: url.pathExtension.uppercased(), author: author)
         if let declaredLanguage { document.languageCode = declaredLanguage }
+        if let importedChapters, !importedChapters.isEmpty { document.chapters = importedChapters }
         if let coverData { document.coverFileName = try? BookCoverStore.save(coverData, directory: coverDirectory) }
         return document
     }
@@ -122,7 +128,7 @@ enum DocumentImporter {
                 metadata.language.trimmingCharacters(in: .whitespacesAndNewlines))
     }
 
-    private static func readEPUB(_ url: URL) throws -> (text: String, title: String, author: String, language: String, cover: Data?) {
+    private static func readEPUB(_ url: URL) throws -> (text: String, title: String, author: String, language: String, cover: Data?, chapters: [ReadingChapter]) {
         let archive = try Archive(url: url, accessMode: .read)
         var total: Int64 = 0
         func data(_ path: String) throws -> Data {
@@ -148,15 +154,26 @@ enum DocumentImporter {
             return String(resolved.dropFirst())
         }
         var texts: [String] = []
+        var chapters: [ReadingChapter] = []
+        var segmentOffset = 0
         var characterCount = 0
         for id in package.spine {
             guard let href = package.items[id] else { continue }
             guard let path = localPath(href, relativeTo: base) else { throw ImportFailure.invalidEPUB }
             let chapter = XMLCollector()
             try chapter.parse(data(path))
-            characterCount += chapter.text.count
+            let normalizedText = ChapterTitles.normalizingHeadings(in: chapter.text)
+            characterCount += normalizedText.count
             guard characterCount <= 2_000_000 else { throw ImportFailure.tooLarge }
-            texts.append(chapter.text)
+            guard let parsed = try? fromText(normalizedText, title: "", source: "EPUB", author: ""),
+                  !parsed.segments.isEmpty else { continue }
+            let fallback = String(format: String(localized: "Chapitre %lld"), Int64(chapters.count + 1))
+            let heading = chapter.heading.trimmingCharacters(in: .whitespacesAndNewlines)
+            let inferred = parsed.chapters?.first?.title
+            chapters.append(ReadingChapter(title: ChapterTitles.normalized(heading.isEmpty ? (inferred ?? fallback) : heading),
+                                           start: segmentOffset))
+            segmentOffset += parsed.segments.count
+            texts.append(normalizedText)
         }
         // Optional artwork must never prevent the text from being imported. Read it
         // after chapters so a missing or oversized cover does not consume their budget.
@@ -193,7 +210,7 @@ enum DocumentImporter {
         }
         let body = texts.joined(separator: "\n\n")
         let title = repairedMetadata(package.title, using: texts)
-        return (body, title, package.author.trimmingCharacters(in: .whitespacesAndNewlines), package.language.trimmingCharacters(in: .whitespacesAndNewlines), artwork)
+        return (body, title, package.author.trimmingCharacters(in: .whitespacesAndNewlines), package.language.trimmingCharacters(in: .whitespacesAndNewlines), artwork, chapters)
     }
 
     /// Some EPUB generators have already replaced a smart quote in the OPF title
@@ -325,7 +342,9 @@ private final class XMLCollector: NSObject, XMLParserDelegate {
     var title = ""
     var author = ""
     var language = ""
+    var heading = ""
     private var elements: [String] = []
+    private var headingElement: String?
 
     func parse(_ data: Data) throws {
         let parser = XMLParser(data: normalizedXMLData(data))
@@ -354,6 +373,7 @@ private final class XMLCollector: NSObject, XMLParserDelegate {
     func parser(_ parser: XMLParser, didStartElement elementName: String, namespaceURI: String?, qualifiedName qName: String?, attributes: [String: String]) {
         let name = elementName.components(separatedBy: ":").last ?? elementName
         elements.append(name)
+        if heading.isEmpty, headingElement == nil, ["h1", "h2", "h3"].contains(name) { headingElement = name }
         if name == "rootfile" { rootfile = attributes["full-path"] }
         if name == "item", let id = attributes["id"], let href = attributes["href"] {
             items[id] = href
@@ -372,11 +392,21 @@ private final class XMLCollector: NSObject, XMLParserDelegate {
         if elements.last == "title" { title += string }
         if elements.last == "creator" { author += string }
         if elements.last == "language" { language += string }
+        if headingElement != nil { heading += string }
         if elements.contains("body"), !elements.contains(where: { ["script", "style", "nav"].contains($0) }) { text += string }
     }
 
     func parser(_ parser: XMLParser, didEndElement elementName: String, namespaceURI: String?, qualifiedName qName: String?) {
-        if ["p", "div", "br", "li", "h1", "h2", "h3", "section"].contains(elements.last ?? "") { text += "\n\n" }
+        let name = elementName.components(separatedBy: ":").last ?? elementName
+        // A line break inside a heading is generally typographic. Keep it inside
+        // the same paragraph; block elements still delimit real paragraphs.
+        if name == "br" {
+            text += "\n"
+            if headingElement != nil { heading += " " }
+        } else if ["p", "div", "li", "h1", "h2", "h3", "section"].contains(name) {
+            text += "\n\n"
+        }
+        if headingElement == name { headingElement = nil }
         if !elements.isEmpty { elements.removeLast() }
     }
 }

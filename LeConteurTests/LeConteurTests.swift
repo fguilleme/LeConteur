@@ -550,6 +550,40 @@ final class LeConteurTests: XCTestCase {
         XCTAssertNil(playback.errorMessage)
     }
 
+    @MainActor func testSeekingAfterBookEndResumesAtChosenChapterAndRestoresWordTracking() throws {
+        let (library, _) = translationContext()
+        let suite = "seek-finished-chapter-\(UUID())"
+        let defaults = UserDefaults(suiteName: suite)!
+        defer { defaults.removePersistentDomain(forName: suite) }
+        let speech = RecordingSpeechSynthesizer()
+        let playback = PlaybackController(library: library, settings: ReaderSettings(defaults: defaults), speech: speech)
+        defer { playback.stop() }
+        var document = try DocumentImporter.fromText(
+            "Chapitre I\n\nPremier passage.\n\nChapitre II\n\nDeuxième passage.",
+            title: "Chapitres"
+        )
+        document.languageCode = "fr"
+        XCTAssertTrue(library.add(document))
+        library.updatePosition(id: document.id, position: document.segments.count - 1, finished: true)
+        playback.open(try XCTUnwrap(library.document(document.id)))
+
+        let chapter = try XCTUnwrap(playback.document?.resolvedChapters.last)
+        playback.seek(to: chapter.start)
+        XCTAssertEqual(playback.position, chapter.start)
+        XCTAssertFalse(try XCTUnwrap(library.document(document.id)).isFinished)
+        XCTAssertNil(playback.wordRange)
+
+        playback.play()
+        XCTAssertEqual(playback.position, chapter.start)
+        XCTAssertEqual(speech.utterances.last?.speechString,
+                       NarrationWindow(document: document, start: chapter.start).text)
+        let visible = ReaderParagraphContent(
+            segments: [document.segments[chapter.start]], start: chapter.start,
+            position: playback.position, wordRange: playback.wordRange
+        )
+        XCTAssertNotNil(visible.currentWord)
+    }
+
     @MainActor func testPausingAppleVoiceCancelsStallRecovery() async throws {
         let (library, _) = translationContext()
         let suite = "apple-stall-pause-\(UUID())"
@@ -1931,6 +1965,25 @@ final class LeConteurTests: XCTestCase {
         XCTAssertEqual(try DocumentImporter.fromFile(lossy).title, "L’argile des morts")
     }
 
+    func testEPUBLineBreakInsideTitleRemainsOneReaderParagraph() throws {
+        let package = Data("""
+        <package xmlns:dc="http://purl.org/dc/elements/1.1/"><metadata>
+        <dc:title>Les Braises du fleuve</dc:title><dc:creator>Auteur</dc:creator>
+        </metadata><manifest><item id="chapter" href="chapter.xhtml" media-type="application/xhtml+xml"/></manifest>
+        <spine><itemref idref="chapter"/></spine></package>
+        """.utf8)
+        let url = try metadataEPUB(
+            package: package,
+            chapter: "<html><body><h1>Les Braises<br/>du fleuve</h1><p>Vers 26 000 avant notre ère</p></body></html>"
+        )
+
+        let document = try DocumentImporter.fromFile(url)
+        XCTAssertEqual(document.title, "Les Braises du fleuve")
+        XCTAssertEqual(document.segments.first, "Les Braises du fleuve")
+        XCTAssertEqual(document.resolvedChapters.first?.title, "Les Braises du fleuve")
+        XCTAssertEqual(document.paragraphRanges.count, 2)
+    }
+
     func testTranslatedBookExportsAsReimportableEPUBWithLanguageAndMetadata() throws {
         var document = try DocumentImporter.fromText("Premier paragraphe.\n\nDeuxième paragraphe & suite.", title: "Roman <traduit>", source: "TRADUIT · FR", author: "Une autrice")
         document.translationOf = UUID()
@@ -2100,6 +2153,30 @@ final class LeConteurTests: XCTestCase {
         XCTAssertEqual(localized.bookmarks, [1])
     }
 
+    @MainActor func testLegacyEPUBSplitTitleIsMergedAndReaderIndicesAreRemapped() throws {
+        let directory = URL.temporaryDirectory.appending(path: UUID().uuidString)
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: directory) }
+        var legacy = ReadingDocument(
+            title: "Les Braises du fleuve",
+            author: "Auteur",
+            source: "EPUB",
+            segments: ["Roman préhistorique", "Les Braises", "du fleuve", "Vers 26 000 avant notre ère"]
+        )
+        legacy.paragraphStarts = [0, 1, 2, 3]
+        legacy.chapters = [ReadingChapter(title: "Les Braisesdu fleuve", start: 1)]
+        legacy.position = 3
+        legacy.bookmarks = [3]
+        try JSONEncoder().encode([legacy]).write(to: directory.appending(path: "library.json"))
+
+        let repaired = try XCTUnwrap(LibraryStore(directory: directory).documents.first)
+        XCTAssertEqual(repaired.segments, ["Roman préhistorique", "Les Braises du fleuve", "Vers 26 000 avant notre ère"])
+        XCTAssertEqual(repaired.paragraphStarts, [0, 1, 2])
+        XCTAssertEqual(repaired.position, 2)
+        XCTAssertEqual(repaired.bookmarks, [2])
+        XCTAssertEqual(repaired.resolvedChapters.first?.title, "Les Braises du fleuve")
+    }
+
     func testSharedFileIsCopiedBeforeProviderDisappears() throws {
         guard SharedInbox.directory != nil else { throw XCTSkip("App group unavailable on this test host") }
         let source = URL.temporaryDirectory.appending(path: "\(UUID().uuidString).txt")
@@ -2173,6 +2250,38 @@ private actor QwenTestRenderer {
         outputFiles.append(url)
         return QwenRenderedAudio(url: url, metrics: QwenRenderMetrics(
             generationSeconds: delay, audioSeconds: duration, mlxPeakBytes: 0, observedFootprintBytes: 0))
+    }
+}
+
+final class ChapterModelTests: XCTestCase {
+    func testRomanChapterTitlesAreConvertedWithoutChangingOrdinaryWords() {
+        XCTAssertEqual(ChapterTitles.normalized("Chapitre XIV"), "Chapitre 14")
+        XCTAssertEqual(ChapterTitles.normalized("CHAPTER IX — A surprise"), "CHAPTER 9 — A surprise")
+        XCTAssertEqual(ChapterTitles.normalized("Chapitre III Les mains qui lient"), "Chapitre 3 — Les mains qui lient")
+        XCTAssertEqual(ChapterTitles.normalized("Chapitre 3Les mains qui lient"), "Chapitre 3 — Les mains qui lient")
+        XCTAssertEqual(ChapterTitles.normalized("XLII"), "42")
+        XCTAssertEqual(ChapterTitles.normalized("CIVIL"), "CIVIL")
+    }
+
+    func testTextImportBuildsChapterNavigationAndListeningTimes() throws {
+        let document = try DocumentImporter.fromText(
+            "Chapitre IV\n\nUn deux trois quatre.\n\nChapitre V\n\nCinq six sept huit.",
+            title: "Essai"
+        )
+        XCTAssertEqual(document.segments[0], "Chapitre 4")
+        XCTAssertEqual(document.resolvedChapters.map(\.title), ["Chapitre 4", "Chapitre 5"])
+        XCTAssertEqual(document.resolvedChapters.map(\.start), [0, 2])
+        XCTAssertEqual(document.chapterRange(containing: 1), 0..<2)
+        XCTAssertGreaterThan(document.secondsUntilChapterEnd(from: 0), 0)
+        XCTAssertGreaterThan(document.secondsUntilBookEnd(from: 0), document.secondsUntilChapterEnd(from: 0))
+    }
+
+    func testOlderDocumentsWithoutChapterFieldStillDecode() throws {
+        let document = try DocumentImporter.fromText("Premier paragraphe.", title: "Ancien livre")
+        var object = try XCTUnwrap(JSONSerialization.jsonObject(with: JSONEncoder().encode(document)) as? [String: Any])
+        object.removeValue(forKey: "chapters")
+        let decoded = try JSONDecoder().decode(ReadingDocument.self, from: JSONSerialization.data(withJSONObject: object))
+        XCTAssertEqual(decoded.resolvedChapters, [ReadingChapter(title: "Ancien livre", start: 0)])
     }
 }
 

@@ -1,6 +1,13 @@
 import Foundation
 import NaturalLanguage
 
+struct ReadingChapter: Codable, Hashable, Sendable, Identifiable {
+    var title: String
+    var start: Int
+
+    var id: Int { start }
+}
+
 struct ReadingDocument: Codable, Identifiable, Hashable, Sendable {
     var id = UUID()
     var title: String
@@ -12,6 +19,8 @@ struct ReadingDocument: Codable, Identifiable, Hashable, Sendable {
     var isFinished = false
     var bookmarks: Set<Int> = []
     var paragraphStarts: [Int] = []
+    /// Optional keeps libraries written by earlier releases decodable.
+    var chapters: [ReadingChapter]?
     var translationOf: UUID?
     var translationVersion: Int?
     var languageCode: String?
@@ -50,6 +59,48 @@ struct ReadingDocument: Codable, Identifiable, Hashable, Sendable {
             start..<(offset + 1 < starts.count ? starts[offset + 1] : segments.count)
         }
     }
+    var resolvedChapters: [ReadingChapter] {
+        let stored = (chapters ?? [])
+            .filter { segments.indices.contains($0.start) }
+            .sorted { $0.start < $1.start }
+        let unique = stored.reduce(into: [ReadingChapter]()) { result, chapter in
+            guard result.last?.start != chapter.start else { return }
+            result.append(ReadingChapter(title: ChapterTitles.normalized(chapter.title), start: chapter.start))
+        }
+        if !unique.isEmpty { return unique }
+        let inferred = ChapterTitles.inferred(in: self)
+        if !inferred.isEmpty { return inferred }
+        return segments.isEmpty ? [] : [ReadingChapter(title: title, start: 0)]
+    }
+
+    func chapter(containing position: Int) -> ReadingChapter? {
+        resolvedChapters.last { $0.start <= position }
+    }
+
+    func chapterRange(containing position: Int) -> Range<Int>? {
+        let chapters = resolvedChapters
+        guard let index = chapters.lastIndex(where: { $0.start <= position }) else { return nil }
+        let end = index + 1 < chapters.count ? chapters[index + 1].start : segments.count
+        return chapters[index].start..<max(chapters[index].start, end)
+    }
+
+    func estimatedListeningSeconds(from start: Int, to end: Int? = nil, rate: Double = 1) -> TimeInterval {
+        guard !segments.isEmpty else { return 0 }
+        let lower = min(max(start, 0), segments.count)
+        let upper = min(max(end ?? segments.count, lower), segments.count)
+        let words = segments[lower..<upper].reduce(0) { count, segment in
+            count + segment.split(whereSeparator: \.isWhitespace).count
+        }
+        return Double(words) / (160 * max(rate, 0.25)) * 60
+    }
+
+    func secondsUntilChapterEnd(from position: Int, rate: Double = 1) -> TimeInterval {
+        estimatedListeningSeconds(from: position, to: chapterRange(containing: position)?.upperBound, rate: rate)
+    }
+
+    func secondsUntilBookEnd(from position: Int? = nil, rate: Double = 1) -> TimeInterval {
+        estimatedListeningSeconds(from: position ?? self.position, rate: rate)
+    }
 
     static var welcome: ReadingDocument {
         let paragraphs = [
@@ -74,6 +125,97 @@ struct ReadingDocument: Codable, Identifiable, Hashable, Sendable {
         document.languageCode = Locale.current.language.languageCode?.identifier ?? "fr"
         document.builtInID = "welcome"
         return document
+    }
+}
+
+enum ChapterTitles {
+    private static let labelled = try! NSRegularExpression(
+        pattern: #"^(chapter|chapitre|cap[ií]tulo|capitolo|kapitel|глава)\s+([ivxlcdm]+|[0-9]+)(.*)$"#,
+        options: [.caseInsensitive]
+    )
+    private static let standaloneRoman = try! NSRegularExpression(
+        pattern: #"^([ivxlcdm]+)[\s.·:–—-]*$"#,
+        options: [.caseInsensitive]
+    )
+
+    static func normalized(_ value: String) -> String {
+        let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return trimmed }
+        let range = NSRange(trimmed.startIndex..., in: trimmed)
+        if let match = labelled.firstMatch(in: trimmed, range: range),
+           let numeralRange = Range(match.range(at: 2), in: trimmed),
+           let suffixRange = Range(match.range(at: 3), in: trimmed) {
+            let token = String(trimmed[numeralRange])
+            let number: String
+            if let roman = romanValue(token) {
+                number = String(roman)
+            } else if token.allSatisfy(\.isNumber) {
+                number = token
+            } else {
+                return trimmed
+            }
+
+            let prefix = String(trimmed[..<numeralRange.lowerBound])
+            let suffix = String(trimmed[suffixRange])
+                .trimmingCharacters(in: .whitespacesAndNewlines)
+                .trimmingCharacters(in: CharacterSet(charactersIn: ".·:\u{2013}\u{2014}-"))
+                .trimmingCharacters(in: .whitespacesAndNewlines)
+            return suffix.isEmpty ? prefix + number : "\(prefix)\(number) — \(suffix)"
+        }
+        if let match = standaloneRoman.firstMatch(in: trimmed, range: range),
+           let numeralRange = Range(match.range(at: 1), in: trimmed),
+           let number = romanValue(String(trimmed[numeralRange])) {
+            return String(number)
+        }
+        return trimmed
+    }
+
+    static func recognized(_ value: String) -> String? {
+        let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return nil }
+        let range = NSRange(trimmed.startIndex..., in: trimmed)
+        if labelled.firstMatch(in: trimmed, range: range) != nil { return normalized(trimmed) }
+        if standaloneRoman.firstMatch(in: trimmed, range: range) != nil,
+           normalized(trimmed) != trimmed.uppercased() { return normalized(trimmed) }
+        return nil
+    }
+
+    static func normalizingHeadings(in text: String) -> String {
+        text.components(separatedBy: .newlines).map { line in
+            recognized(line) ?? line
+        }.joined(separator: "\n")
+    }
+
+    static func inferred(in document: ReadingDocument) -> [ReadingChapter] {
+        document.paragraphRanges.compactMap { range in
+            let paragraph = document.segments[range].joined(separator: " ")
+            return recognized(paragraph).map { ReadingChapter(title: $0, start: range.lowerBound) }
+        }
+    }
+
+    private static func romanValue(_ token: String) -> Int? {
+        let roman = token.uppercased()
+        guard !roman.isEmpty, roman.allSatisfy({ "IVXLCDM".contains($0) }) else { return nil }
+        let values: [Character: Int] = ["I": 1, "V": 5, "X": 10, "L": 50, "C": 100, "D": 500, "M": 1000]
+        var total = 0
+        var previous = 0
+        for character in roman.reversed() {
+            guard let value = values[character] else { return nil }
+            if value < previous { total -= value } else { total += value; previous = value }
+        }
+        guard (1...3999).contains(total), romanString(total) == roman else { return nil }
+        return total
+    }
+
+    private static func romanString(_ number: Int) -> String {
+        let pairs = [(1000, "M"), (900, "CM"), (500, "D"), (400, "CD"), (100, "C"), (90, "XC"),
+                     (50, "L"), (40, "XL"), (10, "X"), (9, "IX"), (5, "V"), (4, "IV"), (1, "I")]
+        var value = number
+        var result = ""
+        for (amount, token) in pairs {
+            while value >= amount { result += token; value -= amount }
+        }
+        return result
     }
 }
 

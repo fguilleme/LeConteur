@@ -46,7 +46,7 @@ struct LibraryView: View {
                                 VStack(alignment: .leading, spacing: 12) {
                                     Eyebrow(text: featured.position > 0 ? String(localized: "REPRENDRE") : String(localized: "À ÉCOUTER"))
                                     Text(featured.title).font(.system(size: 25, weight: .medium, design: .serif)).lineLimit(3)
-                                    Text(String(format: String(localized: "%lld min d’écoute estimées"), Int64(featured.minutes))).font(.caption).foregroundStyle(ConteurTheme.muted)
+                                    Text(remainingTime(for: featured)).font(.caption).foregroundStyle(ConteurTheme.muted)
                                     if featured.isTranslationPending {
                                         BookTranslationGauge(progress: featured.translationProgress,
                                                              isActive: translation.isTranslating && translation.activeDocumentID == featured.id,
@@ -109,7 +109,7 @@ struct LibraryView: View {
                                                 if document.source == "EPUB" {
                                                     Text("·  \(languageName(for: document))").font(.system(size: 9, weight: .semibold)).tracking(1)
                                                 }
-                                                Text(String(format: String(localized: "·  %lld min"), Int64(document.minutes))).font(.caption)
+                                                Text("·  \(remainingTime(for: document))").font(.caption)
                                                 if document.isFinished { Image(systemName: "checkmark.circle.fill") }
                                             }.foregroundStyle(ConteurTheme.muted)
                                             if document.isTranslationPending {
@@ -152,6 +152,12 @@ struct LibraryView: View {
             }
             .sheet(item: $sharedBook) { BookShareSheet(url: $0.url).ignoresSafeArea() }
         }
+    }
+
+    private func remainingTime(for document: ReadingDocument) -> String {
+        let seconds = document.isFinished ? 0 : document.secondsUntilBookEnd(rate: playback.playbackSpeed)
+        let minutes = Int(ceil(seconds / 60))
+        return String(format: String(localized: "%lld min restantes"), Int64(minutes))
     }
 
     private func export(_ document: ReadingDocument) {

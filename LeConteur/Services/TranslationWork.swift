@@ -9,6 +9,7 @@ struct TranslationWork: Sendable {
     }
     let blocks: [Block]
     let fingerprint: String
+    let chapterParagraphs: [Int: String]
 
     init(document: ReadingDocument, source: String, target: String) {
         let characterLimit = 420
@@ -26,6 +27,13 @@ struct TranslationWork: Sendable {
             if !text.isEmpty { blocks.append(Block(text: text, paragraph: paragraph)) }
         }
         self.blocks = blocks
+        var chapterParagraphs: [Int: String] = [:]
+        for chapter in document.resolvedChapters {
+            if let paragraph = document.paragraphRanges.firstIndex(where: { $0.contains(chapter.start) }) {
+                chapterParagraphs[paragraph] = chapter.title
+            }
+        }
+        self.chapterParagraphs = chapterParagraphs
         // Version the plan to avoid reusing older sentence-by-sentence translations.
         let encoder = JSONEncoder()
         encoder.outputFormatting = [.sortedKeys]
@@ -74,6 +82,7 @@ struct TranslationWork: Sendable {
         result.translatedBlocks = 0
         result.translationTotalBlocks = blocks.count
         result.translationFingerprint = fingerprint
+        result.chapters = []
         return result
     }
 
@@ -88,7 +97,13 @@ struct TranslationWork: Sendable {
             if index == 0 || blocks[index - 1].paragraph != blocks[index].paragraph {
                 result.paragraphStarts.append(result.segments.count)
             }
-            result.segments += TextSegmenter.split(text)
+            let translatedSegments = TextSegmenter.split(text)
+            if (index == 0 || blocks[index - 1].paragraph != blocks[index].paragraph),
+               let originalTitle = chapterParagraphs[blocks[index].paragraph] {
+                let translatedTitle = translatedSegments.first.map(ChapterTitles.normalized) ?? originalTitle
+                result.chapters?.append(ReadingChapter(title: translatedTitle, start: result.segments.count))
+            }
+            result.segments += translatedSegments
             index += 1
         }
         result.translatedBlocks = index

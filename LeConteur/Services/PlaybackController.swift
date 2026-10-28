@@ -24,6 +24,7 @@ final class PlaybackController: NSObject {
     private(set) var isGenerating = false
     private(set) var qwenFirstAudioSeconds: Double?
     private(set) var sleepDeadline: Date?
+    private(set) var sleepAtChapterEnd = false
     private(set) var wordRange: NSRange?
     private(set) var preparationStatus = String(localized: "Préparation de la voix…")
     private(set) var qwenMetrics: QwenRenderMetrics?
@@ -365,6 +366,10 @@ final class PlaybackController: NSObject {
         let resume = isPlaying || isPreparing
         stopAudio()
         position = min(max(0, newPosition), document.segments.count - 1)
+        spokenSegments.removeAll(keepingCapacity: true)
+        spokenEndPosition = position
+        wordRange = nil
+        notice = nil
         library.updatePosition(id: document.id, position: position)
         if resume { play() }
         updateNowPlaying()
@@ -488,6 +493,7 @@ final class PlaybackController: NSObject {
 
     func setSleepTimer(minutes: Int?) {
         timerTask?.cancel()
+        sleepAtChapterEnd = false
         sleepDeadline = minutes.map { Date().addingTimeInterval(Double($0) * 60) }
         guard let minutes else { return }
         timerTask = Task {
@@ -496,6 +502,13 @@ final class PlaybackController: NSObject {
             pause()
             sleepDeadline = nil
         }
+    }
+
+    func setSleepTimerAtChapterEnd() {
+        timerTask?.cancel()
+        timerTask = nil
+        sleepDeadline = nil
+        sleepAtChapterEnd = true
     }
 
     private func speakCurrent(recoveringSystemSpeech: Bool = false) {
@@ -737,11 +750,25 @@ final class PlaybackController: NSObject {
         endQwenSession()
         utterance = nil
         wordRange = nil
-        if spokenEndPosition + 1 < document.segments.count {
-            position = spokenEndPosition + 1
+        let nextPosition = spokenEndPosition + 1
+        if sleepAtChapterEnd,
+           let chapter = document.chapterRange(containing: min(position, max(document.segments.count - 1, 0))),
+           nextPosition >= chapter.upperBound {
+            sleepAtChapterEnd = false
+            if nextPosition < document.segments.count {
+                isPlaying = false
+                position = nextPosition
+                library.updatePosition(id: document.id, position: position)
+                try? AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)
+                updateNowPlaying()
+            } else {
+                finishReading(document)
+            }
+        } else if nextPosition < document.segments.count {
+            position = nextPosition
             speakCurrent()
         } else if document.isTranslationPending {
-            nextTranslationPosition = spokenEndPosition + 1
+            nextTranslationPosition = nextPosition
             position = document.segments.count - 1
             notice = String(localized: "La suite est en cours de traduction…")
             library.updatePosition(id: document.id, position: position)

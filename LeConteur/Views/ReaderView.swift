@@ -159,7 +159,23 @@ struct ReaderView: View {
                         if playback.position > 0 { proxy.scrollTo(activeParagraph, anchor: .center) }
                     }
                     .onDisappear { translation.setInterfaceScrolling(false) }
-                    .safeAreaInset(edge: .bottom, spacing: 0) { controls(document) }
+                    .safeAreaInset(edge: .bottom, spacing: 0) {
+                        controls(document) { chapter in
+                            let paragraph = document.paragraphRanges.firstIndex {
+                                $0.contains(chapter.start)
+                            } ?? 0
+                            // A Menu dismisses in its own presentation transaction.
+                            // Reset the old word geometry immediately, then scroll once
+                            // that transaction has completed so the jump is not lost.
+                            followsReading = true
+                            requestedOffset = nil
+                            currentWordFrame = nil
+                            playback.seek(to: chapter.start)
+                            DispatchQueue.main.asyncAfter(deadline: .now() + 0.12) {
+                                proxy.scrollTo(paragraph, anchor: .center)
+                            }
+                        }
+                    }
                 }
                 .background(ConteurTheme.paper).foregroundStyle(ConteurTheme.ink)
                 .navigationBarTitleDisplayMode(.inline)
@@ -281,12 +297,26 @@ struct ReaderView: View {
         withAnimation(.easeInOut(duration: 0.22)) { scrollPosition.scrollTo(y: offset) }
     }
 
-    private func controls(_ document: ReadingDocument) -> some View {
+    private func controls(_ document: ReadingDocument,
+                          selectChapter: @escaping (ReadingChapter) -> Void) -> some View {
         VStack(spacing: 12) {
             if let notice = playback.notice { Text(notice).font(.caption).foregroundStyle(ConteurTheme.muted) }
             if let reserve = playback.qwenReserve { QwenReserveGauge(reserve: reserve) }
             HStack {
-                Text(playback.isWaitingForTranslation ? String(localized: "En attente de la suite…") : playback.isPreparing && playback.qwenReserve == nil ? playback.preparationStatus : document.isFinished ? String(localized: "Lecture terminée") : String(format: String(localized: "Passage %lld sur %lld"), Int64(playback.position + 1), Int64(document.segments.count)))
+                Menu {
+                    ForEach(document.resolvedChapters) { chapter in
+                        Button(chapter.title) { selectChapter(chapter) }
+                    }
+                } label: {
+                    HStack(spacing: 5) {
+                        Image(systemName: "list.bullet")
+                        Text(chapterStatus(document))
+                        Image(systemName: "chevron.up.chevron.down").font(.system(size: 8))
+                    }
+                }
+                .menuOrder(.fixed)
+                .accessibilityLabel("Choisir un chapitre")
+                .accessibilityIdentifier("reader-chapter-selector")
                 Spacer()
                 Text("\(Int(document.progress * 100)) %")
             }.font(.caption2).monospacedDigit().foregroundStyle(ConteurTheme.muted)
@@ -321,17 +351,26 @@ struct ReaderView: View {
                 }.accessibilityLabel("Marquer ce passage")
             }.foregroundStyle(ConteurTheme.ink)
             Menu {
+                Button("Fin du chapitre", systemImage: "text.line.last.and.arrowtriangle.forward") { playback.setSleepTimerAtChapterEnd() }
                 ForEach([5, 15, 30, 60], id: \.self) { minutes in Button(String(format: String(localized: "%lld minutes"), Int64(minutes))) { playback.setSleepTimer(minutes: minutes) } }
                 Button("Désactiver la minuterie") { playback.setSleepTimer(minutes: nil) }
             } label: {
                 HStack(spacing: 6) {
                     Image(systemName: "moon")
-                    if let deadline = playback.sleepDeadline { Text("Arrêt à \(deadline.formatted(date: .omitted, time: .shortened))") }
+                    if playback.sleepAtChapterEnd { Text("Arrêt à la fin du chapitre") }
+                    else if let deadline = playback.sleepDeadline { Text("Arrêt à \(deadline.formatted(date: .omitted, time: .shortened))") }
                     else { Text("Minuterie de sommeil") }
                 }.font(.caption2).foregroundStyle(ConteurTheme.muted).frame(minHeight: 28)
             }
         }.padding(.horizontal, 28).padding(.top, 16).padding(.bottom, 8)
             .background(ConteurTheme.paper.shadow(.drop(color: .black.opacity(0.05), radius: 12, y: -4)))
+    }
+
+    private func chapterStatus(_ document: ReadingDocument) -> String {
+        if document.isFinished { return String(localized: "Lecture terminée") }
+        let seconds = document.secondsUntilChapterEnd(from: playback.position, rate: playback.playbackSpeed)
+        let minutes = max(1, Int(ceil(seconds / 60)))
+        return String(format: String(localized: "%lld min jusqu’à la fin du chapitre"), Int64(minutes))
     }
 }
 

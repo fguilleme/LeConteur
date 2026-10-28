@@ -57,7 +57,8 @@ final class LibraryStore {
             try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
             if FileManager.default.fileExists(atPath: fileURL.path) {
                 let loaded = try JSONDecoder().decode([ReadingDocument].self, from: Data(contentsOf: fileURL))
-                documents = Self.localizingBuiltInDocuments(in: Self.consolidatingDuplicateTranslations(in: loaded))
+                documents = Self.normalizingChapterMetadata(in:
+                    Self.localizingBuiltInDocuments(in: Self.consolidatingDuplicateTranslations(in: loaded)))
                 if documents != loaded { save() }
             } else {
                 documents = [.welcome]
@@ -98,6 +99,77 @@ final class LibraryStore {
         localized.preferredReadingID = previous.preferredReadingID
         result[index] = localized
         return result
+    }
+
+    /// Older libraries predate explicit chapter metadata. Recover headings from
+    /// their paragraphs and normalize Roman numerals without changing positions.
+    private static func normalizingChapterMetadata(in documents: [ReadingDocument]) -> [ReadingDocument] {
+        documents.map { document in
+            var document = mergingSplitDisplayedTitle(in: document)
+            if document.chapters?.isEmpty != false {
+                let inferred = ChapterTitles.inferred(in: document)
+                if !inferred.isEmpty { document.chapters = inferred }
+            }
+            let compactBookTitle = document.title.filter { !$0.isWhitespace }.lowercased()
+            document.chapters = document.chapters?.map { chapter in
+                var title = ChapterTitles.normalized(chapter.title)
+                if title.filter({ !$0.isWhitespace }).lowercased() == compactBookTitle {
+                    title = document.title
+                }
+                return ReadingChapter(title: title, start: chapter.start)
+            }
+            for chapter in document.chapters ?? [] where document.segments.indices.contains(chapter.start) {
+                if let heading = ChapterTitles.recognized(document.segments[chapter.start]) {
+                    document.segments[chapter.start] = heading
+                }
+            }
+            return document
+        }
+    }
+
+    /// Some EPUBs insert a visual `<br>` in their title. Older imports turned
+    /// that break into two reader paragraphs. Repair only an exact title match
+    /// near the beginning of the book and remap all persisted reader indices.
+    private static func mergingSplitDisplayedTitle(in original: ReadingDocument) -> ReadingDocument {
+        var document = original
+        let title = document.title.split(whereSeparator: \.isWhitespace).joined(separator: " ")
+        document.title = title
+        guard !title.isEmpty, document.segments.count > 1 else { return document }
+
+        let searchLimit = min(document.segments.count, 12)
+        var match: Range<Int>?
+        for lower in 0..<searchLimit {
+            guard searchLimit - lower >= 2 else { continue }
+            for count in 2...min(3, searchLimit - lower) {
+                let candidate = document.segments[lower..<(lower + count)]
+                    .joined(separator: " ")
+                    .split(whereSeparator: \.isWhitespace)
+                    .joined(separator: " ")
+                if candidate.localizedCaseInsensitiveCompare(title) == .orderedSame {
+                    match = lower..<(lower + count)
+                    break
+                }
+            }
+            if match != nil { break }
+        }
+        guard let match else { return document }
+
+        let removed = match.count - 1
+        func remapped(_ index: Int) -> Int {
+            if index < match.lowerBound { return index }
+            if index < match.upperBound { return match.lowerBound }
+            return index - removed
+        }
+        document.segments.replaceSubrange(match, with: [title])
+        document.position = remapped(document.position)
+        document.bookmarks = Set(document.bookmarks.map(remapped))
+        document.paragraphStarts = Array(Set(document.paragraphStarts.map(remapped)))
+            .filter { document.segments.indices.contains($0) }
+            .sorted()
+        document.chapters = document.chapters?.map {
+            ReadingChapter(title: $0.title, start: remapped($0.start))
+        }
+        return document
     }
 
     /// A source book has one local edition per target language. Older versions of
@@ -277,6 +349,7 @@ final class LibraryStore {
             documents[index].title = document.title
             documents[index].author = document.author
             documents[index].languageCode = document.languageCode
+            documents[index].chapters = document.chapters
             if let cover = document.coverFileName {
                 let originalID = documents[index].id
                 documents[index].coverFileName = cover
