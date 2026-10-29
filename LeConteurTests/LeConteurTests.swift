@@ -1265,6 +1265,30 @@ final class LeConteurTests: XCTestCase {
         XCTAssertEqual(ReaderSettings(defaults: defaults).qwenSpeaker, .ryan)
     }
 
+    @MainActor func testOnlineVoiceChoicesPersistIndependently() {
+        let suite = "online-voices-\(UUID())"
+        let defaults = UserDefaults(suiteName: suite)!
+        defer { defaults.removePersistentDomain(forName: suite) }
+        let settings = ReaderSettings(defaults: defaults)
+        settings.selectOnlineVoice(.init(id: "eleven-id", name: "Eleven Voice", details: "", languages: ["en"], provider: .elevenLabs))
+        settings.selectOnlineVoice(.init(id: "fish-id", name: "Fish Voice", details: "", languages: ["fr"], provider: .fishAudio))
+        settings.engine = .fishAudio
+
+        let reopened = ReaderSettings(defaults: defaults)
+        XCTAssertEqual(reopened.onlineVoiceID(for: .elevenLabs), "eleven-id")
+        XCTAssertEqual(reopened.onlineVoiceName(for: .elevenLabs), "Eleven Voice")
+        XCTAssertEqual(reopened.onlineVoiceID(for: .fishAudio), "fish-id")
+        XCTAssertEqual(reopened.onlineVoiceName(for: .fishAudio), "Fish Voice")
+        XCTAssertEqual(reopened.engine, .fishAudio)
+    }
+
+    func testOnlineProvidersExposeTheirOfficialAPIKeyPages() {
+        XCTAssertEqual(OnlineVoiceProvider.elevenLabs.keyURL.host(), "elevenlabs.io")
+        XCTAssertEqual(OnlineVoiceProvider.fishAudio.keyURL.host(), "fish.audio")
+        XCTAssertTrue(OnlineVoiceProvider.elevenLabs.keyURL.path.contains("api-keys"))
+        XCTAssertTrue(OnlineVoiceProvider.fishAudio.keyURL.path.contains("api-keys"))
+    }
+
     @MainActor func testAppleFavoritesPersistIndependentlyForEachLanguage() {
         let suite = "apple-voices-\(UUID())"
         let defaults = UserDefaults(suiteName: suite)!

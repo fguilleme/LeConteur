@@ -86,6 +86,10 @@ final class PlaybackController: NSObject {
         if settings.engine == .supertonic, !isSupertonicInstalled {
             return SupertonicError.missing.localizedDescription
         }
+        if let provider = settings.engine.onlineProvider {
+            if !OnlineAPIKeyStore.contains(provider) { return String(format: String(localized: "Ajoutez votre clé API %@ dans Voix."), provider.name) }
+            if settings.onlineVoiceID(for: provider).isEmpty { return String(format: String(localized: "Choisissez une voix %@ dans Voix."), provider.name) }
+        }
         if settings.engine != .system, effectiveEngine == .system {
             return String(format: String(localized: "%@ ne prend pas en charge la langue de ce livre. Lecture avec la voix Apple %@."), settings.engine.name, voiceName)
         }
@@ -107,14 +111,24 @@ final class PlaybackController: NSObject {
             return NarrationStyle.languageName(for: document?.resolvedLanguage) != nil ? .qwen : .system
         case .supertonic:
             return isSupertonicInstalled && SupertonicModel.languageCode(for: document?.resolvedLanguage) != nil ? .supertonic : .system
+        case .elevenLabs, .fishAudio:
+            guard let provider = settings.engine.onlineProvider,
+                  OnlineAPIKeyStore.contains(provider), !settings.onlineVoiceID(for: provider).isEmpty else { return .system }
+            return settings.engine
         case .system: return .system
         }
     }
     var voiceName: String {
         switch effectiveEngine {
-        case .qwen: "\(settings.qwenSpeaker.name) · \(settings.qwenStyle.name)"
-        case .supertonic: "Supertonic · \(settings.supertonicVoice.name)"
-        case .system: selectedVoice?.name ?? "Voix du texte"
+        case .qwen: return "\(settings.qwenSpeaker.name) · \(settings.qwenStyle.name)"
+        case .supertonic: return "Supertonic · \(settings.supertonicVoice.name)"
+        case .elevenLabs, .fishAudio:
+            if let provider = effectiveEngine.onlineProvider {
+                let voice = settings.onlineVoiceName(for: provider)
+                return voice.isEmpty ? provider.name : "\(provider.name) · \(voice)"
+            }
+            return effectiveEngine.name
+        case .system: return selectedVoice?.name ?? "Voix du texte"
         }
     }
     var selectedVoice: AVSpeechSynthesisVoice? {
@@ -126,6 +140,7 @@ final class PlaybackController: NSObject {
         case system(identifier: String?, rate: Float)
         case qwen(speaker: QwenSpeaker, style: NarrationStyle, language: String)
         case supertonic(voice: SupertonicVoice, language: String)
+        case online(provider: OnlineVoiceProvider, voiceID: String)
     }
 
     private var chosenVoice: PreparedVoice {
@@ -135,6 +150,12 @@ final class PlaybackController: NSObject {
                          language: NarrationStyle.languageName(for: document?.resolvedLanguage) ?? "French")
         case .supertonic: .supertonic(voice: settings.supertonicVoice,
                                      language: SupertonicModel.languageCode(for: document?.resolvedLanguage) ?? "fr")
+        case .elevenLabs, .fishAudio:
+            if let provider = effectiveEngine.onlineProvider {
+                .online(provider: provider, voiceID: settings.onlineVoiceID(for: provider))
+            } else {
+                .system(identifier: selectedVoice?.identifier, rate: SystemVoiceSelection.speechRate(for: settings.speed))
+            }
         }
     }
 
@@ -258,6 +279,13 @@ final class PlaybackController: NSObject {
                 qwenPlayer?.suspendGeneration()
                 finishBackgroundTask()
                 Task { await SupertonicVoiceRenderer.shared.unload() }
+            }
+        case .elevenLabs, .fishAudio:
+            if isPlaying {
+                if isGenerating { beginBackgroundTask() }
+            } else {
+                qwenPlayer?.suspendGeneration()
+                finishBackgroundTask()
             }
         }
     }
@@ -484,6 +512,26 @@ final class PlaybackController: NSObject {
         play()
     }
 
+    func previewOnline(_ provider: OnlineVoiceProvider) {
+        guard OnlineAPIKeyStore.contains(provider) else {
+            errorMessage = OnlineTTSAPIError.missingKey.localizedDescription
+            return
+        }
+        guard !settings.onlineVoiceID(for: provider).isEmpty else {
+            errorMessage = OnlineTTSAPIError.missingVoice.localizedDescription
+            return
+        }
+        stopAudio()
+        guard let sample = try? DocumentImporter.fromText(NarrationStyle.auditionText,
+                                                           title: provider.name, source: "APERÇU EN LIGNE") else { return }
+        previewDocument = sample
+        previewEngine = provider.engine
+        documentID = sample.id
+        configureRemoteCommands()
+        position = 0
+        play()
+    }
+
     func releaseQwen() async {
         let session = qwenSessionID
         if effectiveEngine == .qwen { stop() }
@@ -542,6 +590,9 @@ final class PlaybackController: NSObject {
             startQwen(language: NarrationStyle.languageName(for: document.resolvedLanguage) ?? "French")
         case .supertonic:
             startSupertonic(language: SupertonicModel.languageCode(for: document.resolvedLanguage) ?? "fr")
+        case .elevenLabs, .fishAudio:
+            guard let provider = effectiveEngine.onlineProvider else { return }
+            startOnline(provider: provider, voiceID: settings.onlineVoiceID(for: provider))
         }
         updateNowPlaying()
     }
@@ -741,6 +792,66 @@ final class PlaybackController: NSObject {
         }
     }
 
+    private func startOnline(provider: OnlineVoiceProvider, voiceID: String) {
+        guard let document else { return }
+        guard !voiceID.isEmpty else {
+            stopAudio(); errorMessage = OnlineTTSAPIError.missingVoice.localizedDescription; return
+        }
+        let currentToken = UUID()
+        token = currentToken
+        qwenMetrics = nil
+        qwenFirstAudioSeconds = nil
+        isPreparing = true
+        preparationStatus = String(format: String(localized: "Connexion à %@…"), provider.name)
+        do {
+            let passagePlayer = try QwenPassagePlayer(document: document, start: position, rate: settings.speed,
+                                                      sampleRate: 44_100,
+                                                      buffering: .init(preset: .seconds10, minimumAheadSeconds: 45),
+                                                      refillResumeSeconds: 5) { text in
+                try await OnlineTTSClient.shared.synthesize(text, provider: provider, voiceID: voiceID)
+            }
+            qwenPlayer = passagePlayer
+            passagePlayer.onReserveChanged = { [weak self] reserve in
+                guard let self, self.token == currentToken else { return }
+                self.qwenReserve = reserve
+            }
+            passagePlayer.onStateChanged = { [weak self, weak passagePlayer] in
+                guard let self, let passagePlayer, self.token == currentToken else { return }
+                self.isPreparing = self.isPlaying && passagePlayer.isBuffering
+                self.preparationStatus = String(format: String(localized: "Préparation en ligne · %lld s prêtes"), Int64(passagePlayer.bufferedPlaybackSeconds))
+                self.qwenFirstAudioSeconds = passagePlayer.firstAudioSeconds
+                self.qwenMetrics = passagePlayer.metrics
+                if self.isGenerating != passagePlayer.isGenerating {
+                    self.isGenerating = passagePlayer.isGenerating
+                    if self.isGenerating, !self.applicationIsActive { self.beginBackgroundTask() }
+                    else if !self.isGenerating { self.finishBackgroundTask() }
+                }
+                self.updateNowPlaying()
+            }
+            passagePlayer.onPassageChanged = { [weak self] window in
+                guard let self, self.token == currentToken else { return }
+                self.spokenSegments = window.segments; self.spokenEndPosition = window.endPosition; self.wordRange = nil
+            }
+            passagePlayer.onWord = { [weak self] range in
+                guard let self, self.token == currentToken else { return }; self.updateSpokenRange(range)
+            }
+            passagePlayer.onFinished = { [weak self] in
+                guard let self, self.token == currentToken else { return }; self.advance()
+            }
+            passagePlayer.onError = { [weak self, weak passagePlayer] error in
+                guard let self, self.token == currentToken else { return }
+                if let failedPosition = passagePlayer?.failedPosition {
+                    self.position = failedPosition
+                    self.library.updatePosition(id: document.id, position: failedPosition)
+                }
+                self.stopAudio(); self.errorMessage = error.localizedDescription; self.updateNowPlaying()
+            }
+            passagePlayer.play()
+        } catch {
+            stopAudio(); errorMessage = error.localizedDescription
+        }
+    }
+
     private func advance() {
         guard isPlaying, let document else { return }
         isPreparing = false
@@ -859,9 +970,13 @@ final class PlaybackController: NSObject {
 
     private func updateNowPlaying() {
         guard let document else { return }
-        let waitingLabel = effectiveEngine == .supertonic
-            ? String(localized: "Supertonic · ouvrez Le Conteur pour la suite")
-            : String(localized: "Qwen · ouvrez Le Conteur pour la suite")
+        let waitingLabel: String
+        switch effectiveEngine {
+        case .supertonic: waitingLabel = String(localized: "Supertonic · ouvrez Le Conteur pour la suite")
+        case .qwen: waitingLabel = String(localized: "Qwen · ouvrez Le Conteur pour la suite")
+        case .elevenLabs, .fishAudio: waitingLabel = String(format: String(localized: "%@ · connexion nécessaire pour la suite"), effectiveEngine.name)
+        case .system: waitingLabel = voiceName
+        }
         MPNowPlayingInfoCenter.default().nowPlayingInfo = [
             MPMediaItemPropertyTitle: document.title,
             MPMediaItemPropertyArtist: qwenPlayer?.isWaitingForForeground == true || waitingForForegroundStart ? waitingLabel : voiceName,

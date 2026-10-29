@@ -275,6 +275,7 @@
       }
     },
     "·  %lld min" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -544,22 +545,72 @@
     },
     "%@ ne prend pas en charge la langue de ce livre. Lecture avec la voix Apple %@." : {
       "localizations" : {
-        "ar" : { "stringUnit" : { "state" : "translated", "value" : "%@ لا يدعم لغة هذا الكتاب. تتم القراءة بصوت Apple %@." } },
-        "de" : { "stringUnit" : { "state" : "translated", "value" : "%@ unterstützt die Sprache dieses Buches nicht. Wiedergabe mit der Apple-Stimme %@." } },
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "%@ does not support this book’s language. Reading with the Apple voice %@." } },
-        "es" : { "stringUnit" : { "state" : "translated", "value" : "%@ no admite el idioma de este libro. Lectura con la voz de Apple %@." } },
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ لا يدعم لغة هذا الكتاب. تتم القراءة بصوت Apple %@."
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ unterstützt die Sprache dieses Buches nicht. Wiedergabe mit der Apple-Stimme %@."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ does not support this book’s language. Reading with the Apple voice %@."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ no admite el idioma de este libro. Lectura con la voz de Apple %@."
+          }
+        },
         "fr" : {
           "stringUnit" : {
             "state" : "new",
             "value" : "%1$@ ne prend pas en charge la langue de ce livre. Lecture avec la voix Apple %2$@."
           }
         },
-        "it" : { "stringUnit" : { "state" : "translated", "value" : "%@ non supporta la lingua di questo libro. Lettura con la voce Apple %@." } },
-        "ja" : { "stringUnit" : { "state" : "translated", "value" : "%@ はこの本の言語に対応していません。Apple の音声 %@ で読み上げます。" } },
-        "ko" : { "stringUnit" : { "state" : "translated", "value" : "%@은(는) 이 책의 언어를 지원하지 않습니다. Apple 음성 %@으로 읽습니다." } },
-        "pt" : { "stringUnit" : { "state" : "translated", "value" : "%@ não suporta o idioma deste livro. Leitura com a voz Apple %@." } },
-        "ru" : { "stringUnit" : { "state" : "translated", "value" : "%@ не поддерживает язык этой книги. Чтение голосом Apple %@." } },
-        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "%@ 不支持本书的语言。将使用 Apple 语音 %@ 朗读。" } }
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ non supporta la lingua di questo libro. Lettura con la voce Apple %@."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ はこの本の言語に対応していません。Apple の音声 %@ で読み上げます。"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@은(는) 이 책의 언어를 지원하지 않습니다. Apple 음성 %@으로 읽습니다."
+          }
+        },
+        "pt" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ não suporta o idioma deste livro. Leitura com a voz Apple %@."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ не поддерживает язык этой книги. Чтение голосом Apple %@."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ 不支持本书的语言。将使用 Apple 语音 %@ 朗读。"
+          }
+        }
       }
     },
     "%@, %@" : {
@@ -1035,6 +1086,7 @@
       }
     },
     "%lld min d’écoute estimées" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -1094,6 +1146,136 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "预计朗读 %lld 分钟"
+          }
+        }
+      }
+    },
+    "%lld min jusqu’à la fin du chapitre" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "متبقٍ %lld دقيقة حتى نهاية الفصل"
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Noch %lld Min. bis zum Kapitelende"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld min until end of chapter"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld min hasta el final del capítulo"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld min alla fine del capitolo"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "章の終わりまで%lld分"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "챕터 끝까지 %lld분"
+          }
+        },
+        "pt" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld min até ao fim do capítulo"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld мин до конца главы"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "距本章结束还有 %lld 分钟"
+          }
+        }
+      }
+    },
+    "%lld min restantes" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "متبقٍ %lld دقيقة"
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Noch %lld Min."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld min remaining"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld min restantes"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld min rimanenti"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "残り%lld分"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld분 남음"
+          }
+        },
+        "pt" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld min restantes"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Осталось %lld мин"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "剩余 %lld 分钟"
           }
         }
       }
@@ -1862,6 +2044,71 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "将在 %@ 后停止"
+          }
+        }
+      }
+    },
+    "Arrêt à la fin du chapitre" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "التوقف عند نهاية الفصل"
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Stopp am Kapitelende"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Stop at end of chapter"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Parar al final del capítulo"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Arresto a fine capitolo"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "章の終わりで停止"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "챕터 끝에서 정지"
+          }
+        },
+        "pt" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Parar no fim do capítulo"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Остановить в конце главы"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "在本章结束时停止"
           }
         }
       }
@@ -2765,16 +3012,66 @@
     },
     "Cette langue n’est pas prise en charge par Supertonic. La voix iPhone sera utilisée." : {
       "localizations" : {
-        "ar" : { "stringUnit" : { "state" : "translated", "value" : "لا يدعم Supertonic هذه اللغة. سيتم استخدام صوت iPhone." } },
-        "de" : { "stringUnit" : { "state" : "translated", "value" : "Diese Sprache wird von Supertonic nicht unterstützt. Die iPhone-Stimme wird verwendet." } },
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "This language is not supported by Supertonic. The iPhone voice will be used." } },
-        "es" : { "stringUnit" : { "state" : "translated", "value" : "Supertonic no admite este idioma. Se usará la voz del iPhone." } },
-        "it" : { "stringUnit" : { "state" : "translated", "value" : "Supertonic non supporta questa lingua. Verrà usata la voce di iPhone." } },
-        "ja" : { "stringUnit" : { "state" : "translated", "value" : "Supertonic はこの言語に対応していません。iPhone の音声を使用します。" } },
-        "ko" : { "stringUnit" : { "state" : "translated", "value" : "Supertonic은 이 언어를 지원하지 않습니다. iPhone 음성을 사용합니다." } },
-        "pt" : { "stringUnit" : { "state" : "translated", "value" : "O Supertonic não suporta este idioma. Será usada a voz do iPhone." } },
-        "ru" : { "stringUnit" : { "state" : "translated", "value" : "Supertonic не поддерживает этот язык. Будет использован голос iPhone." } },
-        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "Supertonic 不支持此语言。将使用 iPhone 语音。" } }
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "لا يدعم Supertonic هذه اللغة. سيتم استخدام صوت iPhone."
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Diese Sprache wird von Supertonic nicht unterstützt. Die iPhone-Stimme wird verwendet."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This language is not supported by Supertonic. The iPhone voice will be used."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Supertonic no admite este idioma. Se usará la voz del iPhone."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Supertonic non supporta questa lingua. Verrà usata la voce di iPhone."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Supertonic はこの言語に対応していません。iPhone の音声を使用します。"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Supertonic은 이 언어를 지원하지 않습니다. iPhone 음성을 사용합니다."
+          }
+        },
+        "pt" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "O Supertonic não suporta este idioma. Será usada a voz do iPhone."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Supertonic не поддерживает этот язык. Будет использован голос iPhone."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Supertonic 不支持此语言。将使用 iPhone 语音。"
+          }
+        }
       }
     },
     "Cette paire de langues n’est pas prise en charge par la traduction Apple. L’original reste disponible." : {
@@ -2905,6 +3202,71 @@
         }
       }
     },
+    "Chapitre %lld" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "الفصل %lld"
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Kapitel %lld"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Chapter %lld"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Capítulo %lld"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Capitolo %lld"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "第%lld章"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld장"
+          }
+        },
+        "pt" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Capítulo %lld"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Глава %lld"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "第%lld章"
+          }
+        }
+      }
+    },
     "Choisir cette voix" : {
       "extractionState" : "stale",
       "localizations" : {
@@ -3030,6 +3392,71 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "设为%@的首选声音"
+          }
+        }
+      }
+    },
+    "Choisir un chapitre" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "اختيار فصل"
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Kapitel auswählen"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Choose a chapter"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Elegir un capítulo"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Scegli un capitolo"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "章を選択"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "챕터 선택"
+          }
+        },
+        "pt" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Escolher um capítulo"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Выбрать главу"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "选择章节"
           }
         }
       }
@@ -4067,16 +4494,66 @@
     },
     "Écouter cette voix" : {
       "localizations" : {
-        "ar" : { "stringUnit" : { "state" : "translated", "value" : "استمع إلى هذا الصوت" } },
-        "de" : { "stringUnit" : { "state" : "translated", "value" : "Diese Stimme anhören" } },
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Listen to this voice" } },
-        "es" : { "stringUnit" : { "state" : "translated", "value" : "Escuchar esta voz" } },
-        "it" : { "stringUnit" : { "state" : "translated", "value" : "Ascolta questa voce" } },
-        "ja" : { "stringUnit" : { "state" : "translated", "value" : "この声を聴く" } },
-        "ko" : { "stringUnit" : { "state" : "translated", "value" : "이 음성 듣기" } },
-        "pt" : { "stringUnit" : { "state" : "translated", "value" : "Ouvir esta voz" } },
-        "ru" : { "stringUnit" : { "state" : "translated", "value" : "Прослушать этот голос" } },
-        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "试听此声音" } }
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "استمع إلى هذا الصوت"
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Diese Stimme anhören"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Listen to this voice"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Escuchar esta voz"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ascolta questa voce"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "この声を聴く"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "이 음성 듣기"
+          }
+        },
+        "pt" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ouvir esta voz"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Прослушать этот голос"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "试听此声音"
+          }
+        }
       }
     },
     "Écrire ou coller un texte" : {
@@ -4336,6 +4813,7 @@
       }
     },
     "En attente de la suite…" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -5168,18 +5646,133 @@
         }
       }
     },
+    "Fin du chapitre" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "نهاية الفصل"
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Kapitelende"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "End of chapter"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Final del capítulo"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Fine del capitolo"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "章の終わり"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "챕터 끝"
+          }
+        },
+        "pt" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Fim do capítulo"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Конец главы"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "本章结束"
+          }
+        }
+      }
+    },
     "Français, anglais, allemand, espagnol, italien, portugais, japonais, russe, arabe, coréen et 20 autres langues. Le chinois utilise automatiquement une voix iPhone." : {
       "localizations" : {
-        "ar" : { "stringUnit" : { "state" : "translated", "value" : "الفرنسية والإنجليزية والألمانية والإسبانية والإيطالية والبرتغالية واليابانية والروسية والعربية والكورية و20 لغة أخرى. تستخدم الصينية تلقائيًا صوت iPhone." } },
-        "de" : { "stringUnit" : { "state" : "translated", "value" : "Französisch, Englisch, Deutsch, Spanisch, Italienisch, Portugiesisch, Japanisch, Russisch, Arabisch, Koreanisch und 20 weitere Sprachen. Für Chinesisch wird automatisch eine iPhone-Stimme verwendet." } },
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "French, English, German, Spanish, Italian, Portuguese, Japanese, Russian, Arabic, Korean, and 20 more languages. Chinese automatically uses an iPhone voice." } },
-        "es" : { "stringUnit" : { "state" : "translated", "value" : "Francés, inglés, alemán, español, italiano, portugués, japonés, ruso, árabe, coreano y 20 idiomas más. El chino usa automáticamente una voz del iPhone." } },
-        "it" : { "stringUnit" : { "state" : "translated", "value" : "Francese, inglese, tedesco, spagnolo, italiano, portoghese, giapponese, russo, arabo, coreano e altre 20 lingue. Il cinese usa automaticamente una voce iPhone." } },
-        "ja" : { "stringUnit" : { "state" : "translated", "value" : "フランス語、英語、ドイツ語、スペイン語、イタリア語、ポルトガル語、日本語、ロシア語、アラビア語、韓国語、その他20言語に対応。中国語ではiPhoneの音声が自動的に使われます。" } },
-        "ko" : { "stringUnit" : { "state" : "translated", "value" : "프랑스어, 영어, 독일어, 스페인어, 이탈리아어, 포르투갈어, 일본어, 러시아어, 아랍어, 한국어 및 20개 이상의 언어를 지원합니다. 중국어는 자동으로 iPhone 음성을 사용합니다." } },
-        "pt" : { "stringUnit" : { "state" : "translated", "value" : "Francês, inglês, alemão, espanhol, italiano, português, japonês, russo, árabe, coreano e mais 20 idiomas. O chinês usa automaticamente uma voz do iPhone." } },
-        "ru" : { "stringUnit" : { "state" : "translated", "value" : "Французский, английский, немецкий, испанский, итальянский, португальский, японский, русский, арабский, корейский и ещё 20 языков. Для китайского автоматически используется голос iPhone." } },
-        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "支持法语、英语、德语、西班牙语、意大利语、葡萄牙语、日语、俄语、阿拉伯语、韩语及另外20种语言。中文会自动使用iPhone声音。" } }
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "الفرنسية والإنجليزية والألمانية والإسبانية والإيطالية والبرتغالية واليابانية والروسية والعربية والكورية و20 لغة أخرى. تستخدم الصينية تلقائيًا صوت iPhone."
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Französisch, Englisch, Deutsch, Spanisch, Italienisch, Portugiesisch, Japanisch, Russisch, Arabisch, Koreanisch und 20 weitere Sprachen. Für Chinesisch wird automatisch eine iPhone-Stimme verwendet."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "French, English, German, Spanish, Italian, Portuguese, Japanese, Russian, Arabic, Korean, and 20 more languages. Chinese automatically uses an iPhone voice."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Francés, inglés, alemán, español, italiano, portugués, japonés, ruso, árabe, coreano y 20 idiomas más. El chino usa automáticamente una voz del iPhone."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Francese, inglese, tedesco, spagnolo, italiano, portoghese, giapponese, russo, arabo, coreano e altre 20 lingue. Il cinese usa automaticamente una voce iPhone."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "フランス語、英語、ドイツ語、スペイン語、イタリア語、ポルトガル語、日本語、ロシア語、アラビア語、韓国語、その他20言語に対応。中国語ではiPhoneの音声が自動的に使われます。"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "프랑스어, 영어, 독일어, 스페인어, 이탈리아어, 포르투갈어, 일본어, 러시아어, 아랍어, 한국어 및 20개 이상의 언어를 지원합니다. 중국어는 자동으로 iPhone 음성을 사용합니다."
+          }
+        },
+        "pt" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Francês, inglês, alemão, espanhol, italiano, português, japonês, russo, árabe, coreano e mais 20 idiomas. O chinês usa automaticamente uma voz do iPhone."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Французский, английский, немецкий, испанский, итальянский, португальский, японский, русский, арабский, корейский и ещё 20 языков. Для китайского автоматически используется голос iPhone."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "支持法语、英语、德语、西班牙语、意大利语、葡萄牙语、日语、俄语、阿拉伯语、韩语及另外20种语言。中文会自动使用iPhone声音。"
+          }
+        }
       }
     },
     "Gardez Le Conteur ouvert pendant la préparation Qwen. Touchez Lire pour reprendre." : {
@@ -5762,16 +6355,66 @@
     },
     "Installer Supertonic · 399 Mo" : {
       "localizations" : {
-        "ar" : { "stringUnit" : { "state" : "translated", "value" : "تثبيت Supertonic · 399 م.ب." } },
-        "de" : { "stringUnit" : { "state" : "translated", "value" : "Supertonic installieren · 399 MB" } },
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Install Supertonic · 399 MB" } },
-        "es" : { "stringUnit" : { "state" : "translated", "value" : "Instalar Supertonic · 399 MB" } },
-        "it" : { "stringUnit" : { "state" : "translated", "value" : "Installa Supertonic · 399 MB" } },
-        "ja" : { "stringUnit" : { "state" : "translated", "value" : "Supertonic をインストール · 399 MB" } },
-        "ko" : { "stringUnit" : { "state" : "translated", "value" : "Supertonic 설치 · 399MB" } },
-        "pt" : { "stringUnit" : { "state" : "translated", "value" : "Instalar Supertonic · 399 MB" } },
-        "ru" : { "stringUnit" : { "state" : "translated", "value" : "Установить Supertonic · 399 МБ" } },
-        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "安装 Supertonic · 399 MB" } }
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "تثبيت Supertonic · 399 م.ب."
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Supertonic installieren · 399 MB"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Install Supertonic · 399 MB"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Instalar Supertonic · 399 MB"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Installa Supertonic · 399 MB"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Supertonic をインストール · 399 MB"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Supertonic 설치 · 399MB"
+          }
+        },
+        "pt" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Instalar Supertonic · 399 MB"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Установить Supertonic · 399 МБ"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "安装 Supertonic · 399 MB"
+          }
+        }
       }
     },
     "Installez d’abord Qwen dans Voix." : {
@@ -5840,16 +6483,66 @@
     },
     "Installez d’abord Supertonic dans Voix." : {
       "localizations" : {
-        "ar" : { "stringUnit" : { "state" : "translated", "value" : "ثبّت Supertonic أولًا من قسم الأصوات." } },
-        "de" : { "stringUnit" : { "state" : "translated", "value" : "Installiere Supertonic zuerst unter Stimmen." } },
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Install Supertonic in Voices first." } },
-        "es" : { "stringUnit" : { "state" : "translated", "value" : "Instala primero Supertonic en Voces." } },
-        "it" : { "stringUnit" : { "state" : "translated", "value" : "Installa prima Supertonic in Voci." } },
-        "ja" : { "stringUnit" : { "state" : "translated", "value" : "先に「音声」で Supertonic をインストールしてください。" } },
-        "ko" : { "stringUnit" : { "state" : "translated", "value" : "먼저 음성에서 Supertonic을 설치하세요." } },
-        "pt" : { "stringUnit" : { "state" : "translated", "value" : "Instale primeiro o Supertonic em Vozes." } },
-        "ru" : { "stringUnit" : { "state" : "translated", "value" : "Сначала установите Supertonic в разделе «Голоса»." } },
-        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "请先在“语音”中安装 Supertonic。" } }
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "ثبّت Supertonic أولًا من قسم الأصوات."
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Installiere Supertonic zuerst unter Stimmen."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Install Supertonic in Voices first."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Instala primero Supertonic en Voces."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Installa prima Supertonic in Voci."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "先に「音声」で Supertonic をインストールしてください。"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "먼저 음성에서 Supertonic을 설치하세요."
+          }
+        },
+        "pt" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Instale primeiro o Supertonic em Vozes."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Сначала установите Supertonic в разделе «Голоса»."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "请先在“语音”中安装 Supertonic。"
+          }
+        }
       }
     },
     "L’art de raconter." : {
@@ -7648,16 +8341,66 @@
     },
     "Le téléchargement continue en Wi‑Fi quand vous changez d’app ou éteignez l’écran." : {
       "localizations" : {
-        "ar" : { "stringUnit" : { "state" : "translated", "value" : "يستمر التنزيل عبر Wi‑Fi عند تبديل التطبيقات أو إطفاء الشاشة." } },
-        "de" : { "stringUnit" : { "state" : "translated", "value" : "Der Download läuft über WLAN weiter, wenn du die App wechselst oder den Bildschirm ausschaltest." } },
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "The download continues over Wi‑Fi when you switch apps or turn off the screen." } },
-        "es" : { "stringUnit" : { "state" : "translated", "value" : "La descarga continúa por Wi‑Fi al cambiar de app o apagar la pantalla." } },
-        "it" : { "stringUnit" : { "state" : "translated", "value" : "Il download continua tramite Wi‑Fi quando cambi app o spegni lo schermo." } },
-        "ja" : { "stringUnit" : { "state" : "translated", "value" : "アプリを切り替えたり画面を消したりしても、Wi‑Fi 経由でダウンロードが続きます。" } },
-        "ko" : { "stringUnit" : { "state" : "translated", "value" : "앱을 전환하거나 화면을 꺼도 Wi‑Fi에서 다운로드가 계속됩니다." } },
-        "pt" : { "stringUnit" : { "state" : "translated", "value" : "A descarga continua por Wi‑Fi ao mudar de aplicação ou desligar o ecrã." } },
-        "ru" : { "stringUnit" : { "state" : "translated", "value" : "Загрузка по Wi‑Fi продолжится при смене приложения или выключении экрана." } },
-        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "切换应用或关闭屏幕时，下载会通过 Wi‑Fi 继续。" } }
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "يستمر التنزيل عبر Wi‑Fi عند تبديل التطبيقات أو إطفاء الشاشة."
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Der Download läuft über WLAN weiter, wenn du die App wechselst oder den Bildschirm ausschaltest."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The download continues over Wi‑Fi when you switch apps or turn off the screen."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "La descarga continúa por Wi‑Fi al cambiar de app o apagar la pantalla."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Il download continua tramite Wi‑Fi quando cambi app o spegni lo schermo."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "アプリを切り替えたり画面を消したりしても、Wi‑Fi 経由でダウンロードが続きます。"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "앱을 전환하거나 화면을 꺼도 Wi‑Fi에서 다운로드가 계속됩니다."
+          }
+        },
+        "pt" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "A descarga continua por Wi‑Fi ao mudar de aplicação ou desligar o ecrã."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Загрузка по Wi‑Fi продолжится при смене приложения или выключении экрана."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "切换应用或关闭屏幕时，下载会通过 Wi‑Fi 继续。"
+          }
+        }
       }
     },
     "Le texte « Le goût des mots » est un texte de démonstration original créé pour Le Conteur." : {
@@ -7919,16 +8662,66 @@
     },
     "Lecture %@" : {
       "localizations" : {
-        "ar" : { "stringUnit" : { "state" : "translated", "value" : "تشغيل %@" } },
-        "de" : { "stringUnit" : { "state" : "translated", "value" : "%@-Wiedergabe" } },
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "%@ playback" } },
-        "es" : { "stringUnit" : { "state" : "translated", "value" : "Reproducción %@" } },
-        "it" : { "stringUnit" : { "state" : "translated", "value" : "Riproduzione %@" } },
-        "ja" : { "stringUnit" : { "state" : "translated", "value" : "%@ の再生" } },
-        "ko" : { "stringUnit" : { "state" : "translated", "value" : "%@ 재생" } },
-        "pt" : { "stringUnit" : { "state" : "translated", "value" : "Reprodução %@" } },
-        "ru" : { "stringUnit" : { "state" : "translated", "value" : "Воспроизведение %@" } },
-        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "%@ 播放" } }
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "تشغيل %@"
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@-Wiedergabe"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ playback"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Reproducción %@"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Riproduzione %@"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ の再生"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ 재생"
+          }
+        },
+        "pt" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Reprodução %@"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Воспроизведение %@"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ 播放"
+          }
+        }
       }
     },
     "Lecture de la réserve · génération en pause" : {
@@ -8190,16 +8983,66 @@
     },
     "Les poids officiels épinglés sont vérifiés avant installation. Le moteur fonctionne ensuite entièrement hors ligne." : {
       "localizations" : {
-        "ar" : { "stringUnit" : { "state" : "translated", "value" : "يتم التحقق من الأوزان الرسمية المحددة قبل التثبيت. بعدها يعمل المحرك دون اتصال بالكامل." } },
-        "de" : { "stringUnit" : { "state" : "translated", "value" : "Die festgelegten offiziellen Gewichte werden vor der Installation geprüft. Danach arbeitet die Engine vollständig offline." } },
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "The pinned official weights are verified before installation. The engine then works entirely offline." } },
-        "es" : { "stringUnit" : { "state" : "translated", "value" : "Los pesos oficiales fijados se verifican antes de la instalación. Después, el motor funciona sin conexión." } },
-        "it" : { "stringUnit" : { "state" : "translated", "value" : "I pesi ufficiali selezionati vengono verificati prima dell’installazione. Il motore funziona poi completamente offline." } },
-        "ja" : { "stringUnit" : { "state" : "translated", "value" : "指定された公式ウェイトはインストール前に検証されます。その後、エンジンは完全にオフラインで動作します。" } },
-        "ko" : { "stringUnit" : { "state" : "translated", "value" : "고정된 공식 가중치를 설치 전에 확인합니다. 이후 엔진은 완전히 오프라인으로 작동합니다." } },
-        "pt" : { "stringUnit" : { "state" : "translated", "value" : "Os pesos oficiais fixados são verificados antes da instalação. Depois, o motor funciona totalmente offline." } },
-        "ru" : { "stringUnit" : { "state" : "translated", "value" : "Закреплённые официальные веса проверяются перед установкой. Затем движок работает полностью офлайн." } },
-        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "安装前会验证固定版本的官方权重。之后引擎可完全离线运行。" } }
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "يتم التحقق من الأوزان الرسمية المحددة قبل التثبيت. بعدها يعمل المحرك دون اتصال بالكامل."
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Die festgelegten offiziellen Gewichte werden vor der Installation geprüft. Danach arbeitet die Engine vollständig offline."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The pinned official weights are verified before installation. The engine then works entirely offline."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Los pesos oficiales fijados se verifican antes de la instalación. Después, el motor funciona sin conexión."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "I pesi ufficiali selezionati vengono verificati prima dell’installazione. Il motore funziona poi completamente offline."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "指定された公式ウェイトはインストール前に検証されます。その後、エンジンは完全にオフラインで動作します。"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "고정된 공식 가중치를 설치 전에 확인합니다. 이후 엔진은 완전히 오프라인으로 작동합니다."
+          }
+        },
+        "pt" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Os pesos oficiais fixados são verificados antes da instalação. Depois, o motor funciona totalmente offline."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Закреплённые официальные веса проверяются перед установкой. Затем движок работает полностью офлайн."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "安装前会验证固定版本的官方权重。之后引擎可完全离线运行。"
+          }
+        }
       }
     },
     "Les prochains passages apparaîtront ici." : {
@@ -9677,16 +10520,66 @@
     },
     "Ouvrez l’app pour préparer la lecture Supertonic." : {
       "localizations" : {
-        "ar" : { "stringUnit" : { "state" : "translated", "value" : "افتح التطبيق لإعداد قراءة Supertonic." } },
-        "de" : { "stringUnit" : { "state" : "translated", "value" : "Öffne die App, um die Supertonic-Wiedergabe vorzubereiten." } },
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Open the app to prepare Supertonic playback." } },
-        "es" : { "stringUnit" : { "state" : "translated", "value" : "Abre la app para preparar la reproducción con Supertonic." } },
-        "it" : { "stringUnit" : { "state" : "translated", "value" : "Apri l’app per preparare la riproduzione Supertonic." } },
-        "ja" : { "stringUnit" : { "state" : "translated", "value" : "Supertonic の再生を準備するにはアプリを開いてください。" } },
-        "ko" : { "stringUnit" : { "state" : "translated", "value" : "Supertonic 재생을 준비하려면 앱을 여세요." } },
-        "pt" : { "stringUnit" : { "state" : "translated", "value" : "Abra a aplicação para preparar a reprodução Supertonic." } },
-        "ru" : { "stringUnit" : { "state" : "translated", "value" : "Откройте приложение, чтобы подготовить воспроизведение Supertonic." } },
-        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "打开应用以准备 Supertonic 朗读。" } }
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "افتح التطبيق لإعداد قراءة Supertonic."
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Öffne die App, um die Supertonic-Wiedergabe vorzubereiten."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Open the app to prepare Supertonic playback."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Abre la app para preparar la reproducción con Supertonic."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Apri l’app per preparare la riproduzione Supertonic."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Supertonic の再生を準備するにはアプリを開いてください。"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Supertonic 재생을 준비하려면 앱을 여세요."
+          }
+        },
+        "pt" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Abra a aplicação para preparar a reprodução Supertonic."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Откройте приложение, чтобы подготовить воспроизведение Supertonic."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "打开应用以准备 Supertonic 朗读。"
+          }
+        }
       }
     },
     "Ouvrez l’app pour préparer la suite" : {
@@ -9755,16 +10648,66 @@
     },
     "Ouvrez l’app pour préparer la suite." : {
       "localizations" : {
-        "ar" : { "stringUnit" : { "state" : "translated", "value" : "افتح التطبيق لإعداد الجزء التالي." } },
-        "de" : { "stringUnit" : { "state" : "translated", "value" : "Öffne die App, um den nächsten Abschnitt vorzubereiten." } },
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Open the app to prepare the next section." } },
-        "es" : { "stringUnit" : { "state" : "translated", "value" : "Abre la app para preparar la siguiente parte." } },
-        "it" : { "stringUnit" : { "state" : "translated", "value" : "Apri l’app per preparare la parte successiva." } },
-        "ja" : { "stringUnit" : { "state" : "translated", "value" : "次の部分を準備するにはアプリを開いてください。" } },
-        "ko" : { "stringUnit" : { "state" : "translated", "value" : "다음 부분을 준비하려면 앱을 여세요." } },
-        "pt" : { "stringUnit" : { "state" : "translated", "value" : "Abra a aplicação para preparar a parte seguinte." } },
-        "ru" : { "stringUnit" : { "state" : "translated", "value" : "Откройте приложение, чтобы подготовить следующую часть." } },
-        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "打开应用以准备下一部分。" } }
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "افتح التطبيق لإعداد الجزء التالي."
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Öffne die App, um den nächsten Abschnitt vorzubereiten."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Open the app to prepare the next section."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Abre la app para preparar la siguiente parte."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Apri l’app per preparare la parte successiva."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "次の部分を準備するにはアプリを開いてください。"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "다음 부분을 준비하려면 앱을 여세요."
+          }
+        },
+        "pt" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Abra a aplicação para preparar a parte seguinte."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Откройте приложение, чтобы подготовить следующую часть."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "打开应用以准备下一部分。"
+          }
+        }
       }
     },
     "Ouvrez Le Conteur pour l’ajouter à votre bibliothèque et commencer la lecture." : {
@@ -10152,6 +11095,7 @@
       }
     },
     "Passage %lld sur %lld" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -10801,16 +11745,66 @@
     },
     "Préparation de la réserve · %lld s prêtes" : {
       "localizations" : {
-        "ar" : { "stringUnit" : { "state" : "translated", "value" : "جارٍ إعداد المخزون · %lld ث جاهزة" } },
-        "de" : { "stringUnit" : { "state" : "translated", "value" : "Puffer wird vorbereitet · %lld s bereit" } },
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Preparing buffer · %lld s ready" } },
-        "es" : { "stringUnit" : { "state" : "translated", "value" : "Preparando la reserva · %lld s listos" } },
-        "it" : { "stringUnit" : { "state" : "translated", "value" : "Preparazione riserva · %lld s pronti" } },
-        "ja" : { "stringUnit" : { "state" : "translated", "value" : "バッファを準備中 · %lld秒準備済み" } },
-        "ko" : { "stringUnit" : { "state" : "translated", "value" : "버퍼 준비 중 · %lld초 준비됨" } },
-        "pt" : { "stringUnit" : { "state" : "translated", "value" : "A preparar a reserva · %lld s prontos" } },
-        "ru" : { "stringUnit" : { "state" : "translated", "value" : "Подготовка буфера · готово %lld с" } },
-        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "正在准备缓冲 · 已就绪 %lld 秒" } }
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "جارٍ إعداد المخزون · %lld ث جاهزة"
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Puffer wird vorbereitet · %lld s bereit"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Preparing buffer · %lld s ready"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Preparando la reserva · %lld s listos"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Preparazione riserva · %lld s pronti"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "バッファを準備中 · %lld秒準備済み"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "버퍼 준비 중 · %lld초 준비됨"
+          }
+        },
+        "pt" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "A preparar a reserva · %lld s prontos"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Подготовка буфера · готово %lld с"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "正在准备缓冲 · 已就绪 %lld 秒"
+          }
+        }
       }
     },
     "Préparation de la réserve audio…" : {
@@ -11391,16 +12385,66 @@
     },
     "Qwen · ouvrez Le Conteur pour la suite" : {
       "localizations" : {
-        "ar" : { "stringUnit" : { "state" : "translated", "value" : "Qwen · افتح الراوي للمتابعة" } },
-        "de" : { "stringUnit" : { "state" : "translated", "value" : "Qwen · Öffne Erzähler für die Fortsetzung" } },
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Qwen · open Storyteller to continue" } },
-        "es" : { "stringUnit" : { "state" : "translated", "value" : "Qwen · abre El Narrador para continuar" } },
-        "it" : { "stringUnit" : { "state" : "translated", "value" : "Qwen · apri Il Narratore per continuare" } },
-        "ja" : { "stringUnit" : { "state" : "translated", "value" : "Qwen · 続きを聴くには語り手を開いてください" } },
-        "ko" : { "stringUnit" : { "state" : "translated", "value" : "Qwen · 계속하려면 이야기꾼을 여세요" } },
-        "pt" : { "stringUnit" : { "state" : "translated", "value" : "Qwen · abra O Narrador para continuar" } },
-        "ru" : { "stringUnit" : { "state" : "translated", "value" : "Qwen · откройте Рассказчик, чтобы продолжить" } },
-        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "Qwen · 打开讲述者以继续" } }
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Qwen · افتح الراوي للمتابعة"
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Qwen · Öffne Erzähler für die Fortsetzung"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Qwen · open Storyteller to continue"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Qwen · abre El Narrador para continuar"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Qwen · apri Il Narratore per continuare"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Qwen · 続きを聴くには語り手を開いてください"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Qwen · 계속하려면 이야기꾼을 여세요"
+          }
+        },
+        "pt" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Qwen · abra O Narrador para continuar"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Qwen · откройте Рассказчик, чтобы продолжить"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Qwen · 打开讲述者以继续"
+          }
+        }
       }
     },
     "Qwen n’a pas produit d’audio utilisable. Réessayez sur un passage plus court." : {
@@ -11726,16 +12770,66 @@
     },
     "RAPIDE · SUR VOTRE IPHONE" : {
       "localizations" : {
-        "ar" : { "stringUnit" : { "state" : "translated", "value" : "سريع · على IPHONE" } },
-        "de" : { "stringUnit" : { "state" : "translated", "value" : "SCHNELL · AUF DEM IPHONE" } },
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "FAST · ON YOUR IPHONE" } },
-        "es" : { "stringUnit" : { "state" : "translated", "value" : "RÁPIDO · EN TU IPHONE" } },
-        "it" : { "stringUnit" : { "state" : "translated", "value" : "VELOCE · SUL TUO IPHONE" } },
-        "ja" : { "stringUnit" : { "state" : "translated", "value" : "高速 · IPHONE上で動作" } },
-        "ko" : { "stringUnit" : { "state" : "translated", "value" : "빠르게 · IPHONE에서" } },
-        "pt" : { "stringUnit" : { "state" : "translated", "value" : "RÁPIDO · NO SEU IPHONE" } },
-        "ru" : { "stringUnit" : { "state" : "translated", "value" : "БЫСТРО · НА ВАШЕМ IPHONE" } },
-        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "快速 · 在IPHONE上运行" } }
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "سريع · على IPHONE"
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "SCHNELL · AUF DEM IPHONE"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "FAST · ON YOUR IPHONE"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "RÁPIDO · EN TU IPHONE"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "VELOCE · SUL TUO IPHONE"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "高速 · IPHONE上で動作"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "빠르게 · IPHONE에서"
+          }
+        },
+        "pt" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "RÁPIDO · NO SEU IPHONE"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "БЫСТРО · НА ВАШЕМ IPHONE"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "快速 · 在IPHONE上运行"
+          }
+        }
       }
     },
     "Recharge" : {
@@ -12636,16 +13730,66 @@
     },
     "Revenir au début de %@" : {
       "localizations" : {
-        "ar" : { "stringUnit" : { "state" : "translated", "value" : "العودة إلى بداية %@" } },
-        "de" : { "stringUnit" : { "state" : "translated", "value" : "Zum Anfang von %@ zurückkehren" } },
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Return to the beginning of %@" } },
-        "es" : { "stringUnit" : { "state" : "translated", "value" : "Volver al principio de %@" } },
-        "it" : { "stringUnit" : { "state" : "translated", "value" : "Torna all’inizio di %@" } },
-        "ja" : { "stringUnit" : { "state" : "translated", "value" : "%@ の先頭に戻る" } },
-        "ko" : { "stringUnit" : { "state" : "translated", "value" : "%@의 시작으로 돌아가기" } },
-        "pt" : { "stringUnit" : { "state" : "translated", "value" : "Voltar ao início de %@" } },
-        "ru" : { "stringUnit" : { "state" : "translated", "value" : "Вернуться к началу %@" } },
-        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "返回 %@ 的开头" } }
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "العودة إلى بداية %@"
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Zum Anfang von %@ zurückkehren"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Return to the beginning of %@"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Volver al principio de %@"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Torna all’inizio di %@"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ の先頭に戻る"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@의 시작으로 돌아가기"
+          }
+        },
+        "pt" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Voltar ao início de %@"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Вернуться к началу %@"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "返回 %@ 的开头"
+          }
+        }
       }
     },
     "Sélectionné pour vos livres" : {
@@ -13099,58 +14243,258 @@
     },
     "Supertonic" : {
       "localizations" : {
-        "ar" : { "stringUnit" : { "state" : "translated", "value" : "Supertonic" } },
-        "de" : { "stringUnit" : { "state" : "translated", "value" : "Supertonic" } },
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Supertonic" } },
-        "es" : { "stringUnit" : { "state" : "translated", "value" : "Supertonic" } },
-        "it" : { "stringUnit" : { "state" : "translated", "value" : "Supertonic" } },
-        "ja" : { "stringUnit" : { "state" : "translated", "value" : "Supertonic" } },
-        "ko" : { "stringUnit" : { "state" : "translated", "value" : "Supertonic" } },
-        "pt" : { "stringUnit" : { "state" : "translated", "value" : "Supertonic" } },
-        "ru" : { "stringUnit" : { "state" : "translated", "value" : "Supertonic" } },
-        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "Supertonic" } }
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Supertonic"
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Supertonic"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Supertonic"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Supertonic"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Supertonic"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Supertonic"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Supertonic"
+          }
+        },
+        "pt" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Supertonic"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Supertonic"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Supertonic"
+          }
+        }
       }
     },
     "Supertonic · ouvrez Le Conteur pour la suite" : {
       "localizations" : {
-        "ar" : { "stringUnit" : { "state" : "translated", "value" : "Supertonic · افتح الراوي للمتابعة" } },
-        "de" : { "stringUnit" : { "state" : "translated", "value" : "Supertonic · Öffne Erzähler für die Fortsetzung" } },
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Supertonic · open Storyteller to continue" } },
-        "es" : { "stringUnit" : { "state" : "translated", "value" : "Supertonic · abre El Narrador para continuar" } },
-        "it" : { "stringUnit" : { "state" : "translated", "value" : "Supertonic · apri Il Narratore per continuare" } },
-        "ja" : { "stringUnit" : { "state" : "translated", "value" : "Supertonic · 続きを聴くには語り手を開いてください" } },
-        "ko" : { "stringUnit" : { "state" : "translated", "value" : "Supertonic · 계속하려면 이야기꾼을 여세요" } },
-        "pt" : { "stringUnit" : { "state" : "translated", "value" : "Supertonic · abra O Narrador para continuar" } },
-        "ru" : { "stringUnit" : { "state" : "translated", "value" : "Supertonic · откройте Рассказчик, чтобы продолжить" } },
-        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "Supertonic · 打开讲述者以继续" } }
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Supertonic · افتح الراوي للمتابعة"
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Supertonic · Öffne Erzähler für die Fortsetzung"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Supertonic · open Storyteller to continue"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Supertonic · abre El Narrador para continuar"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Supertonic · apri Il Narratore per continuare"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Supertonic · 続きを聴くには語り手を開いてください"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Supertonic · 계속하려면 이야기꾼을 여세요"
+          }
+        },
+        "pt" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Supertonic · abra O Narrador para continuar"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Supertonic · откройте Рассказчик, чтобы продолжить"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Supertonic · 打开讲述者以继续"
+          }
+        }
       }
     },
     "Supertonic · Temps réel" : {
       "localizations" : {
-        "ar" : { "stringUnit" : { "state" : "translated", "value" : "Supertonic · في الوقت الفعلي" } },
-        "de" : { "stringUnit" : { "state" : "translated", "value" : "Supertonic · Echtzeit" } },
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Supertonic · Real time" } },
-        "es" : { "stringUnit" : { "state" : "translated", "value" : "Supertonic · Tiempo real" } },
-        "it" : { "stringUnit" : { "state" : "translated", "value" : "Supertonic · Tempo reale" } },
-        "ja" : { "stringUnit" : { "state" : "translated", "value" : "Supertonic · リアルタイム" } },
-        "ko" : { "stringUnit" : { "state" : "translated", "value" : "Supertonic · 실시간" } },
-        "pt" : { "stringUnit" : { "state" : "translated", "value" : "Supertonic · Tempo real" } },
-        "ru" : { "stringUnit" : { "state" : "translated", "value" : "Supertonic · В реальном времени" } },
-        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "Supertonic · 实时" } }
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Supertonic · في الوقت الفعلي"
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Supertonic · Echtzeit"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Supertonic · Real time"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Supertonic · Tiempo real"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Supertonic · Tempo reale"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Supertonic · リアルタイム"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Supertonic · 실시간"
+          }
+        },
+        "pt" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Supertonic · Tempo real"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Supertonic · В реальном времени"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Supertonic · 实时"
+          }
+        }
       }
     },
     "Supertonic 3 · 99 M paramètres · modèle OpenRAIL‑M. Qwen reste disponible pendant l’évaluation de la qualité." : {
       "localizations" : {
-        "ar" : { "stringUnit" : { "state" : "translated", "value" : "Supertonic 3 · ‏99 مليون معلمة · نموذج OpenRAIL‑M. يظل Qwen متاحًا أثناء تقييم الجودة." } },
-        "de" : { "stringUnit" : { "state" : "translated", "value" : "Supertonic 3 · 99 Mio. Parameter · OpenRAIL‑M-Modell. Qwen bleibt während der Qualitätsprüfung verfügbar." } },
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Supertonic 3 · 99M parameters · OpenRAIL‑M model. Qwen remains available during quality evaluation." } },
-        "es" : { "stringUnit" : { "state" : "translated", "value" : "Supertonic 3 · 99 M de parámetros · modelo OpenRAIL‑M. Qwen sigue disponible durante la evaluación de calidad." } },
-        "it" : { "stringUnit" : { "state" : "translated", "value" : "Supertonic 3 · 99 M di parametri · modello OpenRAIL‑M. Qwen resta disponibile durante la valutazione della qualità." } },
-        "ja" : { "stringUnit" : { "state" : "translated", "value" : "Supertonic 3 · 9,900万パラメータ · OpenRAIL‑Mモデル。品質評価中もQwenを利用できます。" } },
-        "ko" : { "stringUnit" : { "state" : "translated", "value" : "Supertonic 3 · 9,900만 개 매개변수 · OpenRAIL‑M 모델. 품질 평가 중에도 Qwen을 사용할 수 있습니다." } },
-        "pt" : { "stringUnit" : { "state" : "translated", "value" : "Supertonic 3 · 99 M de parâmetros · modelo OpenRAIL‑M. O Qwen continua disponível durante a avaliação de qualidade." } },
-        "ru" : { "stringUnit" : { "state" : "translated", "value" : "Supertonic 3 · 99 млн параметров · модель OpenRAIL‑M. Qwen остаётся доступен во время оценки качества." } },
-        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "Supertonic 3 · 9900万参数 · OpenRAIL‑M模型。质量评估期间仍可使用Qwen。" } }
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Supertonic 3 · ‏99 مليون معلمة · نموذج OpenRAIL‑M. يظل Qwen متاحًا أثناء تقييم الجودة."
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Supertonic 3 · 99 Mio. Parameter · OpenRAIL‑M-Modell. Qwen bleibt während der Qualitätsprüfung verfügbar."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Supertonic 3 · 99M parameters · OpenRAIL‑M model. Qwen remains available during quality evaluation."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Supertonic 3 · 99 M de parámetros · modelo OpenRAIL‑M. Qwen sigue disponible durante la evaluación de calidad."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Supertonic 3 · 99 M di parametri · modello OpenRAIL‑M. Qwen resta disponibile durante la valutazione della qualità."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Supertonic 3 · 9,900万パラメータ · OpenRAIL‑Mモデル。品質評価中もQwenを利用できます。"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Supertonic 3 · 9,900만 개 매개변수 · OpenRAIL‑M 모델. 품질 평가 중에도 Qwen을 사용할 수 있습니다."
+          }
+        },
+        "pt" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Supertonic 3 · 99 M de parâmetros · modelo OpenRAIL‑M. O Qwen continua disponível durante a avaliação de qualidade."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Supertonic 3 · 99 млн параметров · модель OpenRAIL‑M. Qwen остаётся доступен во время оценки качества."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Supertonic 3 · 9900万参数 · OpenRAIL‑M模型。质量评估期间仍可使用Qwen。"
+          }
+        }
       }
     },
     "Supprimer" : {
@@ -13347,16 +14691,66 @@
     },
     "Supprimer le modèle · 399 Mo" : {
       "localizations" : {
-        "ar" : { "stringUnit" : { "state" : "translated", "value" : "حذف النموذج · 399 م.ب" } },
-        "de" : { "stringUnit" : { "state" : "translated", "value" : "Modell löschen · 399 MB" } },
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Delete model · 399 MB" } },
-        "es" : { "stringUnit" : { "state" : "translated", "value" : "Eliminar modelo · 399 MB" } },
-        "it" : { "stringUnit" : { "state" : "translated", "value" : "Elimina modello · 399 MB" } },
-        "ja" : { "stringUnit" : { "state" : "translated", "value" : "モデルを削除 · 399 MB" } },
-        "ko" : { "stringUnit" : { "state" : "translated", "value" : "모델 삭제 · 399MB" } },
-        "pt" : { "stringUnit" : { "state" : "translated", "value" : "Apagar modelo · 399 MB" } },
-        "ru" : { "stringUnit" : { "state" : "translated", "value" : "Удалить модель · 399 МБ" } },
-        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "删除模型 · 399 MB" } }
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "حذف النموذج · 399 م.ب"
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Modell löschen · 399 MB"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Delete model · 399 MB"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Eliminar modelo · 399 MB"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Elimina modello · 399 MB"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "モデルを削除 · 399 MB"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "모델 삭제 · 399MB"
+          }
+        },
+        "pt" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Apagar modelo · 399 MB"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Удалить модель · 399 МБ"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "删除模型 · 399 MB"
+          }
+        }
       }
     },
     "Suspendre" : {
@@ -15156,16 +16550,66 @@
     },
     "Une voix neuronale locale conçue pour préparer l’audio plus vite que sa lecture." : {
       "localizations" : {
-        "ar" : { "stringUnit" : { "state" : "translated", "value" : "صوت عصبي محلي مصمم لإعداد الصوت أسرع من مدة تشغيله." } },
-        "de" : { "stringUnit" : { "state" : "translated", "value" : "Eine lokale neuronale Stimme, die Audio schneller vorbereitet, als es abgespielt wird." } },
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "A local neural voice designed to prepare audio faster than it plays." } },
-        "es" : { "stringUnit" : { "state" : "translated", "value" : "Una voz neuronal local diseñada para preparar el audio más rápido de lo que se reproduce." } },
-        "it" : { "stringUnit" : { "state" : "translated", "value" : "Una voce neurale locale progettata per preparare l’audio più velocemente della riproduzione." } },
-        "ja" : { "stringUnit" : { "state" : "translated", "value" : "再生時間より速く音声を準備できる、端末上のニューラル音声です。" } },
-        "ko" : { "stringUnit" : { "state" : "translated", "value" : "재생 속도보다 빠르게 오디오를 준비하도록 설계된 온디바이스 신경망 음성입니다." } },
-        "pt" : { "stringUnit" : { "state" : "translated", "value" : "Uma voz neural local concebida para preparar o áudio mais depressa do que a sua reprodução." } },
-        "ru" : { "stringUnit" : { "state" : "translated", "value" : "Локальный нейросетевой голос, который готовит аудио быстрее, чем оно воспроизводится." } },
-        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "本地神经网络声音，音频生成速度快于播放速度。" } }
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "صوت عصبي محلي مصمم لإعداد الصوت أسرع من مدة تشغيله."
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Eine lokale neuronale Stimme, die Audio schneller vorbereitet, als es abgespielt wird."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "A local neural voice designed to prepare audio faster than it plays."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Una voz neuronal local diseñada para preparar el audio más rápido de lo que se reproduce."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Una voce neurale locale progettata per preparare l’audio più velocemente della riproduzione."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "再生時間より速く音声を準備できる、端末上のニューラル音声です。"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "재생 속도보다 빠르게 오디오를 준비하도록 설계된 온디바이스 신경망 음성입니다."
+          }
+        },
+        "pt" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Uma voz neural local concebida para preparar o áudio mais depressa do que a sua reprodução."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Локальный нейросетевой голос, который готовит аудио быстрее, чем оно воспроизводится."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "本地神经网络声音，音频生成速度快于播放速度。"
+          }
+        }
       }
     },
     "Une voix préférée par langue. Elle est retrouvée automatiquement à la lecture, y compris après traduction." : {
@@ -15746,16 +17190,66 @@
     },
     "Voix féminine" : {
       "localizations" : {
-        "ar" : { "stringUnit" : { "state" : "translated", "value" : "صوت أنثوي" } },
-        "de" : { "stringUnit" : { "state" : "translated", "value" : "Weibliche Stimme" } },
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Female voice" } },
-        "es" : { "stringUnit" : { "state" : "translated", "value" : "Voz femenina" } },
-        "it" : { "stringUnit" : { "state" : "translated", "value" : "Voce femminile" } },
-        "ja" : { "stringUnit" : { "state" : "translated", "value" : "女性の声" } },
-        "ko" : { "stringUnit" : { "state" : "translated", "value" : "여성 음성" } },
-        "pt" : { "stringUnit" : { "state" : "translated", "value" : "Voz feminina" } },
-        "ru" : { "stringUnit" : { "state" : "translated", "value" : "Женский голос" } },
-        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "女声" } }
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "صوت أنثوي"
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Weibliche Stimme"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Female voice"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Voz femenina"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Voce femminile"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "女性の声"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "여성 음성"
+          }
+        },
+        "pt" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Voz feminina"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Женский голос"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "女声"
+          }
+        }
       }
     },
     "Voix indisponible" : {
@@ -15888,16 +17382,66 @@
     },
     "Voix masculine" : {
       "localizations" : {
-        "ar" : { "stringUnit" : { "state" : "translated", "value" : "صوت ذكوري" } },
-        "de" : { "stringUnit" : { "state" : "translated", "value" : "Männliche Stimme" } },
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Male voice" } },
-        "es" : { "stringUnit" : { "state" : "translated", "value" : "Voz masculina" } },
-        "it" : { "stringUnit" : { "state" : "translated", "value" : "Voce maschile" } },
-        "ja" : { "stringUnit" : { "state" : "translated", "value" : "男性の声" } },
-        "ko" : { "stringUnit" : { "state" : "translated", "value" : "남성 음성" } },
-        "pt" : { "stringUnit" : { "state" : "translated", "value" : "Voz masculina" } },
-        "ru" : { "stringUnit" : { "state" : "translated", "value" : "Мужской голос" } },
-        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "男声" } }
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "صوت ذكوري"
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Männliche Stimme"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Male voice"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Voz masculina"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Voce maschile"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "男性の声"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "남성 음성"
+          }
+        },
+        "pt" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Voz masculina"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Мужской голос"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "男声"
+          }
+        }
       }
     },
     "Voix préférée" : {
@@ -16159,16 +17703,66 @@
     },
     "Voix Supertonic" : {
       "localizations" : {
-        "ar" : { "stringUnit" : { "state" : "translated", "value" : "صوت Supertonic" } },
-        "de" : { "stringUnit" : { "state" : "translated", "value" : "Supertonic-Stimme" } },
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Supertonic voice" } },
-        "es" : { "stringUnit" : { "state" : "translated", "value" : "Voz Supertonic" } },
-        "it" : { "stringUnit" : { "state" : "translated", "value" : "Voce Supertonic" } },
-        "ja" : { "stringUnit" : { "state" : "translated", "value" : "Supertonic 音声" } },
-        "ko" : { "stringUnit" : { "state" : "translated", "value" : "Supertonic 음성" } },
-        "pt" : { "stringUnit" : { "state" : "translated", "value" : "Voz Supertonic" } },
-        "ru" : { "stringUnit" : { "state" : "translated", "value" : "Голос Supertonic" } },
-        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "Supertonic 语音" } }
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "صوت Supertonic"
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Supertonic-Stimme"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Supertonic voice"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Voz Supertonic"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Voce Supertonic"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Supertonic 音声"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Supertonic 음성"
+          }
+        },
+        "pt" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Voz Supertonic"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Голос Supertonic"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Supertonic 语音"
+          }
+        }
       }
     },
     "Vos documents restent sur votre iPhone." : {
@@ -16684,94 +18278,18 @@
         }
       }
     },
-    "Chapitre %lld" : {
-      "extractionState" : "manual",
+    "Créer ou gérer ma clé API" : {
       "localizations" : {
-        "ar" : { "stringUnit" : { "state" : "translated", "value" : "الفصل %lld" } },
-        "de" : { "stringUnit" : { "state" : "translated", "value" : "Kapitel %lld" } },
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Chapter %lld" } },
-        "es" : { "stringUnit" : { "state" : "translated", "value" : "Capítulo %lld" } },
-        "it" : { "stringUnit" : { "state" : "translated", "value" : "Capitolo %lld" } },
-        "ja" : { "stringUnit" : { "state" : "translated", "value" : "第%lld章" } },
-        "ko" : { "stringUnit" : { "state" : "translated", "value" : "%lld장" } },
-        "pt" : { "stringUnit" : { "state" : "translated", "value" : "Capítulo %lld" } },
-        "ru" : { "stringUnit" : { "state" : "translated", "value" : "Глава %lld" } },
-        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "第%lld章" } }
-      }
-    },
-    "%lld min jusqu’à la fin du chapitre" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "ar" : { "stringUnit" : { "state" : "translated", "value" : "متبقٍ %lld دقيقة حتى نهاية الفصل" } },
-        "de" : { "stringUnit" : { "state" : "translated", "value" : "Noch %lld Min. bis zum Kapitelende" } },
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "%lld min until end of chapter" } },
-        "es" : { "stringUnit" : { "state" : "translated", "value" : "%lld min hasta el final del capítulo" } },
-        "it" : { "stringUnit" : { "state" : "translated", "value" : "%lld min alla fine del capitolo" } },
-        "ja" : { "stringUnit" : { "state" : "translated", "value" : "章の終わりまで%lld分" } },
-        "ko" : { "stringUnit" : { "state" : "translated", "value" : "챕터 끝까지 %lld분" } },
-        "pt" : { "stringUnit" : { "state" : "translated", "value" : "%lld min até ao fim do capítulo" } },
-        "ru" : { "stringUnit" : { "state" : "translated", "value" : "%lld мин до конца главы" } },
-        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "距本章结束还有 %lld 分钟" } }
-      }
-    },
-    "%lld min restantes" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "ar" : { "stringUnit" : { "state" : "translated", "value" : "متبقٍ %lld دقيقة" } },
-        "de" : { "stringUnit" : { "state" : "translated", "value" : "Noch %lld Min." } },
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "%lld min remaining" } },
-        "es" : { "stringUnit" : { "state" : "translated", "value" : "%lld min restantes" } },
-        "it" : { "stringUnit" : { "state" : "translated", "value" : "%lld min rimanenti" } },
-        "ja" : { "stringUnit" : { "state" : "translated", "value" : "残り%lld分" } },
-        "ko" : { "stringUnit" : { "state" : "translated", "value" : "%lld분 남음" } },
-        "pt" : { "stringUnit" : { "state" : "translated", "value" : "%lld min restantes" } },
-        "ru" : { "stringUnit" : { "state" : "translated", "value" : "Осталось %lld мин" } },
-        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "剩余 %lld 分钟" } }
-      }
-    },
-    "Fin du chapitre" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "ar" : { "stringUnit" : { "state" : "translated", "value" : "نهاية الفصل" } },
-        "de" : { "stringUnit" : { "state" : "translated", "value" : "Kapitelende" } },
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "End of chapter" } },
-        "es" : { "stringUnit" : { "state" : "translated", "value" : "Final del capítulo" } },
-        "it" : { "stringUnit" : { "state" : "translated", "value" : "Fine del capitolo" } },
-        "ja" : { "stringUnit" : { "state" : "translated", "value" : "章の終わり" } },
-        "ko" : { "stringUnit" : { "state" : "translated", "value" : "챕터 끝" } },
-        "pt" : { "stringUnit" : { "state" : "translated", "value" : "Fim do capítulo" } },
-        "ru" : { "stringUnit" : { "state" : "translated", "value" : "Конец главы" } },
-        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "本章结束" } }
-      }
-    },
-    "Arrêt à la fin du chapitre" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "ar" : { "stringUnit" : { "state" : "translated", "value" : "التوقف عند نهاية الفصل" } },
-        "de" : { "stringUnit" : { "state" : "translated", "value" : "Stopp am Kapitelende" } },
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Stop at end of chapter" } },
-        "es" : { "stringUnit" : { "state" : "translated", "value" : "Parar al final del capítulo" } },
-        "it" : { "stringUnit" : { "state" : "translated", "value" : "Arresto a fine capitolo" } },
-        "ja" : { "stringUnit" : { "state" : "translated", "value" : "章の終わりで停止" } },
-        "ko" : { "stringUnit" : { "state" : "translated", "value" : "챕터 끝에서 정지" } },
-        "pt" : { "stringUnit" : { "state" : "translated", "value" : "Parar no fim do capítulo" } },
-        "ru" : { "stringUnit" : { "state" : "translated", "value" : "Остановить в конце главы" } },
-        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "在本章结束时停止" } }
-      }
-    },
-    "Choisir un chapitre" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "ar" : { "stringUnit" : { "state" : "translated", "value" : "اختيار فصل" } },
-        "de" : { "stringUnit" : { "state" : "translated", "value" : "Kapitel auswählen" } },
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Choose a chapter" } },
-        "es" : { "stringUnit" : { "state" : "translated", "value" : "Elegir un capítulo" } },
-        "it" : { "stringUnit" : { "state" : "translated", "value" : "Scegli un capitolo" } },
-        "ja" : { "stringUnit" : { "state" : "translated", "value" : "章を選択" } },
-        "ko" : { "stringUnit" : { "state" : "translated", "value" : "챕터 선택" } },
-        "pt" : { "stringUnit" : { "state" : "translated", "value" : "Escolher um capítulo" } },
-        "ru" : { "stringUnit" : { "state" : "translated", "value" : "Выбрать главу" } },
-        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "选择章节" } }
+        "ar" : { "stringUnit" : { "state" : "translated", "value" : "إنشاء مفتاح API أو إدارته" } },
+        "de" : { "stringUnit" : { "state" : "translated", "value" : "API-Schlüssel erstellen oder verwalten" } },
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Create or manage my API key" } },
+        "es" : { "stringUnit" : { "state" : "translated", "value" : "Crear o gestionar mi clave API" } },
+        "it" : { "stringUnit" : { "state" : "translated", "value" : "Crea o gestisci la mia chiave API" } },
+        "ja" : { "stringUnit" : { "state" : "translated", "value" : "APIキーを作成または管理" } },
+        "ko" : { "stringUnit" : { "state" : "translated", "value" : "API 키 만들기 또는 관리" } },
+        "pt" : { "stringUnit" : { "state" : "translated", "value" : "Criar ou gerir a minha chave API" } },
+        "ru" : { "stringUnit" : { "state" : "translated", "value" : "Создать или настроить ключ API" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "创建或管理我的 API 密钥" } }
       }
     }
   },

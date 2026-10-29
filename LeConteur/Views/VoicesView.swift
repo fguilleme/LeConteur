@@ -56,9 +56,12 @@ struct VoicesView: View {
 
                     if VoiceFeatures.qwenEnabled { QwenVoiceCard() }
 
+                    OnlineVoiceCard(provider: .elevenLabs)
+                    OnlineVoiceCard(provider: .fishAudio)
+
                     VStack(alignment: .leading, spacing: 12) {
                         Label("Votre bibliothèque vous appartient", systemImage: "lock.shield").font(.subheadline.weight(.semibold))
-                        Text("Aucun compte, aucune publicité, aucun document envoyé à un serveur. Les livres et leurs traductions sont stockés localement et exclus de la sauvegarde iCloud de l’app.")
+                        Text("Aucun compte Le Conteur et aucune publicité. Les livres et leurs traductions restent stockés localement. Si vous choisissez une voix en ligne, les passages lus sont envoyés uniquement au fournisseur configuré.")
                             .font(.caption).foregroundStyle(ConteurTheme.muted)
                         Button("Crédits et composants libres") { showLicenses = true }.font(.caption)
                     }.padding(.vertical, 8)

@@ -424,13 +424,15 @@ enum VoiceFeatures {
 }
 
 enum VoiceEngine: String, CaseIterable, Identifiable {
-    case system, supertonic, qwen
+    case system, supertonic, qwen, elevenLabs, fishAudio
     var id: String { rawValue }
     var name: String {
         switch self {
         case .system: String(localized: "Voix iPhone")
         case .supertonic: String(localized: "Supertonic · Temps réel")
         case .qwen: String(localized: "Qwen · Expressif")
+        case .elevenLabs: String(localized: "ElevenLabs · En ligne")
+        case .fishAudio: String(localized: "Fish Audio · En ligne")
         }
     }
 }
@@ -443,6 +445,10 @@ final class ReaderSettings {
     var qwenSpeaker: QwenSpeaker { didSet { defaults.set(qwenSpeaker.rawValue, forKey: "voice.qwenSpeaker") } }
     var qwenBuffer: QwenBufferPreset { didSet { defaults.set(qwenBuffer.rawValue, forKey: "voice.qwenBuffer") } }
     var supertonicVoice: SupertonicVoice { didSet { defaults.set(supertonicVoice.rawValue, forKey: "voice.supertonicVoice") } }
+    var elevenLabsVoiceID: String { didSet { defaults.set(elevenLabsVoiceID, forKey: "voice.elevenLabs.voiceID") } }
+    var elevenLabsVoiceName: String { didSet { defaults.set(elevenLabsVoiceName, forKey: "voice.elevenLabs.voiceName") } }
+    var fishAudioVoiceID: String { didSet { defaults.set(fishAudioVoiceID, forKey: "voice.fishAudio.voiceID") } }
+    var fishAudioVoiceName: String { didSet { defaults.set(fishAudioVoiceName, forKey: "voice.fishAudio.voiceName") } }
     private(set) var systemVoiceIDs: [String: String] {
         didSet { defaults.set(systemVoiceIDs, forKey: "voice.identifiersByLanguage") }
     }
@@ -458,6 +464,31 @@ final class ReaderSettings {
         let key = SystemVoiceSelection.language(language)
         if identifier.isEmpty { systemVoiceIDs.removeValue(forKey: key) }
         else { systemVoiceIDs[key] = identifier }
+    }
+
+    func onlineVoiceID(for provider: OnlineVoiceProvider) -> String {
+        switch provider {
+        case .elevenLabs: elevenLabsVoiceID
+        case .fishAudio: fishAudioVoiceID
+        }
+    }
+
+    func onlineVoiceName(for provider: OnlineVoiceProvider) -> String {
+        switch provider {
+        case .elevenLabs: elevenLabsVoiceName
+        case .fishAudio: fishAudioVoiceName
+        }
+    }
+
+    func selectOnlineVoice(_ voice: OnlineVoice) {
+        switch voice.provider {
+        case .elevenLabs:
+            elevenLabsVoiceID = voice.id
+            elevenLabsVoiceName = voice.name
+        case .fishAudio:
+            fishAudioVoiceID = voice.id
+            fishAudioVoiceName = voice.name
+        }
     }
 
     init(defaults: UserDefaults = .standard,
@@ -487,6 +518,10 @@ final class ReaderSettings {
         qwenSpeaker = QwenSpeaker(rawValue: defaults.string(forKey: "voice.qwenSpeaker") ?? "") ?? .ryan
         qwenBuffer = QwenBufferPreset(rawValue: defaults.string(forKey: "voice.qwenBuffer") ?? "") ?? .automatic
         supertonicVoice = SupertonicVoice(rawValue: defaults.string(forKey: "voice.supertonicVoice") ?? "") ?? .female
+        elevenLabsVoiceID = defaults.string(forKey: "voice.elevenLabs.voiceID") ?? ""
+        elevenLabsVoiceName = defaults.string(forKey: "voice.elevenLabs.voiceName") ?? ""
+        fishAudioVoiceID = defaults.string(forKey: "voice.fishAudio.voiceID") ?? ""
+        fishAudioVoiceName = defaults.string(forKey: "voice.fishAudio.voiceName") ?? ""
         if let saved = defaults.dictionary(forKey: "voice.identifiersByLanguage") as? [String: String] {
             systemVoiceIDs = saved
         } else {

@@ -146,6 +146,8 @@ struct RootView: View {
         .onChange(of: settings.qwenStyle) { playback.settingsChanged() }
         .onChange(of: settings.qwenSpeaker) { if playback.effectiveEngine == .qwen { playback.settingsChanged() } }
         .onChange(of: settings.supertonicVoice) { if playback.effectiveEngine == .supertonic { playback.settingsChanged() } }
+        .onChange(of: settings.elevenLabsVoiceID) { if playback.effectiveEngine == .elevenLabs { playback.settingsChanged() } }
+        .onChange(of: settings.fishAudioVoiceID) { if playback.effectiveEngine == .fishAudio { playback.settingsChanged() } }
         .onChange(of: settings.systemVoiceIDs) { old, new in
             let language = SystemVoiceSelection.language(playback.document?.languageCode ?? TranslationCoordinator.phoneLanguage)
             if old[language] != new[language], playback.effectiveEngine == .system { playback.settingsChanged() }
