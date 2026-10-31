@@ -150,11 +150,22 @@ enum DocumentImporter {
             if verticalDistance > 0.015 { return lhs.boundingBox.maxY > rhs.boundingBox.maxY }
             return lhs.boundingBox.minX < rhs.boundingBox.minX
         }
-        let lines = observations.compactMap { observation -> (text: String, box: CGRect)? in
+        var lines = observations.compactMap { observation -> (text: String, box: CGRect)? in
             guard let text = observation.topCandidates(1).first?.string
                 .trimmingCharacters(in: .whitespacesAndNewlines), !text.isEmpty else { return nil }
             return (text, observation.boundingBox)
         }
+        // Running heads commonly share their row with an Arabic or Roman page
+        // number. Remove that complete row, but retain genuine chapter headings.
+        if let first = lines.first, first.box.maxY > 0.86 {
+            let rowCount = lines.prefix { abs($0.box.maxY - first.box.maxY) < 0.025 }.count
+            let rowText = lines.prefix(rowCount).map(\.text).joined(separator: " ")
+            if !rowText.localizedCaseInsensitiveContains("chapter"), containsPageNumber(in: rowText) {
+                lines.removeFirst(rowCount)
+            }
+        }
+        // A lone number at the bottom is a folio, not book content.
+        lines.removeAll { $0.box.maxY < 0.08 && isOnlyPageNumber($0.text) }
         guard !lines.isEmpty else { return "" }
 
         // Vision returns positioned lines rather than paragraphs. Reconstruct the
@@ -162,13 +173,29 @@ enum DocumentImporter {
         // join ordinary wrapped lines so the reader does not pause at each scan line.
         let heights = lines.map(\.box.height).sorted()
         let typicalHeight = heights[heights.count / 2]
+        let footnoteStart = lines.indices.first { index in
+            guard index > lines.startIndex else { return false }
+            let line = lines[index]
+            let previous = lines[lines.index(before: index)]
+            return line.box.maxY < 0.3
+                && line.box.height < typicalHeight * 0.85
+                && previous.box.minY - line.box.maxY > typicalHeight * 0.5
+        }
         var paragraphs: [String] = []
         var paragraph = lines[0].text
         var previous = lines[0]
-        for line in lines.dropFirst() {
+        for (index, line) in lines.enumerated().dropFirst() {
             let verticalGap = max(0, previous.box.minY - line.box.maxY)
             let isIndented = line.box.minX - previous.box.minX > max(0.02, typicalHeight * 1.25)
-            if verticalGap > typicalHeight * 0.8 || isIndented {
+            let isFootnote = footnoteStart.map { index >= $0 } ?? false
+            let startsNumberedFootnote = isFootnote && line.text.range(
+                of: #"^\s*\d{1,2}[.)]?\s+"#,
+                options: .regularExpression
+            ) != nil
+            let startsParagraph = isFootnote
+                ? index == footnoteStart || startsNumberedFootnote
+                : verticalGap > typicalHeight * 0.8 || isIndented
+            if startsParagraph {
                 paragraphs.append(paragraph)
                 paragraph = line.text
             } else if paragraph.last == "-", line.text.first?.isLowercase == true {
@@ -182,6 +209,16 @@ enum DocumentImporter {
         paragraphs.append(paragraph)
         return paragraphs.joined(separator: "\n\n")
             .trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
+    private static func containsPageNumber(in text: String) -> Bool {
+        text.range(of: #"(?:^|\s)(?:\d{2,4}|[ivxlcdm]{2,})(?:\s|$)"#,
+                   options: [.regularExpression, .caseInsensitive]) != nil
+    }
+
+    private static func isOnlyPageNumber(_ text: String) -> Bool {
+        text.range(of: #"^\s*(?:\d{1,4}|[ivxlcdm]{1,8})\s*$"#,
+                   options: [.regularExpression, .caseInsensitive]) != nil
     }
 
     private static func readDOCX(_ url: URL) throws -> (text: String, title: String, author: String, language: String) {

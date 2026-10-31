@@ -1916,6 +1916,14 @@ final class LeConteurTests: XCTestCase {
         let scannedPage = UIGraphicsImageRenderer(size: pageBounds.size, format: scanFormat).image { context in
             UIColor.white.setFill()
             context.fill(pageBounds)
+            "RUNNING TITLE".draw(at: CGPoint(x: 48, y: 24), withAttributes: [
+                .font: UIFont.systemFont(ofSize: 18, weight: .semibold),
+                .foregroundColor: UIColor.black
+            ])
+            "417".draw(at: CGPoint(x: 520, y: 24), withAttributes: [
+                .font: UIFont.systemFont(ofSize: 18),
+                .foregroundColor: UIColor.black
+            ])
             let attributes: [NSAttributedString.Key: Any] = [
                 .font: UIFont.systemFont(ofSize: 42, weight: .semibold),
                 .foregroundColor: UIColor.black
@@ -1923,6 +1931,10 @@ final class LeConteurTests: XCTestCase {
             "THE HIDDEN SCANNED CHAPTER".draw(at: CGPoint(x: 48, y: 120), withAttributes: attributes)
             "Magic traditions crossed the ocean.".draw(at: CGPoint(x: 48, y: 220), withAttributes: [
                 .font: UIFont.systemFont(ofSize: 32),
+                .foregroundColor: UIColor.black
+            ])
+            "1 A cited source continues here.".draw(at: CGPoint(x: 48, y: 650), withAttributes: [
+                .font: UIFont.systemFont(ofSize: 16),
                 .foregroundColor: UIColor.black
             ])
         }
@@ -1940,6 +1952,8 @@ final class LeConteurTests: XCTestCase {
         let text = document.segments.joined(separator: " ")
         XCTAssertTrue(text.localizedCaseInsensitiveContains("hidden scanned"), text)
         XCTAssertTrue(text.localizedCaseInsensitiveContains("magic traditions crossed the ocean"), text)
+        XCTAssertTrue(text.localizedCaseInsensitiveContains("cited source continues here"), text)
+        XCTAssertFalse(text.localizedCaseInsensitiveContains("running title"), text)
         XCTAssertGreaterThanOrEqual(document.paragraphRanges.count, 3)
     }
 
