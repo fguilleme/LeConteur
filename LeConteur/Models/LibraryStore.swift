@@ -360,7 +360,37 @@ final class LibraryStore {
             guard save() else { documents = previous; return nil }
             return documents[index]
         }
+        if document.source == "PDF", let index = documents.firstIndex(where: {
+            $0.translationOf == nil && $0.source == "PDF"
+                && Self.importTitleKey($0.title) == Self.importTitleKey(document.title)
+        }) {
+            let snapshot = documents
+            let old = documents[index]
+            var refreshed = document
+            refreshed.id = old.id
+            refreshed.importedAt = old.importedAt
+            refreshed.isFinished = old.isFinished
+            refreshed.coverFileName = refreshed.coverFileName ?? old.coverFileName
+            let oldMaximum = max(old.segments.count - 1, 1)
+            let newMaximum = max(refreshed.segments.count - 1, 0)
+            func mappedPosition(_ position: Int) -> Int {
+                min(newMaximum, Int((Double(position) / Double(oldMaximum) * Double(newMaximum)).rounded()))
+            }
+            refreshed.position = mappedPosition(old.position)
+            refreshed.bookmarks = Set(old.bookmarks.map(mappedPosition))
+            refreshed.preferredReadingID = old.preferredReadingID == old.id ? old.id : nil
+            documents[index] = refreshed
+            // A translation is indexed against the previous OCR segmentation;
+            // retaining it would mix stale passages with the repaired original.
+            documents.removeAll { $0.translationOf == old.id }
+            guard save() else { documents = snapshot; return nil }
+            return documents.first { $0.id == old.id }
+        }
         return add(document) ? document : nil
+    }
+
+    private static func importTitleKey(_ title: String) -> String {
+        title.lowercased().filter { $0.isLetter || $0.isNumber }
     }
 
     func updatePosition(id: UUID, position: Int, finished: Bool = false) {

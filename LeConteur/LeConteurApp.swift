@@ -73,6 +73,11 @@ private struct ReaderSelection: Identifiable {
     var keepsBackgroundTranslation = false
 }
 
+private struct DocumentImportProgress: Sendable {
+    let completed: Int
+    let total: Int
+}
+
 struct RootView: View {
     private enum Tab: Hashable { case library, voices }
 
@@ -86,6 +91,7 @@ struct RootView: View {
     @State private var showImporter = false
     @State private var showComposer = CommandLine.arguments.contains("--localization-compose")
     @State private var importing = false
+    @State private var importProgress: DocumentImportProgress?
     @State private var processingInbox = false
     @State private var error: String?
 
@@ -163,6 +169,13 @@ struct RootView: View {
                     VStack(spacing: 20) {
                         ProgressView()
                         Text("Ouverture du document…").font(.title3.bold())
+                        if let progress = importProgress, progress.total > 0 {
+                            ProgressView(value: Double(progress.completed), total: Double(progress.total))
+                                .frame(width: 220)
+                            Text("\(progress.completed) / \(progress.total)")
+                                .font(.caption.monospacedDigit())
+                                .foregroundStyle(.secondary)
+                        }
                     }
                     .padding(28).background(ConteurTheme.paper, in: RoundedRectangle(cornerRadius: 24))
                 }
@@ -217,9 +230,23 @@ struct RootView: View {
 
     private func importFile(_ url: URL) async {
         importing = true
-        defer { importing = false }
+        importProgress = nil
+        let (updates, continuation) = AsyncStream.makeStream(of: DocumentImportProgress.self)
+        let progressTask = Task { @MainActor in
+            for await update in updates { importProgress = update }
+        }
+        defer {
+            continuation.finish()
+            progressTask.cancel()
+            importProgress = nil
+            importing = false
+        }
         do {
-            let document = try await Task.detached(priority: .userInitiated) { try DocumentImporter.fromFile(url) }.value
+            let document = try await Task.detached(priority: .userInitiated) {
+                try DocumentImporter.fromFile(url) { completed, total in
+                    continuation.yield(DocumentImportProgress(completed: completed, total: total))
+                }
+            }.value
             if let saved = library.importDocument(document) { open(saved) }
         } catch { self.error = error.localizedDescription }
     }

@@ -1916,11 +1916,15 @@ final class LeConteurTests: XCTestCase {
         let scannedPage = UIGraphicsImageRenderer(size: pageBounds.size, format: scanFormat).image { context in
             UIColor.white.setFill()
             context.fill(pageBounds)
-            "RUNNING TITLE".draw(at: CGPoint(x: 48, y: 24), withAttributes: [
+            // Put this deliberately below the geometric top band so the textual
+            // running-header fallback is exercised as well.
+            "RUNNING TITLE".draw(at: CGPoint(x: 48, y: 115), withAttributes: [
                 .font: UIFont.systemFont(ofSize: 18, weight: .semibold),
                 .foregroundColor: UIColor.black
             ])
-            "417".draw(at: CGPoint(x: 520, y: 24), withAttributes: [
+            // Deliberately use another baseline: Vision frequently separates a
+            // running title and its folio even though they are visually one header.
+            "4I7".draw(at: CGPoint(x: 520, y: 130), withAttributes: [
                 .font: UIFont.systemFont(ofSize: 18),
                 .foregroundColor: UIColor.black
             ])
@@ -1928,13 +1932,23 @@ final class LeConteurTests: XCTestCase {
                 .font: UIFont.systemFont(ofSize: 42, weight: .semibold),
                 .foregroundColor: UIColor.black
             ]
-            "THE HIDDEN SCANNED CHAPTER".draw(at: CGPoint(x: 48, y: 120), withAttributes: attributes)
-            "Magic traditions crossed the ocean.".draw(at: CGPoint(x: 48, y: 220), withAttributes: [
+            "hidden scanned chapter".draw(at: CGPoint(x: 48, y: 210), withAttributes: attributes)
+            "Magic traditions crossed the ocean.".draw(at: CGPoint(x: 48, y: 310), withAttributes: [
+                .font: UIFont.systemFont(ofSize: 32),
+                .foregroundColor: UIColor.black
+            ])
+            "second line continues in order,".draw(at: CGPoint(x: 48, y: 348), withAttributes: [
+                .font: UIFont.systemFont(ofSize: 32),
+                .foregroundColor: UIColor.black
+            ])
+            "third line finishes the paragraph.".draw(at: CGPoint(x: 48, y: 386), withAttributes: [
                 .font: UIFont.systemFont(ofSize: 32),
                 .foregroundColor: UIColor.black
             ])
             "1 A cited source continues here.".draw(at: CGPoint(x: 48, y: 650), withAttributes: [
-                .font: UIFont.systemFont(ofSize: 16),
+                // Some scans make footnotes almost as large as the body. Their
+                // numbered marker and separation must still keep them out.
+                .font: UIFont.systemFont(ofSize: 30),
                 .foregroundColor: UIColor.black
             ])
         }
@@ -1952,9 +1966,14 @@ final class LeConteurTests: XCTestCase {
         let text = document.segments.joined(separator: " ")
         XCTAssertTrue(text.localizedCaseInsensitiveContains("hidden scanned"), text)
         XCTAssertTrue(text.localizedCaseInsensitiveContains("magic traditions crossed the ocean"), text)
-        XCTAssertTrue(text.localizedCaseInsensitiveContains("cited source continues here"), text)
+        XCTAssertFalse(text.localizedCaseInsensitiveContains("cited source continues here"), text)
         XCTAssertFalse(text.localizedCaseInsensitiveContains("running title"), text)
-        XCTAssertGreaterThanOrEqual(document.paragraphRanges.count, 3)
+        let firstLine = try XCTUnwrap(text.range(of: "Magic traditions crossed the ocean", options: .caseInsensitive))
+        let secondLine = try XCTUnwrap(text.range(of: "second line continues in order", options: .caseInsensitive))
+        let thirdLine = try XCTUnwrap(text.range(of: "third line finishes the paragraph", options: .caseInsensitive))
+        XCTAssertLessThan(firstLine.lowerBound, secondLine.lowerBound)
+        XCTAssertLessThan(secondLine.lowerBound, thirdLine.lowerBound)
+        XCTAssertGreaterThanOrEqual(document.paragraphRanges.count, 2)
     }
 
     func testEPUBUsesSpineOrderAndPreservesParagraphs() throws {
@@ -2165,6 +2184,40 @@ final class LeConteurTests: XCTestCase {
         XCTAssertEqual(reopened.document(old.id)?.coverFileName, imported.coverFileName)
         XCTAssertEqual(reopened.document(translated.id)?.coverFileName, imported.coverFileName)
         XCTAssertEqual(work.draft(original: imported, language: "es").coverFileName, imported.coverFileName)
+    }
+
+    @MainActor func testReimportingPDFReplacesStaleOCRAndTranslation() throws {
+        let (library, _) = translationContext()
+        var old = try DocumentImporter.fromText(
+            "Ancien texte mal reconnu.\n\nDeuxième passage.",
+            title: "Merging_Magical_Traditions",
+            source: "PDF"
+        )
+        old.position = 1
+        old.bookmarks = [1]
+        XCTAssertTrue(library.add(old))
+        let work = TranslationWork(document: old, source: "en", target: "fr")
+        let translated = try work.document(
+            from: ["Ancien texte traduit.", "Deuxième passage traduit."],
+            original: old,
+            language: "fr"
+        )
+        XCTAssertTrue(library.add(translated))
+
+        var repaired = try DocumentImporter.fromText(
+            "Texte OCR réparé. Première partie.\n\nLa suite est maintenant complète.\n\nDernier passage.",
+            title: "Merging Magical Traditions",
+            source: "PDF"
+        )
+        repaired.id = UUID()
+        let refreshed = try XCTUnwrap(library.importDocument(repaired))
+
+        XCTAssertEqual(refreshed.id, old.id)
+        XCTAssertTrue(refreshed.segments.joined(separator: " ").contains("maintenant complète"))
+        XCTAssertFalse(library.documents.contains { $0.id == translated.id })
+        XCTAssertEqual(library.documents.filter { $0.source == "PDF" }.count, 1)
+        XCTAssertGreaterThan(refreshed.position, 0)
+        XCTAssertFalse(refreshed.bookmarks.isEmpty)
     }
 
     func testTextImportRejectsEmptyAndOversizedText() {

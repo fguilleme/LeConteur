@@ -20,6 +20,8 @@ enum ImportFailure: LocalizedError {
 }
 
 enum DocumentImporter {
+    typealias ProgressHandler = @Sendable (_ completedPages: Int, _ totalPages: Int) -> Void
+
     static func fromText(_ text: String, title: String, source: String = String(localized: "TEXTE"), author: String = String(localized: "Texte personnel")) throws -> ReadingDocument {
         guard text.count <= 2_000_000 else { throw ImportFailure.tooLarge }
         let normalizedText = ChapterTitles.normalizingHeadings(in: text)
@@ -43,24 +45,27 @@ enum DocumentImporter {
         return document
     }
 
-    static func fromFile(_ url: URL, coverDirectory: URL = BookCoverStore.directory) throws -> ReadingDocument {
+    static func fromFile(_ url: URL, coverDirectory: URL = BookCoverStore.directory,
+                         progress: ProgressHandler? = nil) throws -> ReadingDocument {
         let access = url.startAccessingSecurityScopedResource()
         defer { if access { url.stopAccessingSecurityScopedResource() } }
         // Coordinate with Files providers so cloud-backed selections finish downloading first.
         var coordinationError: NSError?
         var result: Result<ReadingDocument, Error>?
         NSFileCoordinator().coordinate(readingItemAt: url, options: [], error: &coordinationError) { localURL in
-            result = Result { try readFile(localURL, coverDirectory: coverDirectory) }
+            result = Result { try readFile(localURL, coverDirectory: coverDirectory, progress: progress) }
         }
         if let coordinationError { throw coordinationError }
         guard let result else { throw ImportFailure.empty }
         return try result.get()
     }
 
-    private static func readFile(_ url: URL, coverDirectory: URL) throws -> ReadingDocument {
+    private static func readFile(_ url: URL, coverDirectory: URL,
+                                 progress: ProgressHandler?) throws -> ReadingDocument {
         let size = try url.resourceValues(forKeys: [.fileSizeKey]).fileSize ?? 0
         guard size <= 50_000_000 else { throw ImportFailure.tooLarge }
         var title = url.deletingPathExtension().lastPathComponent
+            .replacingOccurrences(of: "_", with: " ")
         var author = String(localized: "Document importé")
         var declaredLanguage: String?
         var coverData: Data?
@@ -72,27 +77,32 @@ enum DocumentImporter {
             guard !pdf.isLocked else { throw ImportFailure.lockedPDF }
             var pages: [String] = []
             var count = 0
+            progress?(0, pdf.pageCount)
             for index in 0..<pdf.pageCount {
-                guard let pdfPage = pdf.page(at: index) else { continue }
-                let embeddedText = pdfPage.string?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
-                let page: String
-                if meaningfulCharacterCount(in: embeddedText) >= 40 {
-                    page = embeddedText
-                } else {
+                let recognized: RecognizedPDFPage = autoreleasepool {
+                    guard let pdfPage = pdf.page(at: index) else { return .empty }
+                    let embeddedText = pdfPage.string?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+                    if meaningfulCharacterCount(in: embeddedText) >= 40 {
+                        return RecognizedPDFPage(body: embeddedText, footnotes: [])
+                    }
                     // A number of scanned PDFs contain a searchable cover or title
                     // followed by image-only pages. PDFKit then returns just enough
                     // text for the import to look successful, while silently losing
                     // the actual book. OCR only sparse pages so ordinary PDFs retain
                     // their original, faster and more accurate text layer.
-                    let recognized = (try? recognizeText(in: pdfPage)) ?? ""
-                    page = meaningfulCharacterCount(in: recognized) > meaningfulCharacterCount(in: embeddedText)
-                        ? recognized : embeddedText
+                    let scanned = (try? recognizeText(in: pdfPage)) ?? .empty
+                    return meaningfulCharacterCount(in: scanned.body) > meaningfulCharacterCount(in: embeddedText)
+                        ? scanned : RecognizedPDFPage(body: embeddedText, footnotes: [])
                 }
-                count += page.count
+                count += recognized.body.count
                 guard count <= 2_000_000 else { throw ImportFailure.tooLarge }
-                pages.append(page)
+                pages.append(recognized.body)
+                progress?(index + 1, pdf.pageCount)
             }
-            text = pages.joined(separator: "\n\n")
+            // Notes de bas de page are useful on the printed page, but become a
+            // long interruption in an audiobook. OCR separates them from the
+            // page body, so keep them out of the narrated document entirely.
+            text = joinedPDFPages(pages)
             if let name = pdf.documentAttributes?[PDFDocumentAttribute.authorAttribute] as? String { author = name }
         case "epub":
             let book = try readEPUB(url)
@@ -129,15 +139,44 @@ enum DocumentImporter {
         }
     }
 
-    private static func recognizeText(in page: PDFPage) throws -> String {
+    private struct OCRLine {
+        let text: String
+        let box: CGRect
+    }
+
+    private struct RecognizedPDFPage {
+        let body: String
+        let footnotes: [String]
+        static let empty = RecognizedPDFPage(body: "", footnotes: [])
+    }
+
+    private static func joinedPDFPages(_ pages: [String]) -> String {
+        var result = ""
+        for rawPage in pages {
+            let page = rawPage.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !page.isEmpty else { continue }
+            guard !result.isEmpty else { result = page; continue }
+            if let first = page.first, first.isLowercase,
+               let last = result.last, !".!?…".contains(last) {
+                if last == "-" { result.removeLast() }
+                else { result += " " }
+                result += page
+            } else {
+                result += "\n\n" + page
+            }
+        }
+        return result
+    }
+
+    private static func recognizeText(in page: PDFPage) throws -> RecognizedPDFPage {
         let bounds = page.bounds(for: .mediaBox)
-        guard bounds.width > 0, bounds.height > 0 else { return "" }
+        guard bounds.width > 0, bounds.height > 0 else { return .empty }
         let maximumDimension: CGFloat = 2_400
         let scale = min(3, maximumDimension / max(bounds.width, bounds.height))
         let target = CGSize(width: max(1, (bounds.width * scale).rounded(.up)),
                             height: max(1, (bounds.height * scale).rounded(.up)))
         let image = page.thumbnail(of: target, for: .mediaBox)
-        guard let cgImage = image.cgImage else { return "" }
+        guard let cgImage = image.cgImage else { return .empty }
 
         let request = VNRecognizeTextRequest()
         request.recognitionLevel = .accurate
@@ -145,55 +184,122 @@ enum DocumentImporter {
         request.automaticallyDetectsLanguage = true
         let handler = VNImageRequestHandler(cgImage: cgImage, orientation: .up)
         try handler.perform([request])
-        let observations = (request.results ?? []).sorted { lhs, rhs in
-            let verticalDistance = abs(lhs.boundingBox.maxY - rhs.boundingBox.maxY)
-            if verticalDistance > 0.015 { return lhs.boundingBox.maxY > rhs.boundingBox.maxY }
-            return lhs.boundingBox.minX < rhs.boundingBox.minX
-        }
-        var lines = observations.compactMap { observation -> (text: String, box: CGRect)? in
+        var lines = (request.results ?? []).compactMap { observation -> OCRLine? in
             guard let text = observation.topCandidates(1).first?.string
                 .trimmingCharacters(in: .whitespacesAndNewlines), !text.isEmpty else { return nil }
-            return (text, observation.boundingBox)
+            return OCRLine(text: text, box: observation.boundingBox)
         }
-        // Running heads commonly share their row with an Arabic or Roman page
-        // number. Remove that complete row, but retain genuine chapter headings.
-        if let first = lines.first, first.box.maxY > 0.86 {
-            let rowCount = lines.prefix { abs($0.box.maxY - first.box.maxY) < 0.025 }.count
-            let rowText = lines.prefix(rowCount).map(\.text).joined(separator: " ")
-            if !rowText.localizedCaseInsensitiveContains("chapter"), containsPageNumber(in: rowText) {
-                lines.removeFirst(rowCount)
+        // A fuzzy comparator can be non-transitive and reorder neighbouring
+        // scan lines. Use a strict vertical order; x only breaks exact ties.
+        lines.sort {
+            if $0.box.midY == $1.box.midY { return $0.box.minX < $1.box.minX }
+            return $0.box.midY > $1.box.midY
+        }
+        // Running heads commonly share the top band with a page number, but
+        // Vision may return the title and number as blocks with different
+        // baselines or font heights. Inspect the whole band rather than a
+        // narrowly defined row. Keep genuine CHAPTER and 23.1-style headings.
+        let topBand = lines.filter { $0.box.maxY > 0.86 }
+        if !topBand.isEmpty {
+            let topText = topBand.map(\.text).joined(separator: " ")
+            let isChapterHeading = topText.localizedCaseInsensitiveContains("chapter")
+            let isNumberedSection = topText.range(
+                of: #"^\s*\d+(?:\.\d+)+\b"#,
+                options: .regularExpression
+            ) != nil
+            let hasFolio = containsPageNumber(in: topText)
+                || topBand.contains { containsLikelyOCRPageNumber(in: $0.text) }
+            if hasFolio && !isChapterHeading && !isNumberedSection {
+                lines.removeAll { $0.box.maxY > 0.86 }
             }
         }
         // A lone number at the bottom is a folio, not book content.
         lines.removeAll { $0.box.maxY < 0.08 && isOnlyPageNumber($0.text) }
-        guard !lines.isEmpty else { return "" }
+        guard !lines.isEmpty else { return .empty }
 
         // Vision returns positioned lines rather than paragraphs. Reconstruct the
         // latter from the larger vertical gaps and first-line indentation, then
         // join ordinary wrapped lines so the reader does not pause at each scan line.
-        let heights = lines.map(\.box.height).sorted()
+        var heights = lines.map(\.box.height).sorted()
+        lines = removingLeadingRunningHeaderLines(lines, typicalHeight: heights[heights.count / 2])
+        guard !lines.isEmpty else { return .empty }
+        heights = lines.map(\.box.height).sorted()
         let typicalHeight = heights[heights.count / 2]
         let footnoteStart = lines.indices.first { index in
             guard index > lines.startIndex else { return false }
             let line = lines[index]
             let previous = lines[lines.index(before: index)]
-            return line.box.maxY < 0.3
-                && line.box.height < typicalHeight * 0.85
+            let startsFootnote = line.text.range(
+                of: #"^\s*(?:\d{1,3}[.)]?|[•*])\s+"#,
+                options: .regularExpression
+            ) != nil
+            return line.box.maxY < 0.4
+                && startsFootnote
                 && previous.box.minY - line.box.maxY > typicalHeight * 0.5
         }
+        let split = footnoteStart ?? lines.endIndex
+        let body = removingLeadingRunningHeader(from:
+            paragraphs(from: Array(lines[..<split]), typicalHeight: typicalHeight, footnotes: false)
+        ).joined(separator: "\n\n")
+        let notes = split < lines.endIndex
+            ? paragraphs(from: Array(lines[split...]), typicalHeight: typicalHeight, footnotes: true)
+            : []
+        return RecognizedPDFPage(body: body, footnotes: notes)
+    }
+
+    private static func removingLeadingRunningHeader(from paragraphs: [String]) -> [String] {
+        guard paragraphs.count > 1 else { return paragraphs }
+        let candidate = paragraphs[0].trimmingCharacters(in: .whitespacesAndNewlines)
+        let following = paragraphs[1].trimmingCharacters(in: .whitespacesAndNewlines)
+        let uppercase = candidate.uppercased() == candidate
+        let words = candidate.split(whereSeparator: \.isWhitespace)
+        guard uppercase, words.count >= 2, candidate.count < 120,
+              following.first?.isLowercase == true, !isProtectedHeading(candidate) else { return paragraphs }
+        return Array(paragraphs.dropFirst())
+    }
+
+    private static func removingLeadingRunningHeaderLines(_ lines: [OCRLine],
+                                                          typicalHeight: CGFloat) -> [OCRLine] {
+        guard let first = lines.first, first.box.maxY > 0.78 else { return lines }
+        let candidates = lines.prefix(4)
+        guard let bodyIndex = candidates.firstIndex(where: { $0.text.first?.isLowercase == true }),
+              bodyIndex > 0 else { return lines }
+        let headerLines = lines[..<bodyIndex]
+        let header = headerLines.map(\.text).joined(separator: " ")
+        let gap = max(0, lines[bodyIndex - 1].box.minY - lines[bodyIndex].box.maxY)
+        guard header.uppercased() == header,
+              header.split(whereSeparator: \.isWhitespace).count >= 2,
+              header.count < 140,
+              gap > typicalHeight * 0.5,
+              !isProtectedHeading(header) else { return lines }
+        return Array(lines.dropFirst(bodyIndex))
+    }
+
+    private static func isProtectedHeading(_ text: String) -> Bool {
+        let normalized = text.uppercased()
+        return normalized.hasPrefix("CHAPTER ")
+            || normalized.hasPrefix("PART ")
+            || normalized == "CONTENTS"
+            || normalized.contains("TABLE OF CONTENTS")
+            || normalized == "FURTHER READING"
+            || text.range(of: #"^\s*\d+(?:\.\d+)+\b"#, options: .regularExpression) != nil
+    }
+
+    private static func paragraphs(from lines: [OCRLine], typicalHeight: CGFloat,
+                                   footnotes: Bool) -> [String] {
+        guard let first = lines.first else { return [] }
         var paragraphs: [String] = []
-        var paragraph = lines[0].text
-        var previous = lines[0]
-        for (index, line) in lines.enumerated().dropFirst() {
+        var paragraph = first.text
+        var previous = first
+        for line in lines.dropFirst() {
             let verticalGap = max(0, previous.box.minY - line.box.maxY)
             let isIndented = line.box.minX - previous.box.minX > max(0.02, typicalHeight * 1.25)
-            let isFootnote = footnoteStart.map { index >= $0 } ?? false
-            let startsNumberedFootnote = isFootnote && line.text.range(
+            let startsNumberedFootnote = footnotes && line.text.range(
                 of: #"^\s*\d{1,2}[.)]?\s+"#,
                 options: .regularExpression
             ) != nil
-            let startsParagraph = isFootnote
-                ? index == footnoteStart || startsNumberedFootnote
+            let startsParagraph = footnotes
+                ? startsNumberedFootnote
                 : verticalGap > typicalHeight * 0.8 || isIndented
             if startsParagraph {
                 paragraphs.append(paragraph)
@@ -207,8 +313,7 @@ enum DocumentImporter {
             previous = line
         }
         paragraphs.append(paragraph)
-        return paragraphs.joined(separator: "\n\n")
-            .trimmingCharacters(in: .whitespacesAndNewlines)
+        return paragraphs
     }
 
     private static func containsPageNumber(in text: String) -> Bool {
@@ -219,6 +324,13 @@ enum DocumentImporter {
     private static func isOnlyPageNumber(_ text: String) -> Bool {
         text.range(of: #"^\s*(?:\d{1,4}|[ivxlcdm]{1,8})\s*$"#,
                    options: [.regularExpression, .caseInsensitive]) != nil
+    }
+
+    private static func containsLikelyOCRPageNumber(in text: String) -> Bool {
+        text.split(whereSeparator: { $0.isWhitespace || $0.isPunctuation }).contains { token in
+            guard (2...4).contains(token.count), token.contains(where: \.isNumber) else { return false }
+            return token.allSatisfy { $0.isNumber || $0 == "I" || $0 == "l" || $0 == "|" }
+        }
     }
 
     private static func readDOCX(_ url: URL) throws -> (text: String, title: String, author: String, language: String) {
