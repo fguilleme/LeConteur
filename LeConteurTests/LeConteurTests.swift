@@ -1903,6 +1903,46 @@ final class LeConteurTests: XCTestCase {
         let ns = window.text as NSString
         for item in window.segments { XCTAssertEqual(ns.substring(with: item.range), document.segments[item.index]) }
     }
+
+    func testPDFUsesOCRForImageOnlyPagesAfterSearchableTitle() throws {
+        let root = URL.temporaryDirectory.appending(path: UUID().uuidString, directoryHint: .isDirectory)
+        try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: root) }
+        let url = root.appending(path: "Scanned chapter.pdf")
+        let pageBounds = CGRect(x: 0, y: 0, width: 612, height: 792)
+
+        let scanFormat = UIGraphicsImageRendererFormat()
+        scanFormat.scale = 2
+        let scannedPage = UIGraphicsImageRenderer(size: pageBounds.size, format: scanFormat).image { context in
+            UIColor.white.setFill()
+            context.fill(pageBounds)
+            let attributes: [NSAttributedString.Key: Any] = [
+                .font: UIFont.systemFont(ofSize: 42, weight: .semibold),
+                .foregroundColor: UIColor.black
+            ]
+            "THE HIDDEN SCANNED CHAPTER".draw(at: CGPoint(x: 48, y: 120), withAttributes: attributes)
+            "Magic traditions crossed the ocean.".draw(at: CGPoint(x: 48, y: 220), withAttributes: [
+                .font: UIFont.systemFont(ofSize: 32),
+                .foregroundColor: UIColor.black
+            ])
+        }
+
+        let renderer = UIGraphicsPDFRenderer(bounds: pageBounds)
+        try renderer.writePDF(to: url) { context in
+            context.beginPage()
+            "A searchable bibliographic title that is long enough to use the embedded PDF text layer."
+                .draw(at: CGPoint(x: 48, y: 90), withAttributes: [.font: UIFont.systemFont(ofSize: 18)])
+            context.beginPage()
+            scannedPage.draw(in: pageBounds)
+        }
+
+        let document = try DocumentImporter.fromFile(url)
+        let text = document.segments.joined(separator: " ")
+        XCTAssertTrue(text.localizedCaseInsensitiveContains("hidden scanned"), text)
+        XCTAssertTrue(text.localizedCaseInsensitiveContains("magic traditions crossed the ocean"), text)
+        XCTAssertGreaterThanOrEqual(document.paragraphRanges.count, 3)
+    }
+
     func testEPUBUsesSpineOrderAndPreservesParagraphs() throws {
         let url = try XCTUnwrap(Bundle(for: Self.self).url(forResource: "Fixtures", withExtension: nil))
             .appending(path: "Le-jardin-des-heures.epub")

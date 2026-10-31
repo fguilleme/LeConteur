@@ -3,6 +3,8 @@ import PDFKit
 import ZIPFoundation
 import NaturalLanguage
 import ImageIO
+import UIKit
+import Vision
 
 enum ImportFailure: LocalizedError {
     case empty, tooLarge, unsupported, invalidEPUB, lockedPDF
@@ -71,7 +73,21 @@ enum DocumentImporter {
             var pages: [String] = []
             var count = 0
             for index in 0..<pdf.pageCount {
-                let page = pdf.page(at: index)?.string ?? ""
+                guard let pdfPage = pdf.page(at: index) else { continue }
+                let embeddedText = pdfPage.string?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+                let page: String
+                if meaningfulCharacterCount(in: embeddedText) >= 40 {
+                    page = embeddedText
+                } else {
+                    // A number of scanned PDFs contain a searchable cover or title
+                    // followed by image-only pages. PDFKit then returns just enough
+                    // text for the import to look successful, while silently losing
+                    // the actual book. OCR only sparse pages so ordinary PDFs retain
+                    // their original, faster and more accurate text layer.
+                    let recognized = (try? recognizeText(in: pdfPage)) ?? ""
+                    page = meaningfulCharacterCount(in: recognized) > meaningfulCharacterCount(in: embeddedText)
+                        ? recognized : embeddedText
+                }
                 count += page.count
                 guard count <= 2_000_000 else { throw ImportFailure.tooLarge }
                 pages.append(page)
@@ -105,6 +121,67 @@ enum DocumentImporter {
         if let importedChapters, !importedChapters.isEmpty { document.chapters = importedChapters }
         if let coverData { document.coverFileName = try? BookCoverStore.save(coverData, directory: coverDirectory) }
         return document
+    }
+
+    private static func meaningfulCharacterCount(in text: String) -> Int {
+        text.unicodeScalars.reduce(into: 0) { count, scalar in
+            if CharacterSet.alphanumerics.contains(scalar) { count += 1 }
+        }
+    }
+
+    private static func recognizeText(in page: PDFPage) throws -> String {
+        let bounds = page.bounds(for: .mediaBox)
+        guard bounds.width > 0, bounds.height > 0 else { return "" }
+        let maximumDimension: CGFloat = 2_400
+        let scale = min(3, maximumDimension / max(bounds.width, bounds.height))
+        let target = CGSize(width: max(1, (bounds.width * scale).rounded(.up)),
+                            height: max(1, (bounds.height * scale).rounded(.up)))
+        let image = page.thumbnail(of: target, for: .mediaBox)
+        guard let cgImage = image.cgImage else { return "" }
+
+        let request = VNRecognizeTextRequest()
+        request.recognitionLevel = .accurate
+        request.usesLanguageCorrection = true
+        request.automaticallyDetectsLanguage = true
+        let handler = VNImageRequestHandler(cgImage: cgImage, orientation: .up)
+        try handler.perform([request])
+        let observations = (request.results ?? []).sorted { lhs, rhs in
+            let verticalDistance = abs(lhs.boundingBox.maxY - rhs.boundingBox.maxY)
+            if verticalDistance > 0.015 { return lhs.boundingBox.maxY > rhs.boundingBox.maxY }
+            return lhs.boundingBox.minX < rhs.boundingBox.minX
+        }
+        let lines = observations.compactMap { observation -> (text: String, box: CGRect)? in
+            guard let text = observation.topCandidates(1).first?.string
+                .trimmingCharacters(in: .whitespacesAndNewlines), !text.isEmpty else { return nil }
+            return (text, observation.boundingBox)
+        }
+        guard !lines.isEmpty else { return "" }
+
+        // Vision returns positioned lines rather than paragraphs. Reconstruct the
+        // latter from the larger vertical gaps and first-line indentation, then
+        // join ordinary wrapped lines so the reader does not pause at each scan line.
+        let heights = lines.map(\.box.height).sorted()
+        let typicalHeight = heights[heights.count / 2]
+        var paragraphs: [String] = []
+        var paragraph = lines[0].text
+        var previous = lines[0]
+        for line in lines.dropFirst() {
+            let verticalGap = max(0, previous.box.minY - line.box.maxY)
+            let isIndented = line.box.minX - previous.box.minX > max(0.02, typicalHeight * 1.25)
+            if verticalGap > typicalHeight * 0.8 || isIndented {
+                paragraphs.append(paragraph)
+                paragraph = line.text
+            } else if paragraph.last == "-", line.text.first?.isLowercase == true {
+                paragraph.removeLast()
+                paragraph += line.text
+            } else {
+                paragraph += " " + line.text
+            }
+            previous = line
+        }
+        paragraphs.append(paragraph)
+        return paragraphs.joined(separator: "\n\n")
+            .trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
     private static func readDOCX(_ url: URL) throws -> (text: String, title: String, author: String, language: String) {
