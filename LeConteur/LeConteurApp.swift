@@ -110,6 +110,7 @@ struct RootView: View {
             ReadingSessionView(documentID: selection.id,
                                automaticallyTranslate: selection.automaticallyTranslate,
                                usesBackgroundTranslationSession: selection.keepsBackgroundTranslation)
+                .presentationSizing(.page)
         }
         .translationTask(reader == nil || reader?.keepsBackgroundTranslation == true ? translation.configuration : nil) { session in
             await Task(priority: .utility) { await translation.translate(using: session) }.value
