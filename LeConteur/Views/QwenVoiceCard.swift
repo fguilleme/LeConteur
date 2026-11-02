@@ -24,7 +24,7 @@ struct QwenVoiceCard: View {
             Text("Langues prises en charge : français, anglais, espagnol, allemand, italien, portugais, russe, japonais, coréen et chinois.")
                 .font(.caption).foregroundStyle(.secondary)
             Picker("Voix Qwen", selection: Binding(get: { settings.qwenSpeaker }, set: { playback.selectQwenSpeaker($0) })) {
-                ForEach(QwenSpeaker.allCases) { voice in Text(voice.name).tag(voice) }
+                ForEach(QwenSpeaker.prioritized()) { voice in Text(voice.name).tag(voice) }
             }.accessibilityIdentifier("qwen-speaker-picker")
             Text(settings.qwenSpeaker.description).font(.caption).foregroundStyle(ConteurTheme.muted)
             Text("La langue indiquée est celle d’origine de la voix. La lecture suit la langue du livre ; l’accent peut varier.")

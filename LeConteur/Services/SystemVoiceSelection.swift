@@ -1,9 +1,16 @@
 import AVFoundation
 
 enum SystemVoiceSelection {
+    static var deviceLanguage: String {
+        language(Locale.preferredLanguages.first ?? Locale.current.identifier)
+    }
+
     static func installedVoices() -> [AVSpeechSynthesisVoice] {
-        AVSpeechSynthesisVoice.speechVoices().sorted {
-            if $0.language.hasPrefix("fr") != $1.language.hasPrefix("fr") { return $0.language.hasPrefix("fr") }
+        let preferred = deviceLanguage
+        return AVSpeechSynthesisVoice.speechVoices().sorted {
+            let leftPreferred = language($0.language) == preferred
+            let rightPreferred = language($1.language) == preferred
+            if leftPreferred != rightPreferred { return leftPreferred }
             return ($0.language, $0.name) < ($1.language, $1.name)
         }
     }

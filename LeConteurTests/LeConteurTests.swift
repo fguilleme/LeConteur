@@ -1287,6 +1287,18 @@ final class LeConteurTests: XCTestCase {
         XCTAssertEqual(OnlineVoiceProvider.fishAudio.keyURL.host(), "fish.audio")
         XCTAssertTrue(OnlineVoiceProvider.elevenLabs.keyURL.path.contains("api-keys"))
         XCTAssertTrue(OnlineVoiceProvider.fishAudio.keyURL.path.contains("api-keys"))
+        XCTAssertEqual(OnlineTTSClient.fishAudioModel, "s2.1-pro-free")
+    }
+
+    func testVoiceListsPrioritizeTheIOSLanguage() {
+        let voices = [
+            OnlineVoice(id: "en", name: "English", details: "", languages: ["en-US"], provider: .fishAudio),
+            OnlineVoice(id: "fr", name: "Français", details: "", languages: ["fr"], provider: .fishAudio),
+            OnlineVoice(id: "ja", name: "日本語", details: "", languages: ["ja"], provider: .fishAudio)
+        ]
+        XCTAssertEqual(OnlineTTSClient.prioritized(voices, preferredLanguage: "fr-FR").map(\.id), ["fr", "en", "ja"])
+        XCTAssertEqual(QwenSpeaker.prioritized(preferredLanguage: "zh-Hans").first, .serena)
+        XCTAssertEqual(QwenSpeaker.prioritized(preferredLanguage: "ja-JP").first, .onoAnna)
     }
 
     @MainActor func testAppleFavoritesPersistIndependentlyForEachLanguage() {

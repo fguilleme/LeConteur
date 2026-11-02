@@ -139,13 +139,19 @@ private struct SystemVoicesList: View {
     @State private var search = ""
 
     private var languages: [String] {
-        Set(voices.map { SystemVoiceSelection.language($0.language) })
+        let preferred = SystemVoiceSelection.deviceLanguage
+        return Set(voices.map { SystemVoiceSelection.language($0.language) })
             .union(settings.systemVoiceIDs.keys)
             .filter { language in
                 search.isEmpty || Self.languageName(language).localizedCaseInsensitiveContains(search)
                     || voicesIn(language).contains { $0.name.localizedCaseInsensitiveContains(search) || $0.language.localizedCaseInsensitiveContains(search) }
             }
-            .sorted { Self.languageName($0).localizedStandardCompare(Self.languageName($1)) == .orderedAscending }
+            .sorted {
+                let leftPreferred = SystemVoiceSelection.language($0) == preferred
+                let rightPreferred = SystemVoiceSelection.language($1) == preferred
+                if leftPreferred != rightPreferred { return leftPreferred }
+                return Self.languageName($0).localizedStandardCompare(Self.languageName($1)) == .orderedAscending
+            }
     }
 
     static func languageName(_ language: String) -> String {

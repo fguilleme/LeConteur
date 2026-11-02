@@ -125,6 +125,7 @@ enum OnlineAPIKeyStore {
 
 actor OnlineTTSClient {
     static let shared = OnlineTTSClient()
+    static let fishAudioModel = "s2.1-pro-free"
     private let session: URLSession
 
     init(session: URLSession = .shared) {
@@ -134,9 +135,23 @@ actor OnlineTTSClient {
     func voices(for provider: OnlineVoiceProvider) async throws -> [OnlineVoice] {
         let key = try OnlineAPIKeyStore.load(provider)
         switch provider {
-        case .elevenLabs: return try await elevenLabsVoices(key: key)
-        case .fishAudio: return try await fishAudioVoices(key: key)
+        case .elevenLabs: return prioritize(try await elevenLabsVoices(key: key))
+        case .fishAudio: return prioritize(try await fishAudioVoices(key: key))
         }
+    }
+
+    static func prioritized(_ voices: [OnlineVoice], preferredLanguage: String) -> [OnlineVoice] {
+        let preferred = SystemVoiceSelection.language(preferredLanguage)
+        return voices.enumerated().sorted { left, right in
+            let leftPreferred = left.element.languages.contains {
+                SystemVoiceSelection.language($0) == preferred
+            }
+            let rightPreferred = right.element.languages.contains {
+                SystemVoiceSelection.language($0) == preferred
+            }
+            if leftPreferred != rightPreferred { return leftPreferred }
+            return left.offset < right.offset
+        }.map(\.element)
     }
 
     func synthesize(_ text: String, provider: OnlineVoiceProvider, voiceID: String) async throws -> QwenRenderedAudio {
@@ -198,19 +213,28 @@ actor OnlineTTSClient {
 
     private func fishAudioVoices(key: String) async throws -> [OnlineVoice] {
         // Personal voices first, followed by the most-used public voices. Fish
-        // Audio's public catalogue is unbounded, so the app keeps this picker
-        // responsive by loading a generous, useful first page.
+        // Audio's public catalogue is unbounded. Explicitly request a full page
+        // in the iPhone's language before the general catalogue so less common
+        // languages are not crowded out by the global popularity ranking.
+        let preferredLanguage = SystemVoiceSelection.deviceLanguage
         let personal = try await fishAudioVoicePage(key: key, personal: true, pageSize: 100)
+        let preferred = try await fishAudioVoicePage(
+            key: key, personal: false, pageSize: 100, language: preferredLanguage
+        )
         let popular = try await fishAudioVoicePage(key: key, personal: false, pageSize: 100)
-        return unique(personal + popular)
+        return unique(personal + preferred + popular)
     }
 
-    private func fishAudioVoicePage(key: String, personal: Bool, pageSize: Int) async throws -> [OnlineVoice] {
+    private func fishAudioVoicePage(key: String, personal: Bool, pageSize: Int,
+                                    language: String? = nil) async throws -> [OnlineVoice] {
         var components = URLComponents(string: "https://api.fish.audio/model")!
         components.queryItems = [URLQueryItem(name: "page_size", value: String(pageSize)),
                                  URLQueryItem(name: "page_number", value: "1"),
                                  URLQueryItem(name: "self", value: personal ? "true" : "false"),
                                  URLQueryItem(name: "sort_by", value: personal ? "created_at" : "task_count")]
+        if let language, !language.isEmpty {
+            components.queryItems?.append(URLQueryItem(name: "language", value: language))
+        }
         var request = URLRequest(url: components.url!)
         request.setValue("Bearer \(key)", forHTTPHeaderField: "Authorization")
         let (data, response) = try await session.data(for: request)
@@ -242,7 +266,7 @@ actor OnlineTTSClient {
         request.httpMethod = "POST"
         request.setValue("Bearer \(key)", forHTTPHeaderField: "Authorization")
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        request.setValue("s2.1-pro", forHTTPHeaderField: "model")
+        request.setValue(Self.fishAudioModel, forHTTPHeaderField: "model")
         request.httpBody = try JSONEncoder().encode(FishSpeechRequest(text: text, referenceID: voiceID))
         let (data, response) = try await session.data(for: request)
         try validate(response, data: data)
@@ -261,6 +285,10 @@ actor OnlineTTSClient {
     private func unique(_ voices: [OnlineVoice]) -> [OnlineVoice] {
         var ids = Set<String>()
         return voices.filter { ids.insert($0.id).inserted }
+    }
+
+    private func prioritize(_ voices: [OnlineVoice]) -> [OnlineVoice] {
+        Self.prioritized(voices, preferredLanguage: SystemVoiceSelection.deviceLanguage)
     }
 }
 

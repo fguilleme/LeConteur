@@ -17,6 +17,23 @@ enum QwenBufferPreset: String, CaseIterable, Identifiable, Sendable {
 enum QwenSpeaker: String, CaseIterable, Identifiable, Sendable {
     case ryan, aiden, serena, vivian, uncleFu = "uncle_fu", onoAnna = "ono_anna", sohee, dylan, eric
     var id: String { rawValue }
+    var languageCode: String {
+        switch self {
+        case .ryan, .aiden: "en"
+        case .serena, .vivian, .uncleFu, .dylan, .eric: "zh"
+        case .onoAnna: "ja"
+        case .sohee: "ko"
+        }
+    }
+    static func prioritized(preferredLanguage: String = SystemVoiceSelection.deviceLanguage) -> [Self] {
+        let preferred = SystemVoiceSelection.language(preferredLanguage)
+        return allCases.enumerated().sorted { left, right in
+            let leftPreferred = left.element.languageCode == preferred
+            let rightPreferred = right.element.languageCode == preferred
+            if leftPreferred != rightPreferred { return leftPreferred }
+            return left.offset < right.offset
+        }.map(\.element)
+    }
     var name: String {
         switch self {
         case .ryan: "Ryan"
