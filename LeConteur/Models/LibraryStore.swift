@@ -456,6 +456,12 @@ enum VoiceFeatures {
 enum VoiceEngine: String, CaseIterable, Identifiable {
     case system, supertonic, qwen, elevenLabs, fishAudio
     var id: String { rawValue }
+    var requiresTranslationPause: Bool {
+        switch self {
+        case .qwen, .supertonic: true
+        case .system, .elevenLabs, .fishAudio: false
+        }
+    }
     var name: String {
         switch self {
         case .system: String(localized: "Voix iPhone")

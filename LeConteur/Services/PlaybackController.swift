@@ -77,7 +77,8 @@ final class PlaybackController: NSObject {
     var qwenCompletedAudioSeconds: Double { qwenPlayer?.completedAudioSeconds ?? 0 }
     var qwenBufferedPlaybackSeconds: Double { qwenPlayer?.bufferedPlaybackSeconds ?? 0 }
     var isUsingAppleForTranslation: Bool {
-        !isPreview && settings.engine != .system && translationIsActive && document?.isTranslationPending == true
+        !isPreview && settings.engine.requiresTranslationPause
+            && translationIsActive && document?.isTranslationPending == true
     }
     var voiceFallbackMessage: String? {
         if isUsingAppleForTranslation {
@@ -100,8 +101,8 @@ final class PlaybackController: NSObject {
     }
     var effectiveEngine: VoiceEngine {
         if isPreview { return previewEngine ?? .qwen }
-        // Only active translation needs the temporary Apple voice. An unfinished
-        // edition on disk must not override the reader's saved Qwen preference.
+        // Local neural engines compete with Translation for the device's compute
+        // budget. Online engines can keep reading while Translation runs.
         if isUsingAppleForTranslation { return .system }
         switch settings.engine {
         case .qwen:
@@ -420,7 +421,7 @@ final class PlaybackController: NSObject {
         requestedEngine = engine
         // An explicit Qwen selection must take effect even if it was already
         // checked while a temporary Apple voice was reading the translation.
-        if engine != .system { suspendTranslation?() }
+        if engine.requiresTranslationPause { suspendTranslation?() }
         settingsChanged()
     }
 
@@ -442,7 +443,7 @@ final class PlaybackController: NSObject {
     private func refreshRequestedEngine() {
         guard requestedEngine != settings.engine else { return }
         requestedEngine = settings.engine
-        if settings.engine != .system { suspendTranslation?() }
+        if settings.engine.requiresTranslationPause { suspendTranslation?() }
     }
 
     func translationActivityChanged(_ active: Bool) {
@@ -454,8 +455,9 @@ final class PlaybackController: NSObject {
     }
 
     func prepareForTranslation() async {
-        let session = qwenSessionID
-        if qwenPlayer != nil { stopAudio() }
+        let stopLocalPlayback = effectiveEngine.requiresTranslationPause
+        let session = stopLocalPlayback ? qwenSessionID : nil
+        if stopLocalPlayback && qwenPlayer != nil { stopAudio() }
         if let session { await QwenVoiceRenderer.shared.endSession(session) }
         await QwenVoiceRenderer.shared.unload()
         await SupertonicVoiceRenderer.shared.unload()

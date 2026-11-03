@@ -1288,6 +1288,28 @@ final class LeConteurTests: XCTestCase {
         XCTAssertTrue(OnlineVoiceProvider.elevenLabs.keyURL.path.contains("api-keys"))
         XCTAssertTrue(OnlineVoiceProvider.fishAudio.keyURL.path.contains("api-keys"))
         XCTAssertEqual(OnlineTTSClient.fishAudioModel, "s2.1-pro-free")
+        XCTAssertFalse(VoiceEngine.elevenLabs.requiresTranslationPause)
+        XCTAssertFalse(VoiceEngine.fishAudio.requiresTranslationPause)
+        XCTAssertTrue(VoiceEngine.qwen.requiresTranslationPause)
+        XCTAssertTrue(VoiceEngine.supertonic.requiresTranslationPause)
+    }
+
+    @MainActor func testSelectingAnOnlineVoiceDoesNotSuspendTranslation() throws {
+        let (library, _) = translationContext()
+        let suite = "online-translation-\(UUID())"
+        let defaults = UserDefaults(suiteName: suite)!
+        defer { defaults.removePersistentDomain(forName: suite) }
+        let settings = ReaderSettings(defaults: defaults)
+        let playback = PlaybackController(library: library, settings: settings)
+        var suspensions = 0
+        playback.suspendTranslation = { suspensions += 1 }
+
+        playback.selectEngine(.elevenLabs)
+        playback.selectEngine(.fishAudio)
+        XCTAssertEqual(suspensions, 0)
+
+        playback.selectEngine(.supertonic)
+        XCTAssertEqual(suspensions, 1)
     }
 
     func testVoiceListsPrioritizeTheIOSLanguage() {
