@@ -90,6 +90,7 @@ struct RootView: View {
     @State private var selectedTab: Tab = CommandLine.arguments.contains("--localization-voices") ? .voices : .library
     @State private var showImporter = false
     @State private var showComposer = CommandLine.arguments.contains("--localization-compose")
+    @State private var showWebReader = CommandLine.arguments.contains("--web-reader-validation")
     @State private var importing = false
     @State private var importProgress: DocumentImportProgress?
     @State private var processingInbox = false
@@ -97,7 +98,10 @@ struct RootView: View {
 
     var body: some View {
         TabView(selection: $selectedTab) {
-            LibraryView(open: open, importFile: { showImporter = true }, compose: { showComposer = true })
+            LibraryView(open: open,
+                        importFile: { showImporter = true },
+                        compose: { showComposer = true },
+                        openWeb: { showWebReader = true })
                 .safeAreaInset(edge: .bottom, spacing: 0) { miniPlayer }
                 .tabItem { Label("Bibliothèque", systemImage: "books.vertical") }
                 .tag(Tab.library)
@@ -116,6 +120,12 @@ struct RootView: View {
             await Task(priority: .utility) { await translation.translate(using: session) }.value
         }
         .sheet(isPresented: $showComposer) { ComposeView { document in if library.add(document) { open(document) } } }
+        .sheet(isPresented: $showWebReader) {
+            WebReadingView { document in
+                showWebReader = false
+                if let saved = library.importDocument(document) { open(saved) }
+            }
+        }
         .fileImporter(isPresented: $showImporter, allowedContentTypes: [
             UTType("org.idpf.epub-container") ?? .data,
             .pdf,

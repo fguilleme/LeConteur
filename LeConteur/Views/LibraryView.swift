@@ -1,5 +1,7 @@
 import SwiftUI
 import UIKit
+import Vision
+import WebKit
 
 struct LibraryView: View {
     @Environment(LibraryStore.self) private var library
@@ -8,6 +10,7 @@ struct LibraryView: View {
     let open: (ReadingDocument) -> Void
     let importFile: () -> Void
     let compose: () -> Void
+    let openWeb: () -> Void
     @State private var search = ""
     @State private var filter = 0
     @State private var deleting: ReadingDocument?
@@ -70,6 +73,7 @@ struct LibraryView: View {
                         Menu {
                             Button("Importer un fichier", systemImage: "doc.badge.plus", action: importFile)
                             Button("Écrire ou coller un texte", systemImage: "text.badge.plus", action: compose)
+                            Button("Lire Kindle ou une page web", systemImage: "globe", action: openWeb)
                         } label: {
                             Image(systemName: "plus").font(.system(size: 18, weight: .medium)).frame(width: 44, height: 44)
                                 .background(ConteurTheme.green, in: Circle()).foregroundStyle(.white)
@@ -189,6 +193,476 @@ struct BookShareSheet: UIViewControllerRepresentable {
         UIActivityViewController(activityItems: [url], applicationActivities: nil)
     }
     func updateUIViewController(_ controller: UIActivityViewController, context: Context) {}
+}
+
+struct WebReadingView: View {
+    @Environment(\.dismiss) private var dismiss
+    @StateObject private var browser = WebReadingBrowser()
+    @State private var address = "https://lire.amazon.fr/kindle-library"
+    @State private var isExtracting = false
+    @State private var errorMessage: String?
+    let read: (ReadingDocument) -> Void
+
+    var body: some View {
+        NavigationStack {
+            VStack(spacing: 0) {
+                HStack(spacing: 10) {
+                    TextField("Adresse de la page", text: $address)
+                        .textInputAutocapitalization(.never)
+                        .autocorrectionDisabled()
+                        .keyboardType(.URL)
+                        .onSubmit(openAddress)
+                    Button("Aller", action: openAddress)
+                        .font(.subheadline.weight(.semibold))
+                }
+                .padding(.horizontal, 14).padding(.vertical, 10)
+                .background(ConteurTheme.card)
+
+                WebReadingBrowserView(browser: browser)
+                    .overlay {
+                        if browser.isLoading { ProgressView().controlSize(.large) }
+                    }
+
+                VStack(spacing: 10) {
+                    if let errorMessage {
+                        Text(errorMessage).font(.caption).foregroundStyle(.red)
+                    }
+                    Button {
+                        Task { await readCurrentPage() }
+                    } label: {
+                        Label(isExtracting ? String(localized: "Analyse de la page…") : String(localized: "Lire cette page"),
+                              systemImage: "text.viewfinder")
+                            .frame(maxWidth: .infinity)
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .disabled(isExtracting || browser.isLoading)
+                    Text("Le Conteur extrait uniquement le texte actuellement affiché et ignore toujours les champs de connexion. Votre session Amazon reste dans ce navigateur.")
+                        .font(.caption2).foregroundStyle(.secondary)
+                }
+                .padding(14).background(ConteurTheme.wash)
+            }
+            .background(ConteurTheme.paper)
+            .navigationTitle("Lecture web")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) { Button("Fermer") { dismiss() } }
+                ToolbarItemGroup(placement: .bottomBar) {
+                    Button { browser.goBack() } label: { Image(systemName: "chevron.backward") }
+                        .disabled(!browser.canGoBack)
+                    Button { browser.goForward() } label: { Image(systemName: "chevron.forward") }
+                        .disabled(!browser.canGoForward)
+                    Spacer()
+                    Button { browser.loadKindle() } label: { Label("Kindle", systemImage: "book") }
+                    Spacer()
+                    Button { browser.reload() } label: { Image(systemName: "arrow.clockwise") }
+                }
+            }
+            .onChange(of: browser.currentURL) { _, value in
+                if let value { address = value.absoluteString }
+            }
+        }
+    }
+
+    private func openAddress() {
+        errorMessage = nil
+        var value = address.trimmingCharacters(in: .whitespacesAndNewlines)
+        if !value.contains("://") { value = "https://" + value }
+        guard let url = URL(string: value), url.scheme?.lowercased() == "https" else {
+            errorMessage = String(localized: "Cette adresse web n’est pas valide.")
+            return
+        }
+        browser.load(url)
+    }
+
+    @MainActor private func readCurrentPage() async {
+        isExtracting = true
+        errorMessage = nil
+        defer { isExtracting = false }
+        do {
+            let capture = try await browser.captureVisibleText()
+            let title = capture.title.trimmingCharacters(in: .whitespacesAndNewlines)
+            let document = try DocumentImporter.fromText(
+                capture.text,
+                title: title.isEmpty ? String(localized: "Lecture web") : title,
+                source: String(localized: "WEB"),
+                author: capture.host
+            )
+            read(document)
+        } catch {
+            errorMessage = error.localizedDescription
+        }
+    }
+}
+
+@MainActor private final class WebReadingBrowser: NSObject, ObservableObject, WKNavigationDelegate, WKUIDelegate {
+    @Published private(set) var isLoading = false
+    @Published private(set) var canGoBack = false
+    @Published private(set) var canGoForward = false
+    @Published private(set) var currentURL: URL?
+    let webView: WKWebView
+    private let captureHandler: WebReadingCaptureHandler
+    private var frameCaptures: [String: WebFrameCapture] = [:]
+
+    override init() {
+        let captureHandler = WebReadingCaptureHandler()
+        let configuration = WKWebViewConfiguration()
+        configuration.websiteDataStore = .default()
+        configuration.preferences.javaScriptCanOpenWindowsAutomatically = true
+        configuration.userContentController.add(captureHandler, name: "leConteurCapture")
+        configuration.userContentController.addUserScript(WKUserScript(
+            source: Self.frameCaptureScript,
+            injectionTime: .atDocumentEnd,
+            forMainFrameOnly: false
+        ))
+        self.captureHandler = captureHandler
+        webView = WKWebView(frame: .zero, configuration: configuration)
+        super.init()
+        captureHandler.browser = self
+        webView.navigationDelegate = self
+        webView.uiDelegate = self
+        webView.allowsBackForwardNavigationGestures = true
+        loadKindle()
+    }
+
+    func loadKindle() {
+        load(URL(string: "https://lire.amazon.fr/kindle-library")!)
+    }
+
+    func load(_ url: URL) { webView.load(URLRequest(url: url)) }
+    func reload() { webView.reload() }
+    func goBack() { if webView.canGoBack { webView.goBack() } }
+    func goForward() { if webView.canGoForward { webView.goForward() } }
+
+    func webView(_ webView: WKWebView, didStartProvisionalNavigation navigation: WKNavigation!) {
+        frameCaptures.removeAll()
+        refresh()
+    }
+    func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) { refresh() }
+    func webView(_ webView: WKWebView, didFail navigation: WKNavigation!, withError error: Error) { refresh() }
+    func webView(_ webView: WKWebView, didFailProvisionalNavigation navigation: WKNavigation!, withError error: Error) { refresh() }
+
+    func webView(_ webView: WKWebView, createWebViewWith configuration: WKWebViewConfiguration,
+                 for navigationAction: WKNavigationAction, windowFeatures: WKWindowFeatures) -> WKWebView? {
+        if navigationAction.targetFrame == nil, let url = navigationAction.request.url { load(url) }
+        return nil
+    }
+
+    private func refresh() {
+        isLoading = webView.isLoading
+        canGoBack = webView.canGoBack
+        canGoForward = webView.canGoForward
+        currentURL = webView.url
+    }
+
+    func captureVisibleText() async throws -> WebPageCapture {
+        if let value = try? await webView.evaluateJavaScript("window.__leConteurCapture && window.__leConteurCapture()"),
+           let result = value as? [String: Any] {
+            receiveCapture(result, frameURL: webView.url)
+        }
+
+        // Kindle affiche le livre dans un cadre provenant d'un autre sous-domaine.
+        // Le script injecté dans chaque cadre peut lire son propre document sans
+        // franchir la frontière de sécurité entre Amazon et le livre.
+        try? await Task.sleep(for: .milliseconds(120))
+        if webView.url?.host()?.localizedCaseInsensitiveContains("amazon.") == true,
+           let text = try? await recognizeDisplayedText(), text.count >= 20 {
+            return WebPageCapture(
+                text: text,
+                title: webView.title ?? "",
+                host: webView.url?.host() ?? "amazon.fr"
+            )
+        }
+        guard let capture = frameCaptures.values.max(by: { $0.rank < $1.rank }),
+              capture.text.count >= 20 else { throw WebReadingError.noVisibleText }
+        return WebPageCapture(
+            text: capture.text,
+            title: capture.title.isEmpty ? webView.title ?? "" : capture.title,
+            host: webView.url?.host() ?? capture.host
+        )
+    }
+
+    private func recognizeDisplayedText() async throws -> String {
+        let originalOffset = webView.scrollView.contentOffset
+        let viewportHeight = max(1, webView.bounds.height)
+        var combined = ""
+        var unchangedScreens = 0
+        _ = try? await webView.evaluateJavaScript("window.__leConteurScrollAll && window.__leConteurScrollAll('save', 0)")
+        defer {
+            webView.evaluateJavaScript("window.__leConteurScrollAll && window.__leConteurScrollAll('restore', 0)", completionHandler: nil)
+            webView.scrollView.setContentOffset(originalOffset, animated: false)
+        }
+
+        // Le lecteur Kindle déroule le chapitre au lieu d'exposer son texte.
+        // Photographier des vues qui se chevauchent permet de reconstituer le
+        // passage, même lorsque son DOM est volontairement inaccessible.
+        for screen in 0..<48 {
+            try await Task.sleep(for: .milliseconds(screen == 0 ? 650 : 260))
+            let image = try await webView.takeSnapshot(configuration: nil)
+            guard let cgImage = image.cgImage else { continue }
+            let recognized = try await Self.recognizeText(in: cgImage)
+            let merged = Self.mergingOCR(combined, with: recognized)
+            if merged.count <= combined.count + 12 { unchangedScreens += 1 }
+            else { unchangedScreens = 0 }
+            combined = merged
+
+            if unchangedScreens >= 2 { break }
+            _ = try? await webView.evaluateJavaScript(
+                "window.__leConteurScrollAll && window.__leConteurScrollAll('advance', \(viewportHeight * 0.68))"
+            )
+        }
+        return combined
+    }
+
+    nonisolated private static func recognizeText(in cgImage: CGImage) async throws -> String {
+        try await Task.detached(priority: .userInitiated) {
+            let request = VNRecognizeTextRequest()
+            request.recognitionLevel = .accurate
+            request.usesLanguageCorrection = true
+            request.automaticallyDetectsLanguage = true
+            try VNImageRequestHandler(cgImage: cgImage, orientation: .up).perform([request])
+            var lines = (request.results ?? []).compactMap { observation -> WebOCRLine? in
+                guard let text = observation.topCandidates(1).first?.string
+                    .trimmingCharacters(in: .whitespacesAndNewlines), !text.isEmpty else { return nil }
+                return WebOCRLine(text: text, box: observation.boundingBox)
+            }
+            lines.sort {
+                if abs($0.box.midY - $1.box.midY) < 0.006 { return $0.box.minX < $1.box.minX }
+                return $0.box.midY > $1.box.midY
+            }
+            guard !lines.isEmpty else { return "" }
+            let typicalHeight = lines.map(\.box.height).sorted()[lines.count / 2]
+            var result = ""
+            var previous: WebOCRLine?
+            for line in lines {
+                if let previous {
+                    let verticalGap = previous.box.minY - line.box.maxY
+                    result += verticalGap > typicalHeight * 1.15 ? "\n\n" : " "
+                }
+                result += line.text
+                previous = line
+            }
+            return result
+        }.value
+    }
+
+    nonisolated private static func mergingOCR(_ existing: String, with addition: String) -> String {
+        let oldWords = existing.split(whereSeparator: \.isWhitespace).map(String.init)
+        let newWords = addition.split(whereSeparator: \.isWhitespace).map(String.init)
+        guard !newWords.isEmpty else { return existing }
+        guard !oldWords.isEmpty else { return addition }
+
+        func comparable(_ word: String) -> String {
+            word.folding(options: [.caseInsensitive, .diacriticInsensitive], locale: .current)
+                .filter { $0.isLetter || $0.isNumber }
+        }
+        let oldComparable = oldWords.map(comparable)
+        let newComparable = newWords.map(comparable)
+
+        // Les captures se chevauchent volontairement. Vision peut toutefois
+        // changer un ou deux mots à la jonction. Chercher la plus longue suite
+        // commune permet de retrouver l'alignement malgré cette variation,
+        // puis de retirer toute la partie de la nouvelle capture qui se trouve
+        // déjà à la fin du texte assemblé.
+        let oldStart = max(0, oldWords.count - 240)
+        let newLimit = min(newWords.count, 240)
+        var previous = Array(repeating: 0, count: newLimit + 1)
+        var bestLength = 0
+        var bestOldEnd = 0
+        var bestNewEnd = 0
+        if newLimit > 0 {
+            for oldIndex in oldStart..<oldWords.count {
+                var current = Array(repeating: 0, count: newLimit + 1)
+                for newIndex in 0..<newLimit where !oldComparable[oldIndex].isEmpty {
+                    if oldComparable[oldIndex] == newComparable[newIndex] {
+                        current[newIndex + 1] = previous[newIndex] + 1
+                        if current[newIndex + 1] > bestLength {
+                            bestLength = current[newIndex + 1]
+                            bestOldEnd = oldIndex + 1
+                            bestNewEnd = newIndex + 1
+                        }
+                    }
+                }
+                previous = current
+            }
+        }
+        if bestLength >= 6 {
+            let oldMatchStart = bestOldEnd - bestLength
+            let newMatchStart = bestNewEnd - bestLength
+            let overlap = min(newWords.count, newMatchStart + oldWords.count - oldMatchStart)
+            let tail = newWords.dropFirst(overlap).joined(separator: " ")
+            return tail.isEmpty ? existing : existing + "\n\n" + tail
+        }
+
+        let maximum = min(140, oldWords.count, newWords.count)
+        var overlap = 0
+        if maximum >= 4 {
+            for count in stride(from: maximum, through: 4, by: -1) {
+                let left = oldComparable.suffix(count)
+                let right = newComparable.prefix(count)
+                if left == right { overlap = count; break }
+            }
+        }
+        if overlap == 0 {
+            // Un écran identique ne doit pas être ajouté une seconde fois.
+            let oldTail = oldComparable.suffix(min(24, oldWords.count))
+            let newHead = newComparable.prefix(min(24, newWords.count))
+            if oldTail == newHead { return existing }
+        }
+        let tail = newWords.dropFirst(overlap).joined(separator: " ")
+        return tail.isEmpty ? existing : existing + "\n\n" + tail
+    }
+
+    fileprivate func receiveCapture(_ result: [String: Any], frameURL: URL?) {
+        guard let text = result["text"] as? String else { return }
+        let key = (result["href"] as? String) ?? frameURL?.absoluteString ?? UUID().uuidString
+        frameCaptures[key] = WebFrameCapture(
+            text: text,
+            title: result["title"] as? String ?? "",
+            host: result["host"] as? String ?? frameURL?.host() ?? "",
+            isSelection: result["selected"] as? Bool ?? false,
+            capturedAt: .now
+        )
+    }
+
+    private static let frameCaptureScript = #"""
+    (() => {
+      if (window.__leConteurCaptureInstalled) return;
+      window.__leConteurCaptureInstalled = true;
+      const clean = value => (value || '').replace(/\s+/g, ' ').trim();
+      const snapshot = () => {
+        const entries = [];
+        if (!document.body) return null;
+        const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
+        let node;
+        while ((node = walker.nextNode())) {
+          const text = clean(node.nodeValue);
+          const parent = node.parentElement;
+          if (!text || !parent || parent.closest('script,style,noscript,nav,header,footer,button,input,textarea,select,[aria-hidden="true"]')) continue;
+          const style = getComputedStyle(parent);
+          if (style.display === 'none' || style.visibility === 'hidden' || Number(style.opacity) === 0) continue;
+          const range = document.createRange();
+          range.selectNodeContents(node);
+          const rect = range.getBoundingClientRect();
+          if (!rect.width || !rect.height || rect.bottom < 0 || rect.top > innerHeight || rect.right < 0 || rect.left > innerWidth) continue;
+          if (parseFloat(style.fontSize) < 11) continue;
+          entries.push({ text, top: rect.top, left: rect.left });
+        }
+        entries.sort((a, b) => Math.abs(a.top - b.top) > 3 ? a.top - b.top : a.left - b.left);
+        const lines = [];
+        for (const entry of entries) {
+          if (lines[lines.length - 1] !== entry.text) lines.push(entry.text);
+        }
+        const selection = clean(getSelection && getSelection().toString());
+        const metaTitle = document.querySelector('meta[property="og:title"]')?.content;
+        return {
+          text: (selection || lines.join('\n\n')).slice(0, 2000000),
+          title: clean(metaTitle || document.title).replace(/\s*[|–—-]\s*(Kindle|Amazon).*$/i, ''),
+          host: location.hostname.replace(/^www\./, ''),
+          href: location.href,
+          selected: selection.length > 0
+        };
+      };
+      const report = () => {
+        const value = snapshot();
+        if (value) window.webkit.messageHandlers.leConteurCapture.postMessage(value);
+        return value;
+      };
+      const childFrames = (action, amount) => {
+        for (const frame of document.querySelectorAll('iframe')) {
+          try { frame.contentWindow.postMessage({ source: 'le-conteur', action, amount }, '*'); } catch (_) {}
+        }
+      };
+      const scrollingTarget = () => {
+        const candidates = [document.scrollingElement, ...document.querySelectorAll('*')].filter(Boolean);
+        let best = document.scrollingElement || document.documentElement;
+        let distance = Math.max(0, best.scrollHeight - best.clientHeight);
+        for (const element of candidates) {
+          const available = Math.max(0, element.scrollHeight - element.clientHeight);
+          if (available <= distance + 4) continue;
+          const style = getComputedStyle(element);
+          if (element === document.scrollingElement || /(auto|scroll|overlay)/.test(style.overflowY)) {
+            best = element;
+            distance = available;
+          }
+        }
+        return best;
+      };
+      const scroll = (action, amount) => {
+        const target = scrollingTarget();
+        if (action === 'save') window.__leConteurSavedScroll = { target, top: target.scrollTop };
+        if (action === 'advance') target.scrollTop = Math.min(target.scrollHeight - target.clientHeight, target.scrollTop + Number(amount || 0));
+        if (action === 'restore' && window.__leConteurSavedScroll) {
+          window.__leConteurSavedScroll.target.scrollTop = window.__leConteurSavedScroll.top;
+        }
+        childFrames(action, amount);
+        setTimeout(report, 100);
+        return { top: target.scrollTop, maximum: Math.max(0, target.scrollHeight - target.clientHeight) };
+      };
+      let timer;
+      const later = () => { clearTimeout(timer); timer = setTimeout(report, 120); };
+      window.__leConteurCapture = report;
+      window.__leConteurScrollAll = scroll;
+      addEventListener('message', event => {
+        if (event.data?.source === 'le-conteur') scroll(event.data.action, event.data.amount);
+      });
+      addEventListener('load', later);
+      addEventListener('scroll', later, { passive: true, capture: true });
+      document.addEventListener('selectionchange', later);
+      new MutationObserver(later).observe(document.documentElement, { childList: true, subtree: true, characterData: true });
+      setTimeout(report, 100);
+      setTimeout(report, 700);
+      setTimeout(report, 2000);
+    })();
+    """#
+}
+
+private final class WebReadingCaptureHandler: NSObject, WKScriptMessageHandler {
+    weak var browser: WebReadingBrowser?
+
+    func userContentController(_ userContentController: WKUserContentController, didReceive message: WKScriptMessage) {
+        guard let result = message.body as? [String: Any] else { return }
+        Task { @MainActor [weak browser] in
+            browser?.receiveCapture(result, frameURL: message.frameInfo.request.url)
+        }
+    }
+}
+
+private struct WebFrameCapture {
+    let text: String
+    let title: String
+    let host: String
+    let isSelection: Bool
+    let capturedAt: Date
+
+    var rank: Int {
+        // Une sélection explicite doit toujours gagner. À défaut, le cadre du
+        // livre est généralement celui qui contient le plus de texte lisible.
+        (isSelection ? 10_000_000 : 0) + min(text.count, 9_000_000)
+    }
+}
+
+private struct WebOCRLine {
+    let text: String
+    let box: CGRect
+}
+
+private struct WebReadingBrowserView: UIViewRepresentable {
+    let browser: WebReadingBrowser
+    func makeUIView(context: Context) -> WKWebView { browser.webView }
+    func updateUIView(_ webView: WKWebView, context: Context) {}
+}
+
+private struct WebPageCapture {
+    let text: String
+    let title: String
+    let host: String
+}
+
+private enum WebReadingError: LocalizedError {
+    case noVisibleText
+    var errorDescription: String? {
+        String(localized: "Aucun texte lisible n’est visible. Ouvrez un livre, affichez une page de texte, puis réessayez. Vous pouvez aussi sélectionner précisément le passage à lire.")
+    }
 }
 
 struct ComposeView: View {
