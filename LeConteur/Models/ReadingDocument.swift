@@ -118,8 +118,16 @@ struct ReadingDocument: Codable, Identifiable, Hashable, Sendable {
         cumulativeWordCounts = counts
     }
 
-    func secondsUntilChapterEnd(from position: Int, rate: Double = 1) -> TimeInterval {
-        estimatedListeningSeconds(from: position, to: chapterRange(containing: position)?.upperBound, rate: rate)
+    func secondsUntilChapterEnd(from position: Int, characterOffset: Int? = nil,
+                                rate: Double = 1) -> TimeInterval {
+        guard let end = chapterRange(containing: position)?.upperBound else { return 0 }
+        guard segments.indices.contains(position), let characterOffset, characterOffset > 0 else {
+            return estimatedListeningSeconds(from: position, to: end, rate: rate)
+        }
+        let remainingText = String(decoding: segments[position].utf16.dropFirst(characterOffset), as: UTF16.self)
+        let remainingWords = remainingText.split(whereSeparator: \.isWhitespace).count
+        let laterSeconds = estimatedListeningSeconds(from: position + 1, to: end, rate: rate)
+        return Double(remainingWords) / (160 * max(rate, 0.25)) * 60 + laterSeconds
     }
 
     func secondsUntilBookEnd(from position: Int? = nil, rate: Double = 1) -> TimeInterval {

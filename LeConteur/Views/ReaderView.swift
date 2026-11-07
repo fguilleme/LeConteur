@@ -368,7 +368,9 @@ struct ReaderView: View {
 
     private func chapterStatus(_ document: ReadingDocument) -> String {
         if document.isFinished { return String(localized: "Lecture terminée") }
-        let seconds = document.secondsUntilChapterEnd(from: playback.position, rate: playback.playbackSpeed)
+        let seconds = document.secondsUntilChapterEnd(from: playback.position,
+                                                      characterOffset: playback.wordRange?.location,
+                                                      rate: playback.playbackSpeed)
         let minutes = max(1, Int(ceil(seconds / 60)))
         return String(format: String(localized: "%lld min jusqu’à la fin du chapitre"), Int64(minutes))
     }

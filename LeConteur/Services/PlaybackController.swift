@@ -46,6 +46,7 @@ final class PlaybackController: NSObject {
     private var spokenEndPosition = 0
     private var token = UUID()
     private var timerTask: Task<Void, Never>?
+    private var sleepChapterEndPosition: Int?
     private var systemSpeechWatchdog: Task<Void, Never>?
     private var systemSpeechRecoveryAttempts = 0
     private var observers: [NSObjectProtocol] = []
@@ -395,6 +396,9 @@ final class PlaybackController: NSObject {
         let resume = isPlaying || isPreparing
         stopAudio()
         position = min(max(0, newPosition), document.segments.count - 1)
+        if sleepAtChapterEnd {
+            sleepChapterEndPosition = document.chapterRange(containing: position)?.upperBound
+        }
         spokenSegments.removeAll(keepingCapacity: true)
         spokenEndPosition = position
         wordRange = nil
@@ -544,6 +548,7 @@ final class PlaybackController: NSObject {
     func setSleepTimer(minutes: Int?) {
         timerTask?.cancel()
         sleepAtChapterEnd = false
+        sleepChapterEndPosition = nil
         sleepDeadline = minutes.map { Date().addingTimeInterval(Double($0) * 60) }
         guard let minutes else { return }
         timerTask = Task {
@@ -558,16 +563,27 @@ final class PlaybackController: NSObject {
         timerTask?.cancel()
         timerTask = nil
         sleepDeadline = nil
+        guard let document,
+              let end = document.chapterRange(containing: position)?.upperBound else {
+            sleepAtChapterEnd = false
+            sleepChapterEndPosition = nil
+            return
+        }
         sleepAtChapterEnd = true
+        sleepChapterEndPosition = end
+        // Neural and online engines may already have queued audio beyond the
+        // chapter. Rebuild their bounded queue from the current sentence.
+        if qwenPlayer != nil { seek(to: position) }
     }
 
     private func speakCurrent(recoveringSystemSpeech: Bool = false) {
         guard let document, document.segments.indices.contains(position) else { return }
         if let deadline = sleepDeadline, Date() >= deadline { pause(); setSleepTimer(minutes: nil); return }
         library.updatePosition(id: document.id, position: position)
+        let end = sleepAtChapterEnd ? sleepChapterEndPosition : nil
         let window = effectiveEngine != .system
             ? NarrationWindow(sentenceIn: document, at: position)
-            : NarrationWindow(document: document, start: position)
+            : NarrationWindow(document: document, start: position, endPositionExclusive: end)
         let text = window.text
         spokenSegments = window.segments
         spokenEndPosition = window.endPosition
@@ -644,7 +660,8 @@ final class PlaybackController: NSObject {
             qwenSessionID = currentToken
             let render = renderQwen
             let passagePlayer = try QwenPassagePlayer(document: document, start: position, rate: settings.qwenSpeed,
-                                                      buffering: .init(preset: settings.qwenBuffer)) { text in
+                                                      buffering: .init(preset: settings.qwenBuffer),
+                                                      endPositionExclusive: sleepAtChapterEnd ? sleepChapterEndPosition : nil) { text in
                 try await render(text, style, language, speaker, currentToken)
             }
             qwenPlayer = passagePlayer
@@ -743,7 +760,8 @@ final class PlaybackController: NSObject {
                                                       buffering: .init(preset: .seconds10,
                                                                        minimumAheadSeconds: 30),
                                                       generationPriority: .utility,
-                                                      refillResumeSeconds: 4) { text in
+                                                      refillResumeSeconds: 4,
+                                                      endPositionExclusive: sleepAtChapterEnd ? sleepChapterEndPosition : nil) { text in
                 try await SupertonicVoiceRenderer.shared.render(text, language: language, voice: voice)
             }
             qwenPlayer = passagePlayer
@@ -809,7 +827,8 @@ final class PlaybackController: NSObject {
             let passagePlayer = try QwenPassagePlayer(document: document, start: position, rate: settings.speed,
                                                       sampleRate: 44_100,
                                                       buffering: .init(preset: .seconds10, minimumAheadSeconds: 45),
-                                                      refillResumeSeconds: 5) { text in
+                                                      refillResumeSeconds: 5,
+                                                      endPositionExclusive: sleepAtChapterEnd ? sleepChapterEndPosition : nil) { text in
                 try await OnlineTTSClient.shared.synthesize(text, provider: provider, voiceID: voiceID)
             }
             qwenPlayer = passagePlayer
@@ -865,9 +884,10 @@ final class PlaybackController: NSObject {
         wordRange = nil
         let nextPosition = spokenEndPosition + 1
         if sleepAtChapterEnd,
-           let chapter = document.chapterRange(containing: min(position, max(document.segments.count - 1, 0))),
-           nextPosition >= chapter.upperBound {
+           let chapterEnd = sleepChapterEndPosition,
+           nextPosition >= chapterEnd {
             sleepAtChapterEnd = false
+            sleepChapterEndPosition = nil
             if nextPosition < document.segments.count {
                 isPlaying = false
                 position = nextPosition
@@ -1065,11 +1085,12 @@ struct NarrationWindow: Sendable {
     /// bounded Qwen request. Keeping paragraph boundaries as hard boundaries
     /// avoids manufacturing pauses and pronunciation artefacts at joins.
     init(document: ReadingDocument, start: Int, characterLimit: Int = 280,
-         sentenceLimit: Int = 3) {
+         sentenceLimit: Int = 3, endPositionExclusive: Int? = nil) {
         let paragraph = document.paragraphRanges.first { $0.contains(start) } ?? start..<(start + 1)
+        let end = min(paragraph.upperBound, endPositionExclusive ?? document.segments.count)
         var text = ""
         var mapping: [(index: Int, range: NSRange)] = []
-        for index in start..<paragraph.upperBound where document.segments.indices.contains(index) {
+        for index in start..<end where document.segments.indices.contains(index) {
             guard mapping.count < max(1, sentenceLimit) else { break }
             let sentence = document.segments[index]
             let separatorLength = text.isEmpty ? 0 : 1

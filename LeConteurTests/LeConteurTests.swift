@@ -1938,6 +1938,17 @@ final class LeConteurTests: XCTestCase {
         for item in window.segments { XCTAssertEqual(ns.substring(with: item.range), document.segments[item.index]) }
     }
 
+    func testNarrationWindowStopsAtRequestedChapterBoundary() throws {
+        var document = try DocumentImporter.fromText(
+            "Une phrase. Deux phrases. Trois phrases. Quatre phrases.", title: "Limite"
+        )
+        XCTAssertGreaterThanOrEqual(document.segments.count, 4)
+        document.paragraphStarts = [0]
+        let window = NarrationWindow(document: document, start: 0, endPositionExclusive: 2)
+        XCTAssertEqual(window.endPosition, 1)
+        XCTAssertEqual(window.segments.map(\.index), [0, 1])
+    }
+
     func testPDFUsesOCRForImageOnlyPagesAfterSearchableTitle() throws {
         let root = URL.temporaryDirectory.appending(path: UUID().uuidString, directoryHint: .isDirectory)
         try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
@@ -2465,6 +2476,15 @@ final class ChapterModelTests: XCTestCase {
         XCTAssertEqual(document.chapterRange(containing: 1), 0..<2)
         XCTAssertGreaterThan(document.secondsUntilChapterEnd(from: 0), 0)
         XCTAssertGreaterThan(document.secondsUntilBookEnd(from: 0), document.secondsUntilChapterEnd(from: 0))
+    }
+
+    func testChapterTimeDecreasesWithinCurrentSegment() throws {
+        let document = try DocumentImporter.fromText(
+            "Chapitre I\n\nUn deux trois quatre cinq six sept huit neuf dix.", title: "Essai"
+        )
+        let full = document.secondsUntilChapterEnd(from: 1)
+        let partial = document.secondsUntilChapterEnd(from: 1, characterOffset: 20)
+        XCTAssertLessThan(partial, full)
     }
 
     func testOlderDocumentsWithoutChapterFieldStillDecode() throws {

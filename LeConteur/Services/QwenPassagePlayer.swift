@@ -16,6 +16,7 @@ import Foundation
     private let render: Renderer
     private let generationPriority: TaskPriority
     private let refillResumeSeconds: Double?
+    private let endPositionExclusive: Int
     private let audio: QwenStreamPlayer
     private var buffering: QwenPassageBufferPolicy
     private var wantsPlayback = false
@@ -86,9 +87,12 @@ import Foundation
          buffering: QwenPassageBufferPolicy = .init(),
          generationPriority: TaskPriority = .userInitiated,
          refillResumeSeconds: Double? = nil,
+         endPositionExclusive: Int? = nil,
          render: @escaping Renderer) throws {
         self.document = document
         self.nextPosition = start
+        self.endPositionExclusive = min(max(endPositionExclusive ?? document.segments.count, start),
+                                        document.segments.count)
         self.render = render
         self.buffering = buffering
         self.generationPriority = generationPriority
@@ -182,7 +186,7 @@ import Foundation
         producer = Task(priority: generationPriority) { [weak self] in
             guard let self else { return }
             do {
-                while document.segments.indices.contains(nextPosition) {
+                while document.segments.indices.contains(nextPosition), nextPosition < endPositionExclusive {
                     // Audio is inexpensive compared with the model. Bound it by
                     // listening time, rather than starving synthesis after only
                     // two paragraphs. A user pause still limits speculative work.
@@ -195,7 +199,8 @@ import Foundation
                     // Give Qwen a short, coherent stretch of prose instead of a
                     // succession of isolated sentences. NarrationWindow keeps
                     // the request inside one paragraph and applies hard bounds.
-                    let window = NarrationWindow(document: document, start: nextPosition)
+                    let window = NarrationWindow(document: document, start: nextPosition,
+                                                 endPositionExclusive: endPositionExclusive)
                     isGenerating = true
                     updateState()
                     recordDiagnosticEvent("qwen:renderStarted")
@@ -253,8 +258,9 @@ import Foundation
         guard !stopped else { return }
         if passages.isEmpty { hasStartedCurrentReserve = false }
         else if audio.isAudible { hasStartedCurrentReserve = true }
-        let nextCharacters = document.segments.indices.contains(nextPosition)
-            ? NarrationWindow(document: document, start: nextPosition).text.count : 0
+        let nextCharacters = document.segments.indices.contains(nextPosition) && nextPosition < endPositionExclusive
+            ? NarrationWindow(document: document, start: nextPosition,
+                              endPositionExclusive: endPositionExclusive).text.count : 0
         reserveTargetSeconds = buffering.startupSeconds(nextCharacters: nextCharacters, rate: rate)
         if !audio.isAudible {
             // A user pause or interruption does not empty the queue. Resume the
