@@ -2342,6 +2342,32 @@ final class LeConteurTests: XCTestCase {
         XCTAssertEqual(repaired.resolvedChapters.first?.title, "Les Braises du fleuve")
     }
 
+    @MainActor func testLegacyKindleScreenBoundariesInsideSentenceAreMerged() throws {
+        let directory = URL.temporaryDirectory.appending(path: UUID().uuidString)
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: directory) }
+        var legacy = ReadingDocument(
+            title: "Kindle",
+            author: "read.amazon.fr",
+            source: "WEB",
+            segments: [
+                "Tous les cerveaux sont capables",
+                "d'apprendre. Nous sommes tous dotés d'une machine inégalée. Il existe deux visions",
+                "différentes de l'apprentissage.",
+                "Un nouveau paragraphe commence ici."
+            ]
+        )
+        legacy.paragraphStarts = [0, 1, 2, 3]
+        legacy.position = 2
+        legacy.bookmarks = [2]
+        try JSONEncoder().encode([legacy]).write(to: directory.appending(path: "library.json"))
+
+        let repaired = try XCTUnwrap(LibraryStore(directory: directory).documents.first)
+        XCTAssertEqual(repaired.paragraphStarts, [0, 3])
+        XCTAssertEqual(repaired.position, 2)
+        XCTAssertEqual(repaired.bookmarks, [2])
+    }
+
     func testSharedFileIsCopiedBeforeProviderDisappears() throws {
         guard SharedInbox.directory != nil else { throw XCTSkip("App group unavailable on this test host") }
         let source = URL.temporaryDirectory.appending(path: "\(UUID().uuidString).txt")

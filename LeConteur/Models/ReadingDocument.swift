@@ -19,6 +19,9 @@ struct ReadingDocument: Codable, Identifiable, Hashable, Sendable {
     var isFinished = false
     var bookmarks: Set<Int> = []
     var paragraphStarts: [Int] = []
+    /// Prefix sum of words per segment. Optional keeps older libraries decodable
+    /// and makes remaining-time calculations constant-time for very large books.
+    var cumulativeWordCounts: [Int]?
     /// Optional keeps libraries written by earlier releases decodable.
     var chapters: [ReadingChapter]?
     var translationOf: UUID?
@@ -49,7 +52,12 @@ struct ReadingDocument: Codable, Identifiable, Hashable, Sendable {
         return code.map(SystemVoiceSelection.language)
     }
 
-    var wordCount: Int { segments.reduce(0) { $0 + $1.split(whereSeparator: \.isWhitespace).count } }
+    var wordCount: Int {
+        if let cumulativeWordCounts, cumulativeWordCounts.count == segments.count + 1 {
+            return cumulativeWordCounts.last ?? 0
+        }
+        return segments.reduce(0) { $0 + $1.split(whereSeparator: \.isWhitespace).count }
+    }
     var minutes: Int { max(1, Int(ceil(Double(wordCount) / 160))) }
     var progress: Double { isFinished ? 1 : Double(position) / Double(max(segments.count, 1)) }
     var preview: String { segments.first ?? "" }
@@ -88,10 +96,26 @@ struct ReadingDocument: Codable, Identifiable, Hashable, Sendable {
         guard !segments.isEmpty else { return 0 }
         let lower = min(max(start, 0), segments.count)
         let upper = min(max(end ?? segments.count, lower), segments.count)
-        let words = segments[lower..<upper].reduce(0) { count, segment in
-            count + segment.split(whereSeparator: \.isWhitespace).count
+        let words: Int
+        if let cumulativeWordCounts, cumulativeWordCounts.count == segments.count + 1 {
+            words = cumulativeWordCounts[upper] - cumulativeWordCounts[lower]
+        } else {
+            words = segments[lower..<upper].reduce(0) { count, segment in
+                count + segment.split(whereSeparator: \.isWhitespace).count
+            }
         }
         return Double(words) / (160 * max(rate, 0.25)) * 60
+    }
+
+    mutating func refreshWordCountIndex() {
+        var total = 0
+        var counts = [0]
+        counts.reserveCapacity(segments.count + 1)
+        for segment in segments {
+            total += segment.split(whereSeparator: \.isWhitespace).count
+            counts.append(total)
+        }
+        cumulativeWordCounts = counts
     }
 
     func secondsUntilChapterEnd(from position: Int, rate: Double = 1) -> TimeInterval {
@@ -124,6 +148,7 @@ struct ReadingDocument: Codable, Identifiable, Hashable, Sendable {
         }
         document.languageCode = Locale.current.language.languageCode?.identifier ?? "fr"
         document.builtInID = "welcome"
+        document.refreshWordCountIndex()
         return document
     }
 }

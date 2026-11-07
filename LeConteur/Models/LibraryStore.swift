@@ -105,7 +105,7 @@ final class LibraryStore {
     /// their paragraphs and normalize Roman numerals without changing positions.
     private static func normalizingChapterMetadata(in documents: [ReadingDocument]) -> [ReadingDocument] {
         documents.map { document in
-            var document = mergingSplitDisplayedTitle(in: document)
+            var document = repairingWebParagraphs(in: mergingSplitDisplayedTitle(in: document))
             if document.chapters?.isEmpty != false {
                 let inferred = ChapterTitles.inferred(in: document)
                 if !inferred.isEmpty { document.chapters = inferred }
@@ -123,8 +123,41 @@ final class LibraryStore {
                     document.segments[chapter.start] = heading
                 }
             }
+            if document.cumulativeWordCounts?.count != document.segments.count + 1 {
+                document.refreshWordCountIndex()
+            }
             return document
         }
+    }
+
+    /// Early Kindle OCR imports treated every overlapping screenshot as a new
+    /// paragraph. Remove only boundaries that visibly cut an unfinished
+    /// sentence; segment positions, bookmarks and translations remain stable.
+    private static func repairingWebParagraphs(in original: ReadingDocument) -> ReadingDocument {
+        guard original.source == "WEB", original.paragraphStarts.count > 1 else { return original }
+        var document = original
+        let protectedStarts = Set((document.chapters ?? []).map(\.start))
+        let closers = CharacterSet(charactersIn: "\"'’”»)]}")
+        var repaired: [Int] = []
+        for start in document.paragraphStarts.sorted() where document.segments.indices.contains(start) {
+            guard start > 0 else {
+                if repaired.isEmpty { repaired.append(start) }
+                continue
+            }
+            let current = document.segments[start].trimmingCharacters(in: .whitespacesAndNewlines)
+            let previous = document.segments[start - 1]
+                .trimmingCharacters(in: .whitespacesAndNewlines)
+                .trimmingCharacters(in: closers)
+            let beginsWithLowercase = current.first(where: \.isLetter)?.isLowercase == true
+            let previousIsComplete = previous.last.map { ".!?…".contains($0) } == true
+            let isHeading = protectedStarts.contains(start) || ChapterTitles.recognized(current) != nil
+            if isHeading || (previousIsComplete && !beginsWithLowercase) {
+                repaired.append(start)
+            }
+        }
+        if repaired.first != 0, !document.segments.isEmpty { repaired.insert(0, at: 0) }
+        document.paragraphStarts = Array(Set(repaired)).sorted()
+        return document
     }
 
     /// Some EPUBs insert a visual `<br>` in their title. Older imports turned

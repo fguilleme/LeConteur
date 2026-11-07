@@ -42,6 +42,7 @@ enum DocumentImporter {
         document.languageCode = NLLanguageRecognizer.dominantLanguage(for: String(normalizedText.prefix(4000)))?.rawValue
         let chapters = ChapterTitles.inferred(in: document)
         if !chapters.isEmpty { document.chapters = chapters }
+        document.refreshWordCountIndex()
         return document
     }
 

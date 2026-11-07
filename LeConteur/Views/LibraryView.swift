@@ -228,15 +228,22 @@ struct WebReadingView: View {
                         Text(errorMessage).font(.caption).foregroundStyle(.red)
                     }
                     Button {
-                        Task { await readCurrentPage() }
+                        if isExtracting {
+                            browser.finishCaptureNow()
+                        } else {
+                            Task { await readCurrentPage() }
+                        }
                     } label: {
-                        Label(isExtracting ? String(localized: "Analyse de la page…") : String(localized: "Lire cette page"),
-                              systemImage: "text.viewfinder")
+                        Label(isExtracting ? String(localized: "Terminer l’import maintenant") : String(localized: "Importer ce livre"),
+                              systemImage: isExtracting ? "stop.circle" : "text.viewfinder")
                             .frame(maxWidth: .infinity)
                     }
                     .buttonStyle(.borderedProminent)
-                    .disabled(isExtracting || browser.isLoading)
-                    Text("Le Conteur extrait uniquement le texte actuellement affiché et ignore toujours les champs de connexion. Votre session Amazon reste dans ce navigateur.")
+                    .disabled(browser.isLoading)
+                    if isExtracting {
+                        Text(browser.captureStatus).font(.caption).foregroundStyle(.secondary)
+                    }
+                    Text("Le Conteur parcourt le livre jusqu’à sa fin et ignore toujours les champs de connexion. Votre session Amazon reste dans ce navigateur.")
                         .font(.caption2).foregroundStyle(.secondary)
                 }
                 .padding(14).background(ConteurTheme.wash)
@@ -281,12 +288,15 @@ struct WebReadingView: View {
         do {
             let capture = try await browser.captureVisibleText()
             let title = capture.title.trimmingCharacters(in: .whitespacesAndNewlines)
-            let document = try DocumentImporter.fromText(
+            var document = try DocumentImporter.fromText(
                 capture.text,
                 title: title.isEmpty ? String(localized: "Lecture web") : title,
                 source: String(localized: "WEB"),
                 author: capture.host
             )
+            if let coverData = capture.coverData {
+                document.coverFileName = try? BookCoverStore.save(coverData)
+            }
             read(document)
         } catch {
             errorMessage = error.localizedDescription
@@ -299,9 +309,11 @@ struct WebReadingView: View {
     @Published private(set) var canGoBack = false
     @Published private(set) var canGoForward = false
     @Published private(set) var currentURL: URL?
+    @Published private(set) var captureStatus = String(localized: "Analyse du livre…")
     let webView: WKWebView
     private let captureHandler: WebReadingCaptureHandler
     private var frameCaptures: [String: WebFrameCapture] = [:]
+    private var captureShouldFinish = false
 
     override init() {
         let captureHandler = WebReadingCaptureHandler()
@@ -332,6 +344,10 @@ struct WebReadingView: View {
     func reload() { webView.reload() }
     func goBack() { if webView.canGoBack { webView.goBack() } }
     func goForward() { if webView.canGoForward { webView.goForward() } }
+    func finishCaptureNow() {
+        captureShouldFinish = true
+        captureStatus = String(localized: "Finalisation de l’import…")
+    }
 
     func webView(_ webView: WKWebView, didStartProvisionalNavigation navigation: WKNavigation!) {
         frameCaptures.removeAll()
@@ -365,11 +381,12 @@ struct WebReadingView: View {
         // franchir la frontière de sécurité entre Amazon et le livre.
         try? await Task.sleep(for: .milliseconds(120))
         if webView.url?.host()?.localizedCaseInsensitiveContains("amazon.") == true,
-           let text = try? await recognizeDisplayedText(), text.count >= 20 {
+           let book = try? await recognizeDisplayedText(), book.text.count >= 20 {
             return WebPageCapture(
-                text: text,
-                title: webView.title ?? "",
-                host: webView.url?.host() ?? "amazon.fr"
+                text: book.text,
+                title: preferredBookTitle(visualCandidate: book.titleCandidate),
+                host: webView.url?.host() ?? "amazon.fr",
+                coverData: book.coverData
             )
         }
         guard let capture = frameCaptures.values.max(by: { $0.rank < $1.rank }),
@@ -377,43 +394,95 @@ struct WebReadingView: View {
         return WebPageCapture(
             text: capture.text,
             title: capture.title.isEmpty ? webView.title ?? "" : capture.title,
-            host: webView.url?.host() ?? capture.host
+            host: webView.url?.host() ?? capture.host,
+            coverData: nil
         )
     }
 
-    private func recognizeDisplayedText() async throws -> String {
+    private func recognizeDisplayedText() async throws -> WebOCRBook {
         let originalOffset = webView.scrollView.contentOffset
         let viewportHeight = max(1, webView.bounds.height)
         var combined = ""
+        var firstPageCover: Data?
+        var firstPageTitle = ""
         var unchangedScreens = 0
+        captureShouldFinish = false
+        captureStatus = String(localized: "Recherche du début du livre…")
         _ = try? await webView.evaluateJavaScript("window.__leConteurScrollAll && window.__leConteurScrollAll('save', 0)")
+        _ = try? await webView.evaluateJavaScript("window.__leConteurScrollAll && window.__leConteurScrollAll('start', 0)")
         defer {
+            captureStatus = String(localized: "Analyse du livre…")
             webView.evaluateJavaScript("window.__leConteurScrollAll && window.__leConteurScrollAll('restore', 0)", completionHandler: nil)
             webView.scrollView.setContentOffset(originalOffset, animated: false)
         }
 
-        // Le lecteur Kindle déroule le chapitre au lieu d'exposer son texte.
+        // Le lecteur Kindle déroule le livre au lieu d'exposer son texte.
         // Photographier des vues qui se chevauchent permet de reconstituer le
-        // passage, même lorsque son DOM est volontairement inaccessible.
-        for screen in 0..<48 {
-            try await Task.sleep(for: .milliseconds(screen == 0 ? 650 : 260))
+        // contenu, même lorsque son DOM est volontairement inaccessible. Le
+        // plafond protège uniquement contre une page qui bouclerait sans fin.
+        for screen in 0..<2400 {
+            captureStatus = String(localized: "Analyse du livre… écran \(screen + 1)")
+            try await Task.sleep(for: .milliseconds(screen == 0 ? 900 : 380))
             let image = try await webView.takeSnapshot(configuration: nil)
             guard let cgImage = image.cgImage else { continue }
             let recognized = try await Self.recognizeText(in: cgImage)
-            let merged = Self.mergingOCR(combined, with: recognized)
+            if screen == 0 {
+                firstPageCover = image.jpegData(compressionQuality: 0.86)
+                firstPageTitle = recognized.titleCandidate
+            }
+            let merged = Self.mergingOCR(combined, with: recognized.text)
             if merged.count <= combined.count + 12 { unchangedScreens += 1 }
             else { unchangedScreens = 0 }
             combined = merged
 
-            if unchangedScreens >= 2 { break }
+            if captureShouldFinish || unchangedScreens >= 6 || combined.count >= 1_950_000 { break }
             _ = try? await webView.evaluateJavaScript(
                 "window.__leConteurScrollAll && window.__leConteurScrollAll('advance', \(viewportHeight * 0.68))"
             )
         }
-        return combined
+        return WebOCRBook(text: combined, titleCandidate: firstPageTitle, coverData: firstPageCover)
     }
 
-    nonisolated private static func recognizeText(in cgImage: CGImage) async throws -> String {
+    private func preferredBookTitle(visualCandidate: String) -> String {
+        let candidates = frameCaptures.values.map(\.title) + [webView.title ?? ""]
+        if let title = candidates.lazy.map(Self.cleanBookTitle).first(where: {
+            !Self.isGenericBookTitle($0) && !Self.looksLikePublisher($0)
+                && ChapterTitles.recognized($0) == nil
+        }) {
+            return title
+        }
+        let title = Self.cleanBookTitle(visualCandidate)
+        if !Self.isGenericBookTitle(title), !Self.looksLikePublisher(title),
+           ChapterTitles.recognized(title) == nil {
+            return title
+        }
+        return String(localized: "Livre Kindle")
+    }
+
+    nonisolated private static func cleanBookTitle(_ raw: String) -> String {
+        raw.split(whereSeparator: \.isWhitespace).joined(separator: " ")
+            .replacingOccurrences(of: #"\s*[|–—-]\s*(Kindle|Amazon).*$"#,
+                                  with: "", options: [.regularExpression, .caseInsensitive])
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
+    nonisolated private static func isGenericBookTitle(_ value: String) -> Bool {
+        let folded = value.folding(options: [.caseInsensitive, .diacriticInsensitive], locale: .current)
+        return value.isEmpty || ["kindle", "amazon", "lire", "lecture web", "read.amazon.com",
+                                 "read.amazon.fr", "bibliotheque kindle", "kindle library"]
+            .contains(folded)
+    }
+
+    nonisolated private static func looksLikePublisher(_ value: String) -> Bool {
+        let folded = value.folding(options: [.caseInsensitive, .diacriticInsensitive], locale: .current)
+        let words = Set(folded.split { !$0.isLetter }.map(String.init))
+        let publisherWords: Set<String> = ["edition", "editions", "publisher", "publishing",
+                                           "press", "editeur", "editorial", "media", "books"]
+        return value.split(whereSeparator: \.isWhitespace).count <= 5
+            && !words.isDisjoint(with: publisherWords)
+    }
+
+    nonisolated private static func recognizeText(in cgImage: CGImage) async throws -> WebOCRRecognition {
         try await Task.detached(priority: .userInitiated) {
             let request = VNRecognizeTextRequest()
             request.recognitionLevel = .accurate
@@ -429,8 +498,32 @@ struct WebReadingView: View {
                 if abs($0.box.midY - $1.box.midY) < 0.006 { return $0.box.minX < $1.box.minX }
                 return $0.box.midY > $1.box.midY
             }
-            guard !lines.isEmpty else { return "" }
+            guard !lines.isEmpty else { return WebOCRRecognition(text: "", titleCandidate: "") }
             let typicalHeight = lines.map(\.box.height).sorted()[lines.count / 2]
+            let eligible = lines.filter { line in
+                let clean = cleanBookTitle(line.text)
+                return clean.count >= 3 && clean.count <= 100
+                    && clean.rangeOfCharacter(from: .letters) != nil
+                    && line.box.height >= typicalHeight * 1.3
+                    && !isGenericBookTitle(clean)
+                    && !looksLikePublisher(clean)
+                    && ChapterTitles.recognized(clean) == nil
+            }
+            let anchor = eligible.max { left, right in
+                let leftScore = left.box.height * (1 + left.box.midY * 0.22)
+                let rightScore = right.box.height * (1 + right.box.midY * 0.22)
+                return leftScore < rightScore
+            }
+            let titleCandidate: String
+            if let anchor {
+                titleCandidate = eligible.filter {
+                    abs($0.box.midY - anchor.box.midY) <= 0.22
+                        && $0.box.height >= anchor.box.height * 0.62
+                }.sorted { $0.box.midY > $1.box.midY }
+                    .map(\.text).joined(separator: " ")
+            } else {
+                titleCandidate = ""
+            }
             var result = ""
             var previous: WebOCRLine?
             for line in lines {
@@ -441,22 +534,49 @@ struct WebReadingView: View {
                 result += line.text
                 previous = line
             }
-            return result
+            return WebOCRRecognition(text: result, titleCandidate: titleCandidate)
         }.value
     }
 
     nonisolated private static func mergingOCR(_ existing: String, with addition: String) -> String {
-        let oldWords = existing.split(whereSeparator: \.isWhitespace).map(String.init)
-        let newWords = addition.split(whereSeparator: \.isWhitespace).map(String.init)
+        struct Token {
+            let comparable: String
+            let range: NSRange
+        }
+        func tokens(in value: String) -> [Token] {
+            let expression = try! NSRegularExpression(pattern: #"\S+"#)
+            let whole = NSRange(location: 0, length: (value as NSString).length)
+            return expression.matches(in: value, range: whole).map { match in
+                let raw = (value as NSString).substring(with: match.range)
+                let comparable = raw.folding(options: [.caseInsensitive, .diacriticInsensitive], locale: .current)
+                    .filter { $0.isLetter || $0.isNumber }
+                return Token(comparable: comparable, range: match.range)
+            }
+        }
+        let oldWords = tokens(in: existing)
+        let newWords = tokens(in: addition)
         guard !newWords.isEmpty else { return existing }
         guard !oldWords.isEmpty else { return addition }
+        let oldComparable = oldWords.map(\.comparable)
+        let newComparable = newWords.map(\.comparable)
 
-        func comparable(_ word: String) -> String {
-            word.folding(options: [.caseInsensitive, .diacriticInsensitive], locale: .current)
-                .filter { $0.isLetter || $0.isNumber }
+        // Drop overlapping words without flattening the remaining OCR text.
+        // The whitespace immediately before the first new word tells us whether
+        // Vision saw a real paragraph gap or merely the next line/screen.
+        func appendingTail(dropping tokenCount: Int) -> String {
+            guard tokenCount < newWords.count else { return existing }
+            let tailStart = newWords[tokenCount].range.location
+            let boundaryStart = tokenCount > 0 ? NSMaxRange(newWords[tokenCount - 1].range) : 0
+            let source = addition as NSString
+            let boundary = source.substring(with: NSRange(location: boundaryStart,
+                                                           length: max(0, tailStart - boundaryStart)))
+            let tail = source.substring(from: tailStart)
+                .trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !tail.isEmpty else { return existing }
+            let separator = boundary.range(of: #"\n[\t ]*\n"#, options: .regularExpression) != nil
+                ? "\n\n" : " "
+            return existing.trimmingCharacters(in: .whitespacesAndNewlines) + separator + tail
         }
-        let oldComparable = oldWords.map(comparable)
-        let newComparable = newWords.map(comparable)
 
         // Les captures se chevauchent volontairement. Vision peut toutefois
         // changer un ou deux mots à la jonction. Chercher la plus longue suite
@@ -489,8 +609,7 @@ struct WebReadingView: View {
             let oldMatchStart = bestOldEnd - bestLength
             let newMatchStart = bestNewEnd - bestLength
             let overlap = min(newWords.count, newMatchStart + oldWords.count - oldMatchStart)
-            let tail = newWords.dropFirst(overlap).joined(separator: " ")
-            return tail.isEmpty ? existing : existing + "\n\n" + tail
+            return appendingTail(dropping: overlap)
         }
 
         let maximum = min(140, oldWords.count, newWords.count)
@@ -508,8 +627,17 @@ struct WebReadingView: View {
             let newHead = newComparable.prefix(min(24, newWords.count))
             if oldTail == newHead { return existing }
         }
-        let tail = newWords.dropFirst(overlap).joined(separator: " ")
-        return tail.isEmpty ? existing : existing + "\n\n" + tail
+        if overlap > 0 { return appendingTail(dropping: overlap) }
+
+        // An OCR mismatch should not invent a paragraph in the middle of an
+        // unfinished sentence. Genuine paragraph starts normally follow final
+        // punctuation and begin with an uppercase letter.
+        let previousText = existing.trimmingCharacters(in: .whitespacesAndNewlines)
+        let next = addition.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !next.isEmpty else { return existing }
+        let terminal = previousText.last.map { ".!?…»\"”.".contains($0) } == true
+        let startsUppercase = next.first(where: \.isLetter)?.isUppercase == true
+        return previousText + (terminal && startsUppercase ? "\n\n" : " ") + next
     }
 
     fileprivate func receiveCapture(_ result: [String: Any], frameURL: URL?) {
@@ -554,9 +682,14 @@ struct WebReadingView: View {
         }
         const selection = clean(getSelection && getSelection().toString());
         const metaTitle = document.querySelector('meta[property="og:title"]')?.content;
+        const readerTitle = [
+          '[data-testid*="book-title" i]', '[class*="bookTitle" i]',
+          '[id*="book-title" i]', '[aria-label*="book title" i]'
+        ].map(selector => document.querySelector(selector))
+          .find(element => clean(element?.textContent))?.textContent;
         return {
           text: (selection || lines.join('\n\n')).slice(0, 2000000),
-          title: clean(metaTitle || document.title).replace(/\s*[|–—-]\s*(Kindle|Amazon).*$/i, ''),
+          title: clean(readerTitle || metaTitle || document.title).replace(/\s*[|–—-]\s*(Kindle|Amazon).*$/i, ''),
           host: location.hostname.replace(/^www\./, ''),
           href: location.href,
           selected: selection.length > 0
@@ -590,6 +723,7 @@ struct WebReadingView: View {
       const scroll = (action, amount) => {
         const target = scrollingTarget();
         if (action === 'save') window.__leConteurSavedScroll = { target, top: target.scrollTop };
+        if (action === 'start') target.scrollTop = 0;
         if (action === 'advance') target.scrollTop = Math.min(target.scrollHeight - target.clientHeight, target.scrollTop + Number(amount || 0));
         if (action === 'restore' && window.__leConteurSavedScroll) {
           window.__leConteurSavedScroll.target.scrollTop = window.__leConteurSavedScroll.top;
@@ -646,6 +780,17 @@ private struct WebOCRLine {
     let box: CGRect
 }
 
+private struct WebOCRRecognition: Sendable {
+    let text: String
+    let titleCandidate: String
+}
+
+private struct WebOCRBook {
+    let text: String
+    let titleCandidate: String
+    let coverData: Data?
+}
+
 private struct WebReadingBrowserView: UIViewRepresentable {
     let browser: WebReadingBrowser
     func makeUIView(context: Context) -> WKWebView { browser.webView }
@@ -656,6 +801,7 @@ private struct WebPageCapture {
     let text: String
     let title: String
     let host: String
+    let coverData: Data?
 }
 
 private enum WebReadingError: LocalizedError {

@@ -108,6 +108,7 @@ struct TranslationWork: Sendable {
         }
         result.translatedBlocks = index
         result.translationComplete = index == blocks.count
+        if index > before { result.refreshWordCountIndex() }
         return index > before
     }
 }
