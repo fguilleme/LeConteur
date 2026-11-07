@@ -8,6 +8,32 @@ import ZIPFoundation
 @testable import LeConteur
 
 final class LeConteurTests: XCTestCase {
+    func testWebOCRMergeKeepsPageBodyWhenRepeatedFooterMatches() {
+        let first = "Premier paragraphe du livre avec assez de mots pour remplir cette page. "
+            + "Deuxième paragraphe qui se termine normalement. "
+            + "Emplacement 12 sur 529 Bibliothèque Kindle lecture en cours"
+        let second = "Cette nouvelle page contient plusieurs paragraphes entièrement nouveaux. "
+            + "Ils ne doivent surtout pas disparaître pendant la fusion du texte reconnu. "
+            + "Emplacement 12 sur 529 Bibliothèque Kindle lecture en cours"
+
+        let merged = WebReadingBrowser.mergingOCR(first, with: second)
+
+        XCTAssertTrue(merged.contains("Cette nouvelle page contient"))
+        XCTAssertTrue(merged.contains("Ils ne doivent surtout pas disparaître"))
+    }
+
+    func testWebOCRMergeStillRemovesRealViewportOverlap() {
+        let first = "Le début de la page présente le sujet. "
+            + "Cette longue phrase commune traverse la limite entre les deux captures du lecteur"
+        let second = "Cette longue phrase commune traverse la limite entre les deux captures du lecteur "
+            + "puis le texte continue avec un passage entièrement nouveau."
+
+        let merged = WebReadingBrowser.mergingOCR(first, with: second)
+
+        XCTAssertEqual(merged.components(separatedBy: "Cette longue phrase commune").count - 1, 1)
+        XCTAssertTrue(merged.contains("passage entièrement nouveau"))
+    }
+
     func testCreditsMatchTheQwenBuildVariant() {
         let source = "Before\n{{QWEN_BEGIN}}\nQwen credits\n{{QWEN_END}}\nSupertonic credits"
         let withoutQwen = VoicesView.visibleLicenseText(source, includesQwen: false)

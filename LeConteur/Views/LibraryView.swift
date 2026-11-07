@@ -200,6 +200,8 @@ struct WebReadingView: View {
     @StateObject private var browser = WebReadingBrowser()
     @State private var address = "https://lire.amazon.fr/kindle-library"
     @State private var isExtracting = false
+    @State private var showsImportPreparation = false
+    @State private var readerHeightBeforeImport: CGFloat?
     @State private var errorMessage: String?
     let read: (ReadingDocument) -> Void
 
@@ -222,6 +224,15 @@ struct WebReadingView: View {
                     .overlay {
                         if browser.isLoading { ProgressView().controlSize(.large) }
                     }
+                    .onGeometryChange(for: CGFloat.self) { geometry in
+                        geometry.size.height
+                    } action: { height in
+                        if !isExtracting, height > 0 {
+                            readerHeightBeforeImport = height
+                        }
+                    }
+                    .frame(height: isExtracting && browser.usesFixedPagination
+                           ? readerHeightBeforeImport : nil)
 
                 VStack(spacing: 10) {
                     if let errorMessage {
@@ -231,7 +242,7 @@ struct WebReadingView: View {
                         if isExtracting {
                             browser.finishCaptureNow()
                         } else {
-                            Task { await readCurrentPage() }
+                            showsImportPreparation = true
                         }
                     } label: {
                         Label(isExtracting ? String(localized: "Terminer l’import maintenant") : String(localized: "Importer ce livre"),
@@ -243,8 +254,10 @@ struct WebReadingView: View {
                     if isExtracting {
                         Text(browser.captureStatus).font(.caption).foregroundStyle(.secondary)
                     }
-                    Text("Le Conteur parcourt le livre jusqu’à sa fin et ignore toujours les champs de connexion. Votre session Amazon reste dans ce navigateur.")
-                        .font(.caption2).foregroundStyle(.secondary)
+                    if !isExtracting {
+                        Text("Le Conteur parcourt le livre jusqu’à sa fin et ignore toujours les champs de connexion. Votre session Amazon reste dans ce navigateur.")
+                            .font(.caption2).foregroundStyle(.secondary)
+                    }
                 }
                 .padding(14).background(ConteurTheme.wash)
             }
@@ -253,20 +266,69 @@ struct WebReadingView: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) { Button("Fermer") { dismiss() } }
-                ToolbarItemGroup(placement: .bottomBar) {
-                    Button { browser.goBack() } label: { Image(systemName: "chevron.backward") }
-                        .disabled(!browser.canGoBack)
-                    Button { browser.goForward() } label: { Image(systemName: "chevron.forward") }
-                        .disabled(!browser.canGoForward)
-                    Spacer()
-                    Button { browser.loadKindle() } label: { Label("Kindle", systemImage: "book") }
-                    Spacer()
-                    Button { browser.reload() } label: { Image(systemName: "arrow.clockwise") }
+                if !isExtracting {
+                    ToolbarItemGroup(placement: .bottomBar) {
+                        Button { browser.goBack() } label: { Image(systemName: "chevron.backward") }
+                            .disabled(!browser.canGoBack)
+                        Button { browser.goForward() } label: { Image(systemName: "chevron.forward") }
+                            .disabled(!browser.canGoForward)
+                        Spacer()
+                        Button { browser.loadKindle() } label: { Label("Kindle", systemImage: "book") }
+                        Spacer()
+                        Button { browser.reload() } label: { Image(systemName: "arrow.clockwise") }
+                    }
                 }
             }
             .onChange(of: browser.currentURL) { _, value in
                 if let value { address = value.absoluteString }
             }
+            .overlay {
+                if showsImportPreparation {
+                    ZStack {
+                        Color.black.opacity(0.62)
+                            .ignoresSafeArea()
+                            .contentShape(Rectangle())
+                            .onTapGesture {}
+                        VStack(alignment: .leading, spacing: 18) {
+                            Text("Préparer l’import")
+                                .font(.title3.bold())
+                            Text("Avant de commencer, allez à la couverture du livre afin que Le Conteur puisse capturer son image et son titre.")
+                                .font(.body)
+                                .foregroundStyle(.white.opacity(0.82))
+                            Button {
+                                showsImportPreparation = false
+                                Task { await readCurrentPage() }
+                            } label: {
+                                Text("La couverture est affichée")
+                                    .fontWeight(.semibold)
+                                    .frame(maxWidth: .infinity)
+                            }
+                            .buttonStyle(.borderedProminent)
+                            .tint(Color(red: 0.27, green: 0.50, blue: 0.33))
+                            Button("Pas encore") {
+                                showsImportPreparation = false
+                            }
+                            .fontWeight(.semibold)
+                            .frame(maxWidth: .infinity)
+                            .buttonStyle(.bordered)
+                            .tint(.white)
+                        }
+                        .foregroundStyle(.white)
+                        .padding(24)
+                        .frame(maxWidth: 380)
+                        .background(Color(red: 0.07, green: 0.10, blue: 0.08))
+                        .clipShape(RoundedRectangle(cornerRadius: 28, style: .continuous))
+                        .overlay {
+                            RoundedRectangle(cornerRadius: 28, style: .continuous)
+                                .stroke(.white.opacity(0.18), lineWidth: 1)
+                        }
+                        .shadow(color: .black.opacity(0.45), radius: 24, y: 12)
+                        .padding(24)
+                    }
+                    .transition(.opacity.combined(with: .scale(scale: 0.96)))
+                }
+            }
+            .animation(.easeOut(duration: 0.18), value: showsImportPreparation)
         }
     }
 
@@ -286,6 +348,13 @@ struct WebReadingView: View {
         errorMessage = nil
         defer { isExtracting = false }
         do {
+            // The import controls and bottom toolbar disappear here, changing
+            // the web view height. Kindle's paginated reader does not always
+            // notice that resize by itself and can clip its final text line.
+            await Task.yield()
+            try? await Task.sleep(for: .milliseconds(180))
+            browser.refreshReaderLayout()
+            try? await Task.sleep(for: .milliseconds(320))
             let capture = try await browser.captureVisibleText()
             let title = capture.title.trimmingCharacters(in: .whitespacesAndNewlines)
             var document = try DocumentImporter.fromText(
@@ -304,12 +373,13 @@ struct WebReadingView: View {
     }
 }
 
-@MainActor private final class WebReadingBrowser: NSObject, ObservableObject, WKNavigationDelegate, WKUIDelegate {
+@MainActor final class WebReadingBrowser: NSObject, ObservableObject, WKNavigationDelegate, WKUIDelegate {
     @Published private(set) var isLoading = false
     @Published private(set) var canGoBack = false
     @Published private(set) var canGoForward = false
     @Published private(set) var currentURL: URL?
     @Published private(set) var captureStatus = String(localized: "Analyse du livre…")
+    var usesFixedPagination: Bool { currentURL?.path.contains("/sample/") == true }
     let webView: WKWebView
     private let captureHandler: WebReadingCaptureHandler
     private var frameCaptures: [String: WebFrameCapture] = [:]
@@ -344,6 +414,14 @@ struct WebReadingView: View {
     func reload() { webView.reload() }
     func goBack() { if webView.canGoBack { webView.goBack() } }
     func goForward() { if webView.canGoForward { webView.goForward() } }
+    func refreshReaderLayout() {
+        webView.setNeedsLayout()
+        webView.layoutIfNeeded()
+        webView.evaluateJavaScript(
+            "window.__leConteurScrollAll && window.__leConteurScrollAll('layout', 0)",
+            completionHandler: nil
+        )
+    }
     func finishCaptureNow() {
         captureShouldFinish = true
         captureStatus = String(localized: "Finalisation de l’import…")
@@ -370,7 +448,7 @@ struct WebReadingView: View {
         currentURL = webView.url
     }
 
-    func captureVisibleText() async throws -> WebPageCapture {
+    fileprivate func captureVisibleText() async throws -> WebPageCapture {
         if let value = try? await webView.evaluateJavaScript("window.__leConteurCapture && window.__leConteurCapture()"),
            let result = value as? [String: Any] {
             receiveCapture(result, frameURL: webView.url)
@@ -402,6 +480,7 @@ struct WebReadingView: View {
     private func recognizeDisplayedText() async throws -> WebOCRBook {
         let originalOffset = webView.scrollView.contentOffset
         let viewportHeight = max(1, webView.bounds.height)
+        let trimsPaginatedReaderChrome = webView.url?.path.contains("/sample/") == true
         var combined = ""
         var firstPageCover: Data?
         var firstPageTitle = ""
@@ -410,6 +489,7 @@ struct WebReadingView: View {
         captureStatus = String(localized: "Recherche du début du livre…")
         _ = try? await webView.evaluateJavaScript("window.__leConteurScrollAll && window.__leConteurScrollAll('save', 0)")
         _ = try? await webView.evaluateJavaScript("window.__leConteurScrollAll && window.__leConteurScrollAll('start', 0)")
+        await rewindPaginatedReaderIfNeeded()
         defer {
             captureStatus = String(localized: "Analyse du livre…")
             webView.evaluateJavaScript("window.__leConteurScrollAll && window.__leConteurScrollAll('restore', 0)", completionHandler: nil)
@@ -422,10 +502,13 @@ struct WebReadingView: View {
         // plafond protège uniquement contre une page qui bouclerait sans fin.
         for screen in 0..<2400 {
             captureStatus = String(localized: "Analyse du livre… écran \(screen + 1)")
-            try await Task.sleep(for: .milliseconds(screen == 0 ? 900 : 380))
+            try await Task.sleep(for: .milliseconds(screen == 0 ? 900 : 450))
             let image = try await webView.takeSnapshot(configuration: nil)
             guard let cgImage = image.cgImage else { continue }
-            let recognized = try await Self.recognizeText(in: cgImage)
+            let recognized = try await Self.recognizeText(
+                in: cgImage,
+                trimsPaginatedReaderChrome: trimsPaginatedReaderChrome
+            )
             if screen == 0 {
                 firstPageCover = image.jpegData(compressionQuality: 0.86)
                 firstPageTitle = recognized.titleCandidate
@@ -441,6 +524,32 @@ struct WebReadingView: View {
             )
         }
         return WebOCRBook(text: combined, titleCandidate: firstPageTitle, coverData: firstPageCover)
+    }
+
+    private func rewindPaginatedReaderIfNeeded() async {
+        var previous = ""
+        var unchangedScreens = 0
+        let trimsPaginatedReaderChrome = webView.url?.path.contains("/sample/") == true
+        // A continuous Kindle book is already at scroll offset zero and has no
+        // side control, so this exits after two harmless checks. Samples use a
+        // left arrow; compare their OCR until that arrow no longer changes the
+        // displayed page, which means the beginning has been reached.
+        for step in 0..<1200 {
+            try? await Task.sleep(for: .milliseconds(step == 0 ? 500 : 320))
+            guard let image = try? await webView.takeSnapshot(configuration: nil),
+                  let cgImage = image.cgImage,
+                  let recognized = try? await Self.recognizeText(
+                    in: cgImage,
+                    trimsPaginatedReaderChrome: trimsPaginatedReaderChrome
+                  ) else { break }
+            let current = recognized.text.split(whereSeparator: \.isWhitespace).joined(separator: " ")
+            if current == previous { unchangedScreens += 1 }
+            else { previous = current; unchangedScreens = 0 }
+            if unchangedScreens >= 2 { break }
+            _ = try? await webView.evaluateJavaScript(
+                "window.__leConteurScrollAll && window.__leConteurScrollAll('retreat', 0)"
+            )
+        }
     }
 
     private func preferredBookTitle(visualCandidate: String) -> String {
@@ -482,7 +591,10 @@ struct WebReadingView: View {
             && !words.isDisjoint(with: publisherWords)
     }
 
-    nonisolated private static func recognizeText(in cgImage: CGImage) async throws -> WebOCRRecognition {
+    nonisolated private static func recognizeText(
+        in cgImage: CGImage,
+        trimsPaginatedReaderChrome: Bool = false
+    ) async throws -> WebOCRRecognition {
         try await Task.detached(priority: .userInitiated) {
             let request = VNRecognizeTextRequest()
             request.recognitionLevel = .accurate
@@ -524,9 +636,15 @@ struct WebReadingView: View {
             } else {
                 titleCandidate = ""
             }
+            // Kindle samples reserve the top and bottom of the web view for a
+            // title bar and page controls. Those strings repeat on every page
+            // and must not participate in OCR merging.
+            let readableLines = trimsPaginatedReaderChrome
+                ? lines.filter { $0.box.midY > 0.08 && $0.box.midY < 0.79 }
+                : lines
             var result = ""
             var previous: WebOCRLine?
-            for line in lines {
+            for line in readableLines {
                 if let previous {
                     let verticalGap = previous.box.minY - line.box.maxY
                     result += verticalGap > typicalHeight * 1.15 ? "\n\n" : " "
@@ -538,7 +656,7 @@ struct WebReadingView: View {
         }.value
     }
 
-    nonisolated private static func mergingOCR(_ existing: String, with addition: String) -> String {
+    nonisolated static func mergingOCR(_ existing: String, with addition: String) -> String {
         struct Token {
             let comparable: String
             let range: NSRange
@@ -608,8 +726,18 @@ struct WebReadingView: View {
         if bestLength >= 6 {
             let oldMatchStart = bestOldEnd - bestLength
             let newMatchStart = bestNewEnd - bestLength
-            let overlap = min(newWords.count, newMatchStart + oldWords.count - oldMatchStart)
-            return appendingTail(dropping: overlap)
+            let oldTrailingWords = oldWords.count - bestOldEnd
+            let maximumNewPrefix = min(36, max(8, newWords.count / 4))
+            // A genuine overlap begins near the top of the new screenshot and
+            // ends near the tail already assembled. Repeated Kindle chrome can
+            // also form a long match, but usually appears after most of the new
+            // page; accepting it would discard that page almost completely.
+            if newMatchStart <= maximumNewPrefix && oldTrailingWords <= 36 {
+                let overlap = newMatchStart + oldWords.count - oldMatchStart
+                if overlap <= newWords.count {
+                    return appendingTail(dropping: overlap)
+                }
+            }
         }
 
         let maximum = min(140, oldWords.count, newWords.count)
@@ -720,17 +848,78 @@ struct WebReadingView: View {
         }
         return best;
       };
+      const horizontalPageControl = direction => {
+        const wanted = direction > 0
+          ? /(next|suivant|suivante|forward|page suivante|right)/i
+          : /(previous|precedent|précédent|précédente|back|page précédente|left)/i;
+        const elements = [...document.querySelectorAll('button,[role="button"],a,[tabindex]')];
+        const visible = elements.filter(element => {
+          const rect = element.getBoundingClientRect();
+          const style = getComputedStyle(element);
+          return rect.width >= 12 && rect.height >= 12 && rect.bottom > 0 && rect.top < innerHeight
+            && rect.right > 0 && rect.left < innerWidth && style.visibility !== 'hidden'
+            && style.display !== 'none' && Number(style.opacity) !== 0
+            && !element.disabled && element.getAttribute('aria-disabled') !== 'true';
+        });
+        const label = element => clean([
+          element.getAttribute('aria-label'), element.getAttribute('title'),
+          element.getAttribute('data-testid'), element.textContent
+        ].filter(Boolean).join(' '));
+        let control = visible.find(element => wanted.test(label(element)));
+        if (!control) {
+          control = visible.filter(element => {
+            const rect = element.getBoundingClientRect();
+            const middle = rect.top + rect.height / 2;
+            const atSide = direction > 0 ? rect.right >= innerWidth * 0.88 : rect.left <= innerWidth * 0.12;
+            return atSide && middle >= innerHeight * 0.22 && middle <= innerHeight * 0.84
+              && rect.width <= innerWidth * 0.22 && rect.height <= innerHeight * 0.45;
+          }).sort((left, right) => {
+            const a = left.getBoundingClientRect();
+            const b = right.getBoundingClientRect();
+            return Math.abs((a.top + a.height / 2) - innerHeight / 2)
+              - Math.abs((b.top + b.height / 2) - innerHeight / 2);
+          })[0];
+        }
+        if (!control) {
+          const x = direction > 0 ? innerWidth * 0.975 : innerWidth * 0.025;
+          let edge = document.elementFromPoint(x, innerHeight * 0.55);
+          control = edge?.closest?.('button,[role="button"],a,[tabindex]') || edge;
+        }
+        if (!control || control === document.body || control === document.documentElement) return false;
+        control.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+        const rect = control.getBoundingClientRect();
+        const x = direction > 0 ? Math.min(innerWidth - 2, rect.right - 2) : Math.max(2, rect.left + 2);
+        const y = Math.min(innerHeight - 2, Math.max(2, rect.top + rect.height / 2));
+        for (const type of ['pointerdown', 'mousedown', 'pointerup', 'mouseup', 'click']) {
+          control.dispatchEvent(new MouseEvent(type, { bubbles: true, cancelable: true, clientX: x, clientY: y, view: window }));
+        }
+        return true;
+      };
       const scroll = (action, amount) => {
         const target = scrollingTarget();
         if (action === 'save') window.__leConteurSavedScroll = { target, top: target.scrollTop };
         if (action === 'start') target.scrollTop = 0;
-        if (action === 'advance') target.scrollTop = Math.min(target.scrollHeight - target.clientHeight, target.scrollTop + Number(amount || 0));
+        if (action === 'layout') {
+          requestAnimationFrame(() => dispatchEvent(new Event('resize')));
+        }
+        let paged = false;
+        if (action === 'retreat' && Math.max(0, target.scrollHeight - target.clientHeight) <= 4) {
+          paged = horizontalPageControl(-1);
+        }
+        if (action === 'advance') {
+          const before = target.scrollTop;
+          const maximum = Math.max(0, target.scrollHeight - target.clientHeight);
+          target.scrollTop = Math.min(maximum, target.scrollTop + Number(amount || 0));
+          if (maximum <= 4 || Math.abs(target.scrollTop - before) < 2) {
+            paged = horizontalPageControl(1);
+          }
+        }
         if (action === 'restore' && window.__leConteurSavedScroll) {
           window.__leConteurSavedScroll.target.scrollTop = window.__leConteurSavedScroll.top;
         }
         childFrames(action, amount);
-        setTimeout(report, 100);
-        return { top: target.scrollTop, maximum: Math.max(0, target.scrollHeight - target.clientHeight) };
+        setTimeout(report, paged ? 260 : 100);
+        return { top: target.scrollTop, maximum: Math.max(0, target.scrollHeight - target.clientHeight), paged };
       };
       let timer;
       const later = () => { clearTimeout(timer); timer = setTimeout(report, 120); };
