@@ -7,8 +7,12 @@ struct ReaderParagraphContent {
     let text: String
     let highlight: NSRange?
     let isActive: Bool
+    private let segments: [String]
+    private let start: Int
 
     init(segments: [String], start: Int, position: Int, wordRange: NSRange?) {
+        self.segments = segments
+        self.start = start
         text = segments.joined(separator: " ")
         let local = position - start
         isActive = segments.indices.contains(local)
@@ -22,6 +26,24 @@ struct ReaderParagraphContent {
 
     var currentWord: String? { highlight.map { (text as NSString).substring(with: $0) } }
 
+    /// Convert a TextKit location in the displayed paragraph back to the
+    /// sentence and UTF-16 word offset used by the speech engines.
+    func speechLocation(at paragraphOffset: Int) -> (position: Int, characterOffset: Int)? {
+        var offset = 0
+        for (index, segment) in segments.enumerated() {
+            let length = segment.utf16.count
+            if paragraphOffset <= offset + length || index == segments.count - 1 {
+                let local = min(max(0, paragraphOffset - offset), length)
+                guard let word = Self.linguisticWord(in: segment, at: local) else {
+                    return (start + index, local)
+                }
+                return (start + index, word.location)
+            }
+            offset += length + 1
+        }
+        return nil
+    }
+
     /// Whitespace is not a word boundary in Chinese or Japanese. Use Apple's
     /// linguistic tokenizer for the short interval before AVSpeechSynthesizer
     /// delivers its first exact speech range, so we never highlight a complete
@@ -34,6 +56,16 @@ struct ReaderParagraphContent {
         }
         guard let token = tokenizer.tokens(for: text.startIndex..<text.endIndex).first else { return nil }
         return NSRange(token, in: text)
+    }
+
+    private static func linguisticWord(in text: String, at utf16Offset: Int) -> NSRange? {
+        let tokenizer = NLTokenizer(unit: .word)
+        tokenizer.string = text
+        if let language = NLLanguageRecognizer.dominantLanguage(for: text) { tokenizer.setLanguage(language) }
+        let tokens = tokenizer.tokens(for: text.startIndex..<text.endIndex).map { NSRange($0, in: text) }
+        return tokens.first { NSLocationInRange(utf16Offset, $0) }
+            ?? tokens.first { $0.location >= utf16Offset }
+            ?? tokens.last
     }
 }
 
@@ -74,6 +106,7 @@ struct ReaderParagraphView: View {
     let position: Int
     let sourceRange: NSRange?
     let textSize: Double
+    let onWordTap: (Int) -> Void
     @State private var frame = CGRect.zero
     @State private var measuredRange: NSRange?
     @State private var wordRect: CGRect?
@@ -85,7 +118,7 @@ struct ReaderParagraphView: View {
     }
 
     var body: some View {
-        ParagraphText(content: content, textSize: textSize) { range, rect in
+        ParagraphText(content: content, textSize: textSize, onWordTap: onWordTap) { range, rect in
             measuredRange = range
             wordRect = rect
         }
@@ -100,12 +133,14 @@ struct ReaderParagraphView: View {
 private struct ParagraphText: UIViewRepresentable {
     let content: ReaderParagraphContent
     let textSize: Double
+    let onWordTap: (Int) -> Void
     let wordFrame: (NSRange?, CGRect?) -> Void
 
     func makeUIView(context: Context) -> ReaderParagraphTextView { ReaderParagraphTextView() }
 
     func updateUIView(_ view: ReaderParagraphTextView, context: Context) {
         view.onWordFrame = wordFrame
+        view.onWordTap = onWordTap
         view.configure(content: content, textSize: textSize)
     }
 
@@ -120,6 +155,7 @@ private struct ParagraphText: UIViewRepresentable {
 /// the scroll view. The enclosing SwiftUI row owns paragraph taps/accessibility.
 final class ReaderParagraphTextView: UITextView {
     var onWordFrame: ((NSRange?, CGRect?) -> Void)?
+    var onWordTap: ((Int) -> Void)?
     private var highlightedRange: NSRange?
     private var configuredSize = 0.0
     private var active = false
@@ -132,15 +168,22 @@ final class ReaderParagraphTextView: UITextView {
         isEditable = false
         isSelectable = false
         isScrollEnabled = false
-        isUserInteractionEnabled = false
+        isUserInteractionEnabled = true
         isAccessibilityElement = false
         backgroundColor = .clear
         textContainerInset = .zero
         textContainer.lineFragmentPadding = 0
         setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
+        addGestureRecognizer(UITapGestureRecognizer(target: self, action: #selector(tapped(_:))))
     }
 
     required init?(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
+
+    @objc private func tapped(_ recognizer: UITapGestureRecognizer) {
+        let point = recognizer.location(in: self)
+        guard let position = closestPosition(to: point) else { return }
+        onWordTap?(offset(from: beginningOfDocument, to: position))
+    }
 
     func configure(content: ReaderParagraphContent, textSize: Double) {
         let color = UIColor(ConteurTheme.ink).withAlphaComponent(content.isActive ? 1 : 0.76)

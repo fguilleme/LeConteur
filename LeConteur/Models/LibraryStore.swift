@@ -433,6 +433,24 @@ final class LibraryStore {
         save()
     }
 
+    /// Override an imported document's detected language, or detect it again
+    /// from representative passages when `languageCode` is nil.
+    @discardableResult func updateLanguage(id: UUID, languageCode: String?) -> Bool {
+        guard let index = documents.firstIndex(where: { $0.id == id }) else { return false }
+        let previous = documents[index].languageCode
+        if let languageCode {
+            documents[index].languageCode = SystemVoiceSelection.language(languageCode)
+        } else {
+            documents[index].languageCode = DocumentImporter.detectedLanguage(
+                in: documents[index].segments.joined(separator: "\n\n"))
+        }
+        guard save() else {
+            documents[index].languageCode = previous
+            return false
+        }
+        return true
+    }
+
     func toggleBookmark(id: UUID, position: Int) {
         guard let index = documents.firstIndex(where: { $0.id == id }), documents[index].segments.indices.contains(position) else { return }
         if documents[index].bookmarks.contains(position) {
@@ -502,6 +520,15 @@ enum VoiceEngine: String, CaseIterable, Identifiable {
         case .qwen: String(localized: "Qwen · Expressif")
         case .elevenLabs: String(localized: "ElevenLabs · En ligne")
         case .fishAudio: String(localized: "Fish Audio · En ligne")
+        }
+    }
+    var shortName: String {
+        switch self {
+        case .system: String(localized: "Voix iPhone")
+        case .supertonic: "Supertonic"
+        case .qwen: "Qwen"
+        case .elevenLabs: "ElevenLabs"
+        case .fishAudio: "Fish Audio"
         }
     }
 }

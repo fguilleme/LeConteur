@@ -15,6 +15,7 @@ struct LibraryView: View {
     @State private var filter = 0
     @State private var deleting: ReadingDocument?
     @State private var sharedBook: SharedBook?
+    @State private var languageDocument: ReadingDocument?
 
     private var filtered: [ReadingDocument] {
         library.documents.filter {
@@ -110,7 +111,7 @@ struct LibraryView: View {
                                             Text(document.author).font(.caption).foregroundStyle(ConteurTheme.muted).lineLimit(1)
                                             HStack(spacing: 8) {
                                                 Text(document.source).font(.system(size: 9, weight: .semibold)).tracking(1)
-                                                if document.source == "EPUB" {
+                                                if document.languageCode != nil {
                                                     Text("·  \(languageName(for: document))").font(.system(size: 9, weight: .semibold)).tracking(1)
                                                 }
                                                 Text("·  \(remainingTime(for: document))").font(.caption)
@@ -132,6 +133,7 @@ struct LibraryView: View {
                                         if document.translationOf != nil && !document.isTranslationPending {
                                             Button("Partager la traduction", systemImage: "square.and.arrow.up") { export(document) }
                                         }
+                                        Button("Langue du document", systemImage: "character.book.closed") { languageDocument = document }
                                         Button("Supprimer", systemImage: "trash", role: .destructive) { deleting = document }
                                     }
                                 Divider().overlay(ConteurTheme.ink.opacity(0.06))
@@ -155,6 +157,13 @@ struct LibraryView: View {
                 }
             }
             .sheet(item: $sharedBook) { BookShareSheet(url: $0.url).ignoresSafeArea() }
+            .sheet(item: $languageDocument) { document in
+                DocumentLanguagePicker(document: library.document(document.id) ?? document) { language in
+                    if library.updateLanguage(id: document.id, languageCode: language), playback.documentID == document.id {
+                        playback.settingsChanged()
+                    }
+                }
+            }
         }
     }
 

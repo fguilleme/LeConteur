@@ -21,6 +21,7 @@ import Foundation
     private var buffering: QwenPassageBufferPolicy
     private var wantsPlayback = false
     private var nextPosition: Int
+    private var nextCharacterOffset: Int?
     private var producer: Task<Void, Never>?
     private var tracker: Task<Void, Never>?
     private var identity = UUID()
@@ -82,7 +83,8 @@ import Foundation
         set { audio.rate = newValue; updateState() }
     }
 
-    init(document: ReadingDocument, start: Int, rate: Double, volume: Float = 1,
+    init(document: ReadingDocument, start: Int, startCharacterOffset: Int? = nil,
+         rate: Double, volume: Float = 1,
          sampleRate: Int = 24_000,
          buffering: QwenPassageBufferPolicy = .init(),
          generationPriority: TaskPriority = .userInitiated,
@@ -91,6 +93,7 @@ import Foundation
          render: @escaping Renderer) throws {
         self.document = document
         self.nextPosition = start
+        self.nextCharacterOffset = startCharacterOffset
         self.endPositionExclusive = min(max(endPositionExclusive ?? document.segments.count, start),
                                         document.segments.count)
         self.render = render
@@ -200,7 +203,9 @@ import Foundation
                     // succession of isolated sentences. NarrationWindow keeps
                     // the request inside one paragraph and applies hard bounds.
                     let window = NarrationWindow(document: document, start: nextPosition,
+                                                 characterOffset: nextCharacterOffset,
                                                  endPositionExclusive: endPositionExclusive)
+                    nextCharacterOffset = nil
                     isGenerating = true
                     updateState()
                     recordDiagnosticEvent("qwen:renderStarted")

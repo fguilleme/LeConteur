@@ -939,6 +939,24 @@ final class LeConteurTests: XCTestCase {
         XCTAssertEqual(spoken.currentWord, "准备", "Keep Apple's exact UTF-16 speech range once available")
     }
 
+    func testReaderTapMapsToExactWordAcrossSentences() throws {
+        let segments = ["L’été 🌿 arrive.", "Puis Zoé ouvre la fenêtre."]
+        let content = ReaderParagraphContent(segments: segments, start: 5, position: 5, wordRange: nil)
+        let paragraph = segments.joined(separator: " ") as NSString
+        let tapped = paragraph.range(of: "fenêtre").location + 3
+        let location = try XCTUnwrap(content.speechLocation(at: tapped))
+        XCTAssertEqual(location.position, 6)
+        XCTAssertEqual(location.characterOffset, (segments[1] as NSString).range(of: "fenêtre").location)
+    }
+
+    func testNarrationWindowStartsAtTappedWordAndKeepsSourceOffset() throws {
+        let document = try DocumentImporter.fromText("Avant Élodie ouvre la porte. Ensuite elle entre.", title: "Reprise")
+        let offset = (document.segments[0] as NSString).range(of: "Élodie").location
+        let window = NarrationWindow(document: document, start: 0, characterOffset: offset)
+        XCTAssertTrue(window.text.hasPrefix("Élodie"))
+        XCTAssertEqual(window.segments.first?.sourceOffset, offset)
+    }
+
     @MainActor func testReaderHighlightMovesToActualLineWithoutChangingParagraph() throws {
         let text = "Début " + Array(repeating: "une longue phrase dans le même paragraphe", count: 20).joined(separator: " ") + " arrivée"
         let view = ReaderParagraphTextView()
@@ -2060,6 +2078,28 @@ final class LeConteurTests: XCTestCase {
         XCTAssertLessThan(try XCTUnwrap(text.range(of: "Chaque matin")?.lowerBound), try XCTUnwrap(text.range(of: "Prenez le temps")?.lowerBound))
         XCTAssertGreaterThan(document.paragraphRanges.count, 3)
         XCTAssertEqual(document.paragraphRanges.flatMap(Array.init), Array(document.segments.indices))
+    }
+
+    func testLanguageDetectionSamplesPDFBodyInsteadOfFrontMatter() {
+        let portugueseCredits = String(repeating: "Autores brasileiros, edição publicada no Brasil. ", count: 140)
+        let englishBody = String(repeating: "This study explains how readers understand language and develop knowledge through careful practice. ", count: 500)
+        XCTAssertEqual(DocumentImporter.detectedLanguage(in: portugueseCredits + englishBody), "en")
+    }
+
+    @MainActor func testDocumentLanguageCanBeOverriddenAndRedetected() throws {
+        let root = URL.temporaryDirectory.appending(path: UUID().uuidString)
+        try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+        addTeardownBlock { try? FileManager.default.removeItem(at: root) }
+        let library = LibraryStore(directory: root)
+        var document = try DocumentImporter.fromText(
+            String(repeating: "This document is written in English and contains a complete explanation. ", count: 20),
+            title: "Language")
+        document.languageCode = "pt"
+        XCTAssertTrue(library.add(document))
+        XCTAssertTrue(library.updateLanguage(id: document.id, languageCode: "en-US"))
+        XCTAssertEqual(library.document(document.id)?.languageCode, "en")
+        XCTAssertTrue(library.updateLanguage(id: document.id, languageCode: nil))
+        XCTAssertEqual(library.document(document.id)?.languageCode, "en")
     }
 
     @MainActor private func coverEPUB(_ mode: String, corrupt: Bool = false) throws -> (URL, URL) {

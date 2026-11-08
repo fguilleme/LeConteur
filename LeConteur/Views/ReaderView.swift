@@ -1,4 +1,5 @@
 import SwiftUI
+import AVFoundation
 
 struct ReaderView: View {
     @Environment(LibraryStore.self) private var library
@@ -19,6 +20,7 @@ struct ReaderView: View {
     @State private var currentWordFrame: ReaderWordFrame?
     @State private var requestedOffset: CGFloat?
     @State private var sharedBook: SharedBook?
+    @State private var showLanguagePicker = false
 
     private var document: ReadingDocument? { library.document(documentID) }
     private var activeParagraph: Int {
@@ -89,8 +91,10 @@ struct ReaderView: View {
                                 }.font(.caption2).foregroundStyle(ConteurTheme.muted).padding(.top, 8)
                                 if let message = playback.voiceFallbackMessage {
                                     Text(message).font(.caption).foregroundStyle(ConteurTheme.muted)
-                                    if playback.isUsingAppleForTranslation {
-                                        Button("Écouter avec Qwen") { playback.selectEngine(.qwen) }
+                                    if let engine = playback.translationPausedEngine {
+                                        Button(String(format: String(localized: "Écouter %@"), engine.shortName)) {
+                                            playback.selectEngine(engine)
+                                        }
                                             .font(.caption.weight(.semibold))
                                     }
                                 }
@@ -99,7 +103,10 @@ struct ReaderView: View {
                             LazyVStack(alignment: .leading, spacing: 8) {
                                 ForEach(Array(document.paragraphRanges.enumerated()), id: \.offset) { index, range in
                                     let content = ReaderParagraphContent(segments: Array(document.segments[range]), start: range.lowerBound, position: position, wordRange: wordRange)
-                                    ReaderParagraphView(content: content, position: position, sourceRange: wordRange, textSize: settings.textSize)
+                                    ReaderParagraphView(content: content, position: position, sourceRange: wordRange, textSize: settings.textSize) { offset in
+                                        guard let target = content.speechLocation(at: offset) else { return }
+                                        playback.seek(to: target.position, characterOffset: target.characterOffset)
+                                    }
                                         .frame(maxWidth: .infinity, alignment: .leading)
                                         .padding(.horizontal, 18).padding(.vertical, 16)
                                         .background(index == activeParagraph ? ConteurTheme.wash : Color.clear, in: RoundedRectangle(cornerRadius: 15))
@@ -108,8 +115,6 @@ struct ReaderView: View {
                                                 Capsule().fill(ConteurTheme.orange).frame(width: 3).padding(.vertical, 18)
                                             }
                                         }
-                                        .contentShape(Rectangle())
-                                        .onTapGesture { playback.seek(to: range.lowerBound) }
                                         .accessibilityHint("Touchez deux fois pour reprendre la lecture à ce paragraphe")
                                         .accessibilityAddTraits(.isButton)
                                         .accessibilityIdentifier("reader-paragraph-\(index)")
@@ -228,6 +233,7 @@ struct ReaderView: View {
                                 Divider()
                             }
                             Button("Mes signets", systemImage: "bookmark") { showBookmarks = true }
+                            Button("Langue du document", systemImage: "character.book.closed") { showLanguagePicker = true }
                             if document.translationOf != nil && !document.isTranslationPending {
                                 Button("Partager la traduction", systemImage: "square.and.arrow.up") { export(document) }
                             }
@@ -269,6 +275,13 @@ struct ReaderView: View {
                     }.presentationDetents([.medium, .large])
                 }
                 .sheet(item: $sharedBook) { BookShareSheet(url: $0.url).ignoresSafeArea() }
+                .sheet(isPresented: $showLanguagePicker) {
+                    DocumentLanguagePicker(document: library.document(document.id) ?? document) { language in
+                        if library.updateLanguage(id: document.id, languageCode: language) {
+                            playback.settingsChanged()
+                        }
+                    }
+                }
                 .alert("Lecture", isPresented: Binding(get: { playback.errorMessage != nil }, set: { if !$0 { playback.errorMessage = nil } })) {
                     Button("D’accord", role: .cancel) { playback.errorMessage = nil }
                 } message: { Text(playback.errorMessage ?? "") }
@@ -373,6 +386,79 @@ struct ReaderView: View {
                                                       rate: playback.playbackSpeed)
         let minutes = max(1, Int(ceil(seconds / 60)))
         return String(format: String(localized: "%lld min jusqu’à la fin du chapitre"), Int64(minutes))
+    }
+}
+
+struct DocumentLanguagePicker: View {
+    @Environment(\.dismiss) private var dismiss
+    let document: ReadingDocument
+    let select: (String?) -> Void
+    @State private var search = ""
+
+    private static let common = [
+        "ar", "ca", "zh", "hr", "cs", "da", "nl", "en", "fi", "fr", "de", "el", "he", "hi",
+        "hu", "id", "it", "ja", "ko", "ms", "no", "pl", "pt", "ro", "ru", "sk", "es", "sv",
+        "th", "tr", "uk", "vi"
+    ]
+
+    private var current: String { SystemVoiceSelection.language(document.languageCode ?? "und") }
+    private var languages: [String] {
+        let installed = AVSpeechSynthesisVoice.speechVoices().map { SystemVoiceSelection.language($0.language) }
+        return Set(Self.common + installed + [current])
+            .filter {
+                $0 != "und" && (search.isEmpty
+                    || nativeName($0).localizedCaseInsensitiveContains(search)
+                    || localizedName($0).localizedCaseInsensitiveContains(search)
+                    || $0.localizedCaseInsensitiveContains(search))
+            }
+            .sorted { nativeName($0).localizedStandardCompare(nativeName($1)) == .orderedAscending }
+    }
+
+    var body: some View {
+        NavigationStack {
+            List {
+                if search.isEmpty {
+                    Section {
+                        Button {
+                            select(nil)
+                            dismiss()
+                        } label: {
+                            Label("Détecter automatiquement", systemImage: "wand.and.stars")
+                        }
+                    } footer: {
+                        Text("La langue choisie détermine la voix utilisée et la langue source de la traduction.")
+                    }
+                }
+                Section("Langues") {
+                    ForEach(languages, id: \.self) { language in
+                        Button {
+                            select(language)
+                            dismiss()
+                        } label: {
+                            HStack {
+                                Text(nativeName(language))
+                                Spacer()
+                                if language == current { Image(systemName: "checkmark") }
+                            }
+                        }
+                        .accessibilityIdentifier("document-language-\(language)")
+                    }
+                }
+            }
+            .searchable(text: $search, prompt: "Rechercher une langue")
+            .navigationTitle("Langue du document")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar { ToolbarItem(placement: .cancellationAction) { Button("Annuler") { dismiss() } } }
+        }
+        .presentationDetents([.medium, .large])
+    }
+
+    private func nativeName(_ language: String) -> String {
+        (Locale(identifier: language).localizedString(forLanguageCode: language) ?? language).localizedCapitalized
+    }
+
+    private func localizedName(_ language: String) -> String {
+        (Locale.current.localizedString(forLanguageCode: language) ?? language).localizedCapitalized
     }
 }
 

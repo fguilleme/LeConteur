@@ -42,7 +42,8 @@ final class PlaybackController: NSObject {
     private var qwenPlayer: QwenPassagePlayer?
     private var qwenSessionID: UUID?
     private var utterance: AVSpeechUtterance?
-    private var spokenSegments: [(index: Int, range: NSRange)] = []
+    private var spokenSegments: [(index: Int, range: NSRange, sourceOffset: Int)] = []
+    private var pendingCharacterOffset: Int?
     private var spokenEndPosition = 0
     private var token = UUID()
     private var timerTask: Task<Void, Never>?
@@ -51,6 +52,8 @@ final class PlaybackController: NSObject {
     private var systemSpeechRecoveryAttempts = 0
     private var observers: [NSObjectProtocol] = []
     @ObservationIgnored private var remoteCommandTargets: [(MPRemoteCommand, Any)] = []
+    @ObservationIgnored private var nowPlayingArtworkKey: String?
+    @ObservationIgnored private var nowPlayingArtwork: MPMediaItemArtwork?
     private var backgroundTask: UIBackgroundTaskIdentifier = .invalid
     private var nextTranslationPosition: Int?
     private var translationIsActive = false
@@ -77,13 +80,15 @@ final class PlaybackController: NSObject {
     var qwenPlayedSeconds: Double { qwenPlayer?.playedSeconds ?? 0 }
     var qwenCompletedAudioSeconds: Double { qwenPlayer?.completedAudioSeconds ?? 0 }
     var qwenBufferedPlaybackSeconds: Double { qwenPlayer?.bufferedPlaybackSeconds ?? 0 }
-    var isUsingAppleForTranslation: Bool {
-        !isPreview && settings.engine.requiresTranslationPause
-            && translationIsActive && document?.isTranslationPending == true
+    var translationPausedEngine: VoiceEngine? {
+        guard !isPreview, translationIsActive, document?.isTranslationPending == true else { return nil }
+        let engine = selectedEngineWithoutTranslationConstraint
+        return engine.requiresTranslationPause ? engine : nil
     }
+    var isUsingAppleForTranslation: Bool { translationPausedEngine != nil }
     var voiceFallbackMessage: String? {
-        if isUsingAppleForTranslation {
-            return String(localized: "Voix Apple pendant la traduction. Choisir Qwen met la traduction en pause pour lire les passages déjà prêts.")
+        if let engine = translationPausedEngine {
+            return String(format: String(localized: "Voix Apple pendant la traduction. %@ met la traduction en pause pour lire les passages déjà prêts."), engine.shortName)
         }
         if settings.engine == .supertonic, !isSupertonicInstalled {
             return SupertonicError.missing.localizedDescription
@@ -100,11 +105,7 @@ final class PlaybackController: NSObject {
     private var isSupertonicInstalled: Bool {
         VoiceDownloads.shared.snapshot("supertonic").installed
     }
-    var effectiveEngine: VoiceEngine {
-        if isPreview { return previewEngine ?? .qwen }
-        // Local neural engines compete with Translation for the device's compute
-        // budget. Online engines can keep reading while Translation runs.
-        if isUsingAppleForTranslation { return .system }
+    private var selectedEngineWithoutTranslationConstraint: VoiceEngine {
         switch settings.engine {
         case .qwen:
             guard VoiceFeatures.qwenEnabled else {
@@ -119,6 +120,12 @@ final class PlaybackController: NSObject {
             return settings.engine
         case .system: return .system
         }
+    }
+    var effectiveEngine: VoiceEngine {
+        if isPreview { return previewEngine ?? .qwen }
+        // Local neural engines compete with Translation for the device's compute
+        // budget. Online engines can keep reading while Translation runs.
+        return translationPausedEngine == nil ? selectedEngineWithoutTranslationConstraint : .system
     }
     var voiceName: String {
         switch effectiveEngine {
@@ -391,11 +398,14 @@ final class PlaybackController: NSObject {
         try? AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)
     }
 
-    func seek(to newPosition: Int) {
+    func seek(to newPosition: Int, characterOffset: Int? = nil) {
         guard let document else { return }
         let resume = isPlaying || isPreparing
         stopAudio()
         position = min(max(0, newPosition), document.segments.count - 1)
+        pendingCharacterOffset = characterOffset.map {
+            min(max(0, $0), document.segments[position].utf16.count)
+        }
         if sleepAtChapterEnd {
             sleepChapterEndPosition = document.chapterRange(containing: position)?.upperBound
         }
@@ -581,9 +591,11 @@ final class PlaybackController: NSObject {
         if let deadline = sleepDeadline, Date() >= deadline { pause(); setSleepTimer(minutes: nil); return }
         library.updatePosition(id: document.id, position: position)
         let end = sleepAtChapterEnd ? sleepChapterEndPosition : nil
+        let initialOffset = pendingCharacterOffset
         let window = effectiveEngine != .system
-            ? NarrationWindow(sentenceIn: document, at: position)
-            : NarrationWindow(document: document, start: position, endPositionExclusive: end)
+            ? NarrationWindow(sentenceIn: document, at: position, characterOffset: initialOffset)
+            : NarrationWindow(document: document, start: position, characterOffset: initialOffset,
+                              endPositionExclusive: end)
         let text = window.text
         spokenSegments = window.segments
         spokenEndPosition = window.endPosition
@@ -612,6 +624,7 @@ final class PlaybackController: NSObject {
             guard let provider = effectiveEngine.onlineProvider else { return }
             startOnline(provider: provider, voiceID: settings.onlineVoiceID(for: provider))
         }
+        pendingCharacterOffset = nil
         updateNowPlaying()
     }
 
@@ -659,7 +672,8 @@ final class PlaybackController: NSObject {
             let speaker = settings.qwenSpeaker
             qwenSessionID = currentToken
             let render = renderQwen
-            let passagePlayer = try QwenPassagePlayer(document: document, start: position, rate: settings.qwenSpeed,
+            let passagePlayer = try QwenPassagePlayer(document: document, start: position,
+                                                      startCharacterOffset: pendingCharacterOffset, rate: settings.qwenSpeed,
                                                       buffering: .init(preset: settings.qwenBuffer),
                                                       endPositionExclusive: sleepAtChapterEnd ? sleepChapterEndPosition : nil) { text in
                 try await render(text, style, language, speaker, currentToken)
@@ -751,7 +765,8 @@ final class PlaybackController: NSObject {
         preparationStatus = String(localized: "Préparation de la voix…")
         do {
             let voice = settings.supertonicVoice
-            let passagePlayer = try QwenPassagePlayer(document: document, start: position, rate: settings.speed,
+            let passagePlayer = try QwenPassagePlayer(document: document, start: position,
+                                                      startCharacterOffset: pendingCharacterOffset, rate: settings.speed,
                                                       sampleRate: SupertonicModel.sampleRate,
                                                       // Supertonic's background throughput is deliberately throttled
                                                       // below iOS's CPU watchdog limit. A fixed startup reserve avoids
@@ -824,7 +839,8 @@ final class PlaybackController: NSObject {
         isPreparing = true
         preparationStatus = String(format: String(localized: "Connexion à %@…"), provider.name)
         do {
-            let passagePlayer = try QwenPassagePlayer(document: document, start: position, rate: settings.speed,
+            let passagePlayer = try QwenPassagePlayer(document: document, start: position,
+                                                      startCharacterOffset: pendingCharacterOffset, rate: settings.speed,
                                                       sampleRate: 44_100,
                                                       buffering: .init(preset: .seconds10, minimumAheadSeconds: 45),
                                                       refillResumeSeconds: 5,
@@ -962,7 +978,8 @@ final class PlaybackController: NSObject {
             if let documentID { library.updatePosition(id: documentID, position: position) }
         }
         let intersection = NSIntersectionRange(item.range, range)
-        wordRange = NSRange(location: intersection.location - item.range.location, length: intersection.length)
+        wordRange = NSRange(location: item.sourceOffset + intersection.location - item.range.location,
+                            length: intersection.length)
         if let utterance, effectiveEngine == .system {
             systemSpeechRecoveryAttempts = 0
             armSystemSpeechWatchdog(for: utterance)
@@ -999,13 +1016,41 @@ final class PlaybackController: NSObject {
         case .elevenLabs, .fishAudio: waitingLabel = String(format: String(localized: "%@ · connexion nécessaire pour la suite"), effectiveEngine.name)
         case .system: waitingLabel = voiceName
         }
-        MPNowPlayingInfoCenter.default().nowPlayingInfo = [
+        var information: [String: Any] = [
             MPMediaItemPropertyTitle: document.title,
             MPMediaItemPropertyArtist: qwenPlayer?.isWaitingForForeground == true || waitingForForegroundStart ? waitingLabel : voiceName,
             MPMediaItemPropertyAlbumTitle: "Le Conteur",
             MPNowPlayingInfoPropertyPlaybackRate: isPlaying && !isPreparing ? playbackSpeed : 0,
             MPNowPlayingInfoPropertyMediaType: MPNowPlayingInfoMediaType.audio.rawValue
         ]
+        if let artwork = artwork(for: document) {
+            information[MPMediaItemPropertyArtwork] = artwork
+        }
+        MPNowPlayingInfoCenter.default().nowPlayingInfo = information
+    }
+
+    private func artwork(for document: ReadingDocument) -> MPMediaItemArtwork? {
+        let key = document.coverFileName.map { "cover:\($0)" } ?? "application-icon"
+        if nowPlayingArtworkKey == key { return nowPlayingArtwork }
+
+        let image = BookCoverStore.image(named: document.coverFileName) ?? Self.applicationIcon()
+        nowPlayingArtworkKey = key
+        nowPlayingArtwork = image.map { image in
+            MPMediaItemArtwork(boundsSize: image.size) { _ in image }
+        }
+        return nowPlayingArtwork
+    }
+
+    nonisolated private static func applicationIcon() -> UIImage? {
+        guard let icons = Bundle.main.object(forInfoDictionaryKey: "CFBundleIcons") as? [String: Any],
+              let primary = icons["CFBundlePrimaryIcon"] as? [String: Any],
+              let files = primary["CFBundleIconFiles"] as? [String] else { return nil }
+        for name in files.reversed() {
+            if let image = UIImage(named: name) { return image }
+            if let path = Bundle.main.path(forResource: name + "@2x", ofType: "png"),
+               let image = UIImage(contentsOfFile: path) { return image }
+        }
+        return nil
     }
 
     private func configureRemoteCommands() {
@@ -1068,37 +1113,41 @@ extension PlaybackController: AVSpeechSynthesizerDelegate {
 
 struct NarrationWindow: Sendable {
     let text: String
-    let segments: [(index: Int, range: NSRange)]
+    let segments: [(index: Int, range: NSRange, sourceOffset: Int)]
     let endPosition: Int
 
     /// Imported and translated segments already follow sentence boundaries.
     /// Keep one per Qwen request, including the importer's bounded pieces for
     /// exceptionally long sentences. Do not regroup them into a paragraph.
-    init(sentenceIn document: ReadingDocument, at position: Int) {
-        text = document.segments.indices.contains(position) ? document.segments[position] : ""
+    init(sentenceIn document: ReadingDocument, at position: Int, characterOffset: Int? = nil) {
+        let sentence = document.segments.indices.contains(position) ? document.segments[position] : ""
+        let offset = min(max(0, characterOffset ?? 0), sentence.utf16.count)
+        text = String(decoding: sentence.utf16.dropFirst(offset), as: UTF16.self)
         segments = document.segments.indices.contains(position)
-            ? [(position, NSRange(location: 0, length: text.utf16.count))] : []
+            ? [(position, NSRange(location: 0, length: text.utf16.count), offset)] : []
         endPosition = position
     }
 
     /// Groups a few neighbouring sentences from the current paragraph into a
     /// bounded Qwen request. Keeping paragraph boundaries as hard boundaries
     /// avoids manufacturing pauses and pronunciation artefacts at joins.
-    init(document: ReadingDocument, start: Int, characterLimit: Int = 280,
+    init(document: ReadingDocument, start: Int, characterOffset: Int? = nil, characterLimit: Int = 280,
          sentenceLimit: Int = 3, endPositionExclusive: Int? = nil) {
         let paragraph = document.paragraphRanges.first { $0.contains(start) } ?? start..<(start + 1)
         let end = min(paragraph.upperBound, endPositionExclusive ?? document.segments.count)
         var text = ""
-        var mapping: [(index: Int, range: NSRange)] = []
+        var mapping: [(index: Int, range: NSRange, sourceOffset: Int)] = []
         for index in start..<end where document.segments.indices.contains(index) {
             guard mapping.count < max(1, sentenceLimit) else { break }
-            let sentence = document.segments[index]
+            let original = document.segments[index]
+            let sourceOffset = index == start ? min(max(0, characterOffset ?? 0), original.utf16.count) : 0
+            let sentence = String(decoding: original.utf16.dropFirst(sourceOffset), as: UTF16.self)
             let separatorLength = text.isEmpty ? 0 : 1
             guard text.isEmpty || text.count + separatorLength + sentence.count <= characterLimit else { break }
             if !text.isEmpty { text += " " }
             let offset = text.utf16.count
             text += sentence
-            mapping.append((index, NSRange(location: offset, length: sentence.utf16.count)))
+            mapping.append((index, NSRange(location: offset, length: sentence.utf16.count), sourceOffset))
         }
         self.text = text
         segments = mapping

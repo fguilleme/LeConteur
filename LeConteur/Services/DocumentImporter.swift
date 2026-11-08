@@ -39,11 +39,35 @@ enum DocumentImporter {
         var document = ReadingDocument(title: cleanTitle.isEmpty ? String(segments[0].prefix(60)) : cleanTitle,
                                author: author, source: source, segments: segments)
         document.paragraphStarts = starts
-        document.languageCode = NLLanguageRecognizer.dominantLanguage(for: String(normalizedText.prefix(4000)))?.rawValue
+        document.languageCode = detectedLanguage(in: normalizedText)
         let chapters = ChapterTitles.inferred(in: document)
         if !chapters.isEmpty { document.chapters = chapters }
         document.refreshWordCountIndex()
         return document
+    }
+
+    /// Sample the body of a document instead of trusting its opening pages.
+    /// Covers, contributor lists and publishing notices commonly use a language
+    /// which differs from the book itself (notably for academic PDFs).
+    static func detectedLanguage(in text: String) -> String? {
+        let source = text as NSString
+        guard source.length > 0 else { return nil }
+        let maximumSample = 12_000
+        if source.length <= maximumSample {
+            return NLLanguageRecognizer.dominantLanguage(for: text)?.rawValue
+        }
+        let chunkLength = maximumSample / 5
+        let centres = [0.14, 0.32, 0.50, 0.68, 0.86]
+        let languages = centres.compactMap { centre -> String? in
+            let centreOffset = Int(Double(source.length) * centre)
+            let start = min(max(0, centreOffset - chunkLength / 2), source.length - chunkLength)
+            let sample = source.substring(with: NSRange(location: start, length: chunkLength))
+            return NLLanguageRecognizer.dominantLanguage(for: sample)?.rawValue
+        }
+        let votes = Dictionary(grouping: languages, by: { $0 }).mapValues(\.count)
+        return votes.max { left, right in
+            left.value == right.value ? left.key > right.key : left.value < right.value
+        }?.key
     }
 
     static func fromFile(_ url: URL, coverDirectory: URL = BookCoverStore.directory,

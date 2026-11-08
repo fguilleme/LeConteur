@@ -17124,66 +17124,66 @@
         }
       }
     },
-    "Voix Apple pendant la traduction. Choisir Qwen met la traduction en pause pour lire les passages déjà prêts." : {
+    "Voix Apple pendant la traduction. %@ met la traduction en pause pour lire les passages déjà prêts." : {
       "localizations" : {
         "ar" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "يُستخدم صوت Apple أثناء الترجمة. يؤدي اختيار Qwen إلى إيقاف الترجمة مؤقتًا لقراءة المقاطع الجاهزة."
+            "value" : "يُستخدم صوت Apple أثناء الترجمة. يؤدي اختيار %@ إلى إيقاف الترجمة مؤقتًا لقراءة المقاطع الجاهزة."
           }
         },
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Apple-Stimme während der Übersetzung. Wenn Sie Qwen auswählen, wird die Übersetzung angehalten, um bereits fertige Passagen vorzulesen."
+            "value" : "Apple-Stimme während der Übersetzung. Wenn Sie %@ auswählen, wird die Übersetzung angehalten, um bereits fertige Passagen vorzulesen."
           }
         },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Apple voice is used during translation. Choosing Qwen pauses translation to read passages that are already ready."
+            "value" : "Apple voice is used during translation. Choosing %@ pauses translation to read passages that are already ready."
           }
         },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Voz de Apple durante la traducción. Al elegir Qwen se detiene la traducción para leer pasajes que ya están listos."
+            "value" : "Voz de Apple durante la traducción. Al elegir %@ se detiene la traducción para leer pasajes que ya están listos."
           }
         },
         "it" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Voce Apple durante la traduzione. Scegliendo Qwen si mette in pausa la traduzione per leggere i passaggi già pronti."
+            "value" : "Voce Apple durante la traduzione. Scegliendo %@ si mette in pausa la traduzione per leggere i passaggi già pronti."
           }
         },
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "翻訳中の Apple の音声。 「Qwen」を選択すると、翻訳が一時停止され、すでに準備ができている文章が読み上げられます。"
+            "value" : "翻訳中の Apple の音声。「%@」を選択すると、翻訳が一時停止され、すでに準備ができている文章が読み上げられます。"
           }
         },
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "번역 중에는 Apple 음성을 사용합니다. Qwen을 선택하면 번역을 일시 정지하고 이미 준비된 구절을 읽습니다."
+            "value" : "번역 중에는 Apple 음성을 사용합니다. %@을 선택하면 번역을 일시 정지하고 이미 준비된 구절을 읽습니다."
           }
         },
         "pt" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Voz da Apple durante a tradução. Escolher Qwen pausa a tradução para ler passagens que já estão prontas."
+            "value" : "Voz da Apple durante a tradução. Escolher %@ pausa a tradução para ler passagens que já estão prontas."
           }
         },
         "ru" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Голос Apple во время перевода. Выбор Qwen приостанавливает перевод, чтобы прочитать уже готовые отрывки."
+            "value" : "Голос Apple во время перевода. Выбор %@ приостанавливает перевод, чтобы прочитать уже готовые отрывки."
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "翻译期间使用 Apple 声音。选择 Qwen 会暂停翻译，并朗读已准备好的段落。"
+            "value" : "翻译期间使用 Apple 声音。选择 %@ 会暂停翻译，并朗读已准备好的段落。"
           }
         }
       }
