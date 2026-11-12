@@ -8,6 +8,34 @@ import ZIPFoundation
 @testable import LeConteur
 
 final class LeConteurTests: XCTestCase {
+    func testKindleAppRequiredPageUsesDirectSampleURL() throws {
+        let source = try XCTUnwrap(URL(string: "https://lire.amazon.fr/?asin=b0gglbfw12&ref_=foo"))
+
+        let fallback = try XCTUnwrap(WebReadingBrowser.kindleSampleFallbackURL(from: source))
+
+        XCTAssertEqual(fallback.absoluteString, "https://lire.amazon.fr/sample/B0GGLBFW12")
+    }
+
+    func testKindleSampleFallbackDoesNotRewriteUnrelatedPages() throws {
+        XCTAssertNil(WebReadingBrowser.kindleSampleFallbackURL(
+            from: try XCTUnwrap(URL(string: "https://lire.amazon.fr/sample/B0GGLBFW12"))))
+        XCTAssertNil(WebReadingBrowser.kindleSampleFallbackURL(
+            from: try XCTUnwrap(URL(string: "https://example.com/?asin=B0GGLBFW12"))))
+        XCTAssertNil(WebReadingBrowser.kindleSampleFallbackURL(
+            from: try XCTUnwrap(URL(string: "https://lire.amazon.fr/?asin=INVALID"))))
+    }
+
+    func testKindleAppRequirementDetectionSupportsAmazonFrenchPage() {
+        XCTAssertTrue(WebReadingBrowser.looksLikeKindleAppRequired(
+            "L’application Kindle est requise. Ce livre ne peut être ouvert qu’à l’aide de l’application Kindle.",
+            hasAppStoreLink: true))
+        XCTAssertTrue(WebReadingBrowser.looksLikeKindleAppRequired(
+            "This book can only be opened with the Kindle app.",
+            hasAppStoreLink: true))
+        XCTAssertFalse(WebReadingBrowser.looksLikeKindleAppRequired(
+            "Votre bibliothèque Kindle", hasAppStoreLink: false))
+    }
+
     func testWebOCRMergeKeepsPageBodyWhenRepeatedFooterMatches() {
         let first = "Premier paragraphe du livre avec assez de mots pour remplir cette page. "
             + "Deuxième paragraphe qui se termine normalement. "
