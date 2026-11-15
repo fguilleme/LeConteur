@@ -1366,6 +1366,15 @@ final class LeConteurTests: XCTestCase {
         XCTAssertTrue(VoiceEngine.supertonic.requiresTranslationPause)
     }
 
+    func testFishAudioReceivesAutomaticEmotionDirection() {
+        let original = "La porte s’ouvrit. « Tu es là ? » demanda-t-elle."
+        let directed = OnlineTTSClient.fishAudioExpressiveText(original)
+
+        XCTAssertEqual(directed,
+            "[expressive audiobook narration, infer emotions from context] \(original)")
+        XCTAssertEqual(OnlineTTSClient.fishAudioExpressiveText("   "), "   ")
+    }
+
     @MainActor func testSelectingAnOnlineVoiceDoesNotSuspendTranslation() throws {
         let (library, _) = translationContext()
         let suite = "online-translation-\(UUID())"

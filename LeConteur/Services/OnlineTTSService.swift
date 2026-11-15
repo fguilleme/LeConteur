@@ -267,10 +267,22 @@ actor OnlineTTSClient {
         request.setValue("Bearer \(key)", forHTTPHeaderField: "Authorization")
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         request.setValue(Self.fishAudioModel, forHTTPHeaderField: "model")
-        request.httpBody = try JSONEncoder().encode(FishSpeechRequest(text: text, referenceID: voiceID))
+        request.httpBody = try JSONEncoder().encode(FishSpeechRequest(
+            text: Self.fishAudioExpressiveText(text),
+            referenceID: voiceID
+        ))
         let (data, response) = try await session.data(for: request)
         try validate(response, data: data)
         return data
+    }
+
+    /// S2.1 interprets free-form bracket cues as delivery directions. Ask it to
+    /// derive the performance from the passage while preserving the book text.
+    nonisolated static func fishAudioExpressiveText(_ text: String) -> String {
+        let cue = "[expressive audiobook narration, infer emotions from context]"
+        let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return text }
+        return "\(cue) \(trimmed)"
     }
 
     private func validate(_ response: URLResponse, data: Data) throws {
