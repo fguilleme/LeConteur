@@ -170,7 +170,19 @@ struct LibraryView: View {
     private func remainingTime(for document: ReadingDocument) -> String {
         let seconds = document.isFinished ? 0 : document.secondsUntilBookEnd(rate: playback.playbackSpeed)
         let minutes = Int(ceil(seconds / 60))
-        return String(format: String(localized: "%lld min restantes"), Int64(minutes))
+        guard minutes >= 60 else {
+            return String(format: String(localized: "%lld min restantes"), Int64(minutes))
+        }
+        let hours = minutes / 60
+        let remainingMinutes = minutes % 60
+        if remainingMinutes == 0 {
+            return String(format: String(localized: "%lld h restantes"), Int64(hours))
+        }
+        return String(
+            format: String(localized: "%1$lld h %2$lld min restantes"),
+            Int64(hours),
+            Int64(remainingMinutes)
+        )
     }
 
     private func export(_ document: ReadingDocument) {

@@ -1,3 +1,4 @@
+import BackgroundTasks
 import Foundation
 import NaturalLanguage
 import Observation
@@ -30,11 +31,13 @@ final class TranslationCoordinator {
     private var activeSessionRequest: UUID?
     private var activeSessionToken: UUID?
     private var activeSession: TranslationSession?
+    private var directTranslationTask: Task<Void, Never>?
     private var lastConfiguration: TranslationSession.Configuration?
     private var backgroundTask: UIBackgroundTaskIdentifier = .invalid
     private var resumeAfterBackground = false
     private var isInBackground = false
     private var translatedSinceProgressUpdate = 0
+    private var usesContinuedProcessing = false
     @ObservationIgnored private var interfaceIsScrolling = false
     private let library: LibraryStore
     private let prepareVoice: () async -> Void
@@ -169,6 +172,7 @@ final class TranslationCoordinator {
         #endif
         isInstallingLanguages = availability != .installed
         status = isInstallingLanguages ? String(localized: "Installation des langues avec iOS…") : String(localized: "Préparation de la traduction…")
+        startContinuedProcessing(for: document)
         // The initial language download may take several minutes, but cannot leave the UI
         // waiting forever. Installed languages should start promptly.
         armWatchdog(
@@ -176,6 +180,17 @@ final class TranslationCoordinator {
             duration: availability == .installed ? startupTimeout : languageInstallationTimeout,
             message: availability == .installed ? nil : String(localized: "L’installation des langues par iOS prend trop de temps. Ouvrez Réglages › Apps › Traduire › Langues téléchargées, installez les deux langues, puis réessayez.")
         )
+        // A session created by SwiftUI's translationTask modifier belongs to the
+        // view lifecycle and can be suspended as soon as the app leaves the
+        // foreground. Once both languages are installed, own the session here so
+        // the BGContinuedProcessingTask can keep the book translation running.
+        if availability == .installed, usesContinuedProcessing {
+            if #available(iOS 26.0, *) {
+                startDirectTranslation(preferLowLatency: useLowLatency)
+                preparationProgress = 0.45
+                return
+            }
+        }
         var next: TranslationSession.Configuration
         if #available(iOS 26.4, *) {
             next = TranslationSession.Configuration(source: Locale.Language(identifier: source), target: Locale.Language(identifier: target), preferredStrategy: useLowLatency ? .lowLatency : .highFidelity)
@@ -189,6 +204,27 @@ final class TranslationCoordinator {
         lastConfiguration = next
         configuration = next
         preparationProgress = 0.45
+    }
+
+    @available(iOS 26.0, *)
+    private func startDirectTranslation(preferLowLatency: Bool) {
+        let sourceLanguage = Locale.Language(identifier: source)
+        let targetLanguage = Locale.Language(identifier: target)
+        let session: TranslationSession
+        if #available(iOS 26.4, *) {
+            session = TranslationSession(
+                installedSource: sourceLanguage,
+                target: targetLanguage,
+                preferredStrategy: preferLowLatency ? .lowLatency : .highFidelity
+            )
+        } else {
+            session = TranslationSession(installedSource: sourceLanguage, target: targetLanguage)
+        }
+        directTranslationTask?.cancel()
+        directTranslationTask = Task(priority: .utility) { [weak self] in
+            guard let self else { return }
+            await self.translate(using: session)
+        }
     }
 
     func translate(using session: TranslationSession) async {
@@ -252,6 +288,7 @@ final class TranslationCoordinator {
                 let completed = output.filter { !$0.isEmpty }.count
                 progress = Double(completed) / Double(max(1, output.count))
                 status = String(format: String(localized: "%lld / %lld passages traduits"), Int64(completed), Int64(output.count))
+                updateContinuedProcessing()
             }
             progress = Double(output.filter { !$0.isEmpty }.count) / Double(max(1, output.count))
             try await publishAvailable()
@@ -306,6 +343,7 @@ final class TranslationCoordinator {
             }
             if draft.translationComplete == true {
                 checkpoint.remove()
+                finishContinuedProcessing(success: true)
                 cancel()
                 readyDocumentID = draft.id
                 return
@@ -351,6 +389,7 @@ final class TranslationCoordinator {
             try await publishAvailable()
             guard !draft.isTranslationPending else { throw TranslationWorkError.incomplete }
             checkpoint.remove()
+            finishContinuedProcessing(success: true)
             cancel()
             readyDocumentID = draft.id
         } catch {
@@ -411,11 +450,44 @@ final class TranslationCoordinator {
         cancel()
     }
 
+    private func startContinuedProcessing(for document: ReadingDocument) {
+        guard #available(iOS 26.0, *), !isRunningTests else { return }
+        let title = String(localized: "Traduction en cours")
+        let subtitle = document.title
+        usesContinuedProcessing = ContinuedTranslationTask.shared.start(
+            title: title,
+            subtitle: subtitle,
+            progress: max(progress, preparationProgress * 0.05)
+        ) { [weak self] in
+            self?.deferTranslationUntilForeground()
+        }
+    }
+
+    private var isRunningTests: Bool {
+        ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] != nil
+    }
+
+    private func updateContinuedProcessing() {
+        guard usesContinuedProcessing else { return }
+        if #available(iOS 26.0, *) {
+            ContinuedTranslationTask.shared.update(progress: progress, subtitle: status)
+        }
+    }
+
+    private func finishContinuedProcessing(success: Bool) {
+        guard usesContinuedProcessing else { return }
+        usesContinuedProcessing = false
+        if #available(iOS 26.0, *) {
+            ContinuedTranslationTask.shared.finish(success: success)
+        }
+    }
+
     /// Keep the current Translation session alive for the finite grace period iOS
     /// grants when the user briefly switches apps. If that time expires, preserve
     /// the checkpoint and restart automatically when Le Conteur becomes active.
     func applicationDidEnterBackground() {
         isInBackground = true
+        if usesContinuedProcessing { return }
         guard isTranslating, backgroundTask == .invalid else { return }
         backgroundTask = UIApplication.shared.beginBackgroundTask(withName: "Book translation") { [weak self] in
             Task { @MainActor in self?.deferTranslationUntilForeground() }
@@ -453,6 +525,8 @@ final class TranslationCoordinator {
         resumeAfterBackground = true
         watchdog?.cancel()
         watchdog = nil
+        directTranslationTask?.cancel()
+        directTranslationTask = nil
         if #available(iOS 26.0, *) { activeSession?.cancel() }
         activeSession = nil
         requestID = UUID()
@@ -464,6 +538,7 @@ final class TranslationCoordinator {
         isInstallingLanguages = false
         preparationProgress = 0
         activeDocumentID = nil
+        finishContinuedProcessing(success: false)
         finishBackgroundTask()
     }
 
@@ -474,9 +549,12 @@ final class TranslationCoordinator {
     }
 
     func cancel() {
+        finishContinuedProcessing(success: false)
         finishBackgroundTask()
         watchdog?.cancel()
         watchdog = nil
+        directTranslationTask?.cancel()
+        directTranslationTask = nil
         if #available(iOS 26.0, *) { activeSession?.cancel() }
         activeSession = nil
         requestID = UUID()
@@ -495,6 +573,100 @@ final class TranslationCoordinator {
         resumeAfterBackground = false
     }
 
+}
+
+@available(iOS 26.0, *)
+@MainActor
+private final class ContinuedTranslationTask {
+    static let shared = ContinuedTranslationTask()
+    static let identifier = "com.guilleme.conteur.translation"
+
+    private var registered = false
+    private var scheduled = false
+    private var task: BGContinuedProcessingTask?
+    private var expiration: (() -> Void)?
+    private var initialProgress = 0.0
+
+    func start(title: String,
+               subtitle: String,
+               progress: Double,
+               expiration: @escaping () -> Void) -> Bool {
+        finish(success: false)
+        guard registerIfNeeded() else { return false }
+        self.expiration = expiration
+        initialProgress = progress
+
+        let request = BGContinuedProcessingTaskRequest(
+            identifier: Self.identifier,
+            title: title,
+            subtitle: subtitle
+        )
+        request.strategy = .fail
+        do {
+            try BGTaskScheduler.shared.submit(request)
+            scheduled = true
+            return true
+        } catch {
+            self.expiration = nil
+            #if DEBUG
+            print("[Translation] continued processing unavailable: \(error.localizedDescription)")
+            #endif
+            return false
+        }
+    }
+
+    func update(progress: Double, subtitle: String) {
+        guard scheduled else { return }
+        let clamped = min(1, max(0, progress))
+        task?.progress.completedUnitCount = Int64((clamped * 1_000).rounded())
+        if let task { task.updateTitle(task.title, subtitle: subtitle) }
+    }
+
+    func finish(success: Bool) {
+        guard scheduled || task != nil else { return }
+        scheduled = false
+        expiration = nil
+        if let task {
+            task.setTaskCompleted(success: success)
+            self.task = nil
+        } else {
+            BGTaskScheduler.shared.cancel(taskRequestWithIdentifier: Self.identifier)
+        }
+    }
+
+    private func registerIfNeeded() -> Bool {
+        if registered { return true }
+        registered = BGTaskScheduler.shared.register(
+            forTaskWithIdentifier: Self.identifier,
+            using: .main
+        ) { [weak self] backgroundTask in
+            guard let self, let continuedTask = backgroundTask as? BGContinuedProcessingTask else {
+                backgroundTask.setTaskCompleted(success: false)
+                return
+            }
+            MainActor.assumeIsolated {
+                self.accept(continuedTask)
+            }
+        }
+        return registered
+    }
+
+    private func accept(_ task: BGContinuedProcessingTask) {
+        self.task = task
+        scheduled = true
+        task.progress.totalUnitCount = 1_000
+        task.progress.completedUnitCount = Int64((min(1, max(0, initialProgress)) * 1_000).rounded())
+        task.expirationHandler = { [weak self] in
+            Task { @MainActor in
+                guard let self else { return }
+                let expiration = self.expiration
+                self.scheduled = false
+                self.task = nil
+                self.expiration = nil
+                expiration?()
+            }
+        }
+    }
 }
 
 /// Apple Translation performs its inference outside Swift concurrency, so task
