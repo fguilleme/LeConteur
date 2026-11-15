@@ -2,24 +2,34 @@
 
 [Français](https://github.com/fguilleme/LeConteur/blob/main/README.md) · [English](https://github.com/fguilleme/LeConteur/blob/main/README.en.md)
 
-Le Conteur is a local audiobook reader for iPhone, built with SwiftUI. Bundle identifier: `com.guilleme.conteur`. The reference device is an iPhone 15 Pro running iOS 18 or later.
+Le Conteur is a document-to-audio reader for iPhone, built with SwiftUI. The library, books, and translations remain local; online voices are optional. Bundle identifier: `com.guilleme.conteur`. The reference device is an iPhone 15 Pro running iOS 18 or later.
+
+## Version 1.2
+
+- Read and import compatible content displayed in Kindle on the web, including its cover, title, and chapter structure.
+- ElevenLabs and Fish Audio online voices, account voice selection, and expressive Fish Audio narration.
+- Long translations can continue in the background on supported iOS versions, with visible progress and continuous checkpoints.
+- Fine playback-speed control from 0.5× to 2× by long-pressing the speed button.
+- Improved OCR import for scanned PDFs, including header, footer, and footnote filtering.
+- Better language detection, chapter navigation, word tracking, iPad layout, and overall stability.
 
 ## Features
 
-- A local library for DRM-free EPUB files, text-based PDFs, TXT and Markdown files, DOCX documents, and text pasted into the app. Embedded EPUB covers are displayed in both the library and the reader, including translated editions.
+- A local library for DRM-free EPUB files, text-based or scanned PDFs, TXT and Markdown files, DOCX documents, and text pasted into the app. Embedded EPUB covers are displayed in both the library and the reader, including translated editions.
 - Import from Files, open a document with Le Conteur, or use **Share → Le Conteur**. After sharing a file, open the app to find the book in the library.
-- Offline narration using Apple voices or local neural voices after their models have been installed.
+- Read and import from the built-in browser, including compatible content displayed by Kindle on the web.
+- Offline narration using Apple voices or installed local neural voices, plus optional ElevenLabs and Fish Audio online voices configured with the user's API key.
 - Paragraph display, passage tracking, and word highlighting. Scrolling follows the current line—even inside paragraphs spanning several screens—and keeps the highlighted word above the playback controls. Apple voices provide word positions; neural voices use an audio-based estimate.
 - Optional translation into the iPhone language when opening a foreign-language book, with **Read original** immediately available. Language packs may need to be downloaded the first time.
-- Playback speed, bookmarks, saved progress, a sleep timer, and lock-screen controls.
+- Playback speed from 0.5× to 2×, bookmarks, saved progress, a sleep timer, and lock-screen controls.
 
 A book written in the phone language opens directly. When a foreign-language book without a saved translation is opened for the first time, Le Conteur offers to translate it. **Read original** cancels immediately and remembers that choice. Once a translation has been saved, the original and translated editions appear and open independently, each with its own reading position. A partial translation resumes only when that edition is selected. The reader's **Translate into…** action can reopen an existing translation or create a new one without changing a global language setting.
 
 The most recently opened book is persisted independently from playback. After the app is terminated or relaunched, its card, cover, and position return without starting audio automatically. Deleting that book also clears the persisted selection.
 
-The first translated passages open as soon as they are ready. More passages are appended to the same document while reading without shifting existing words or bookmarks. If narration catches up with the available text, it waits and resumes automatically. A deliberate pause remains respected. Leaving the reader or moving the app to the background suspends translation; completed passages remain readable and work resumes when that edition is opened again.
+The first translated passages open as soon as they are ready. More passages are appended to the same document while reading without shifting existing words or bookmarks. If narration catches up with the available text, it waits and resumes automatically. A deliberate pause remains respected. On iOS 26 and later, continued processing allows translation to progress in the background and publishes its progress through the system indicator. If iOS ends the task, completed passages remain checkpointed and translation resumes from the last saved block.
 
-During an active translation, an Apple voice temporarily replaces a neural voice so that two large models are not kept in memory at once. The reader clearly displays this fallback. Once translation finishes or is suspended, the selected neural voice returns without overriding a deliberate pause.
+Apple and online voices remain available during an active translation. Large local neural models may be unloaded to preserve memory and the selected engine returns afterward without overriding a deliberate pause.
 
 In **Voices → Your iPhone voices → Preferred voices by language**, a star identifies the preferred Apple voice for each language. Choosing an English voice does not overwrite the French or Spanish selection. Regional variants are grouped by language, so a British voice can be preferred for English texts. **Automatic** clears only that language's preference. Choices survive relaunches and the former single global preference is migrated to its language. If a voice disappears, another available voice for the same language is used without deleting the preference.
 
@@ -29,6 +39,8 @@ Apple voices receive several sentences from one paragraph. Neural narration rece
 
 EPUB 3 `cover-image` metadata, EPUB 2 `meta name="cover"`, and XHTML/SVG cover pages containing a raster image are supported. A thumbnail up to 800 pixels is stored separately from the text. Reimporting an older book can recover its cover without creating a duplicate or losing progress and bookmarks. Pure vector covers without an embedded raster image keep the generic artwork.
 
+The web reader keeps the website session inside its embedded browser. During a compatible Kindle import, Le Conteur advances through the displayed pages and attempts to recover the cover, title, text, and chapter changes before creating a local book. Import can be stopped before appendices or unwanted final pages. Results depend on the layout supplied by the website and may change when that layout changes.
+
 ## Run on an iPhone
 
 1. Open `LeConteur.xcodeproj` in Xcode and let Swift Package Manager resolve the dependencies.
@@ -36,7 +48,7 @@ EPUB 3 `cover-image` metadata, EPUB 2 `meta name="cover"`, and XHTML/SVG cover p
 3. Configure the `group.com.guilleme.conteur` app group for both targets. It transfers documents received by the share extension, and the selected team must be able to provision this capability.
 4. Select an iPhone 15 Pro and run the **LeConteur** scheme. Run uses **Release** to optimize inference, while tests use **Debug**. To inspect Swift variables, select Debug under Edit Scheme → Run. Neural model weights are not bundled in the production binary; install them from the Voices tab.
 
-The minimum deployment target is iOS 18. The project currently builds with the iOS 27.1 SDK.
+The minimum deployment target is iOS 18. The project currently builds with the iOS 27.2 SDK.
 
 The project uses Apple's generic versioning system. An archive pre-action runs `agvtool` to increment the build number automatically. A preparation phase repairs ONNX Runtime's `MinimumOSVersion` metadata, re-signs the framework, and emits its dSYM when requested by the debug-information format so archives can be accepted by App Store Connect.
 
@@ -47,6 +59,12 @@ The project uses Apple's generic versioning system. An archive pre-action runs `
 Supertonic is the default local neural engine. Its model is installed from the Voices tab and runs entirely on the iPhone. Generated PCM is queued ahead of playback so complete passages can play continuously. The app uses an audio playback session and keeps preparing audio while it is allowed to run in the background.
 
 iOS applies a strict CPU budget when Le Conteur is no longer the visible app—even if the screen stays on. Supertonic therefore limits background inference to protect the process from termination. It uses six diffusion steps while Le Conteur is visible and four in the background to preserve narration quality. A prepared audio reserve reduces interruptions, but occasional waits can still occur when another app is active or the screen is locked. Older devices may need Apple voices for uninterrupted background playback.
+
+### ElevenLabs and Fish Audio
+
+Both providers are optional and configured under **Voices** with the user's personal API key, stored in the iOS Keychain. Le Conteur retrieves the voices available to the account and lets the user select one for each language. A button opens each provider's API-key management page directly.
+
+Only passages requested for playback are sent to the selected provider. ElevenLabs and Fish Audio require an internet connection and may consume account credits. Fish Audio uses the instruction `[expressive audiobook narration, infer emotions from context]` to adapt emotion to the text when supported by the selected model.
 
 ### Optional Qwen support
 
@@ -91,10 +109,12 @@ On current iOS versions, Le Conteur prefers Apple's lower-latency translation pa
 
 Translation inference is paced to protect interface responsiveness. Progress publication is also coalesced so SwiftUI is not invalidated after every small block. The neural voice model is unloaded before translation begins, and an engine that has not yet been used is not initialized merely to clear its cache.
 
+On iOS 26 and later, Le Conteur uses `BGContinuedProcessingTask` to keep a long translation running away from the reader screen. The session belongs to the translation coordinator rather than the SwiftUI view, progress is published through the system interface, and every block remains checkpointed locally. Earlier iOS versions receive a limited background grace period and resume when the app becomes active again.
+
 ## Limits and components
 
-DRM-protected EPUB files, encrypted PDFs, and scanned PDFs without a text layer are not supported. Import limits are 50 MB and two million characters. Translations are machine generated and stored separately from the original.
+DRM-protected EPUB files and encrypted PDFs are not supported. Scanned PDFs are processed with on-device OCR; results depend on the document's resolution, layout, and typography. Import limits are 50 MB and two million characters. Translations are machine generated and stored separately from the original.
 
-The library and downloaded voices are stored locally and excluded from the app's iCloud backup. Original files selected in Files keep their own storage policy. Apple may collect Translation framework metrics, but not the book text through Le Conteur.
+The library and downloaded voices are stored locally and excluded from the app's iCloud backup. Original files selected in Files keep their own storage policy. Apple may collect Translation framework metrics. Text is sent to a third party only when the user explicitly selects an online voice, and only to the configured provider for the passages being read.
 
 Pinned dependencies include ZIPFoundation 0.9.19, MLX Swift 0.32.3, swift-transformers 1.1.6, mlx-audio-swift revision `d8e2cafea891928075d3c8577b1a05b99396594e`, ONNX Runtime, and their resolved dependencies in the Xcode project. See `LeConteur/Resources/ThirdPartyNotices.txt` for credits and licenses.

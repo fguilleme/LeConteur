@@ -2,25 +2,35 @@
 
 [Français](https://github.com/fguilleme/LeConteur/blob/main/README.md) · [English](https://github.com/fguilleme/LeConteur/blob/main/README.en.md)
 
-Le Conteur est un lecteur audio local pour iPhone, développé en SwiftUI. Identifiant : `com.guilleme.conteur`. L’app nécessite iOS 18 ou une version ultérieure ; l’iPhone 15 Pro sert d’appareil de référence pour les moteurs neuronaux.
+Le Conteur est un lecteur de documents audio pour iPhone, développé en SwiftUI. La bibliothèque, les livres et les traductions restent stockés localement ; les voix en ligne sont facultatives. Identifiant : `com.guilleme.conteur`. L’app nécessite iOS 18 ou une version ultérieure ; l’iPhone 15 Pro sert d’appareil de référence pour les moteurs neuronaux.
+
+## Version 1.2
+
+- Lecture et import des contenus compatibles visibles dans Kindle sur le Web, avec récupération de la couverture, du titre et des chapitres.
+- Voix en ligne ElevenLabs et Fish Audio, sélection des voix du compte et narration expressive Fish Audio.
+- Traduction prolongée en arrière-plan sur les versions compatibles d’iOS, avec progression visible et sauvegarde continue des passages terminés.
+- Réglage fin de la vitesse entre 0,5× et 2× par appui long, en complément du changement rapide de vitesse.
+- Import OCR amélioré pour les PDF scannés, avec filtrage des en-têtes, pieds de page et notes.
+- Meilleure détection de langue, navigation par chapitre, suivi des mots, affichage sur iPad et stabilité générale.
 
 ## Fonctionnalités
 
-- Bibliothèque locale pour les EPUB sans DRM, les PDF contenant du texte, les fichiers TXT, Markdown et DOCX, ainsi que le texte collé dans l’app.
+- Bibliothèque locale pour les EPUB sans DRM, les PDF contenant du texte ou scannés, les fichiers TXT, Markdown et DOCX, ainsi que le texte collé dans l’app.
 - Import depuis Fichiers, ouverture directe avec Le Conteur ou **Partager → Le Conteur**. Après un partage, ouvrir l’app permet de retrouver le document dans la bibliothèque.
+- Lecture et import depuis le navigateur intégré, notamment pour les contenus compatibles affichés par Kindle sur le Web.
 - Affichage des couvertures EPUB dans la bibliothèque, le lecteur et les éditions traduites.
-- Lecture hors ligne avec les voix Apple ou avec des moteurs neuronaux locaux après installation de leurs modèles.
+- Lecture hors ligne avec les voix Apple ou les moteurs neuronaux locaux, et voix en ligne facultatives ElevenLabs ou Fish Audio avec la clé API de l’utilisateur.
 - Affichage des paragraphes, suivi du passage et surlignage des mots. Le défilement suit la ligne courante, même au milieu d’un long paragraphe, et conserve le mot au-dessus des commandes.
 - Traduction facultative vers la langue de l’iPhone à l’ouverture d’un livre étranger, avec **Lire l’original** immédiatement disponible.
-- Vitesse, signets supprimables individuellement, reprise de lecture, minuterie et commandes sur l’écran verrouillé.
+- Vitesse réglable de 0,5× à 2×, signets supprimables individuellement, reprise de lecture, minuterie et commandes sur l’écran verrouillé.
 
 Un livre dans la langue du téléphone s’ouvre directement. Pour un livre étranger sans traduction enregistrée, Le Conteur propose une traduction. **Lire l’original** annule immédiatement et mémorise ce choix. L’original et chaque traduction restent des éditions distinctes dans la bibliothèque, avec leur propre langue, progression et signets. Une traduction partielle reprend uniquement lorsque cette édition est choisie. L’action **Traduire en…** retrouve une traduction existante ou en crée une nouvelle sans imposer de langue globale.
 
 Le livre ouvert le plus récemment est mémorisé séparément de la lecture. Après la fermeture forcée ou la relance de l’app, sa carte, sa couverture et sa position réapparaissent sans démarrer automatiquement l’audio. Supprimer ce livre efface également cette sélection persistante.
 
-Les premiers passages traduits s’ouvrent dès qu’ils sont prêts. La suite est ajoutée au même document sans déplacer les mots ou les signets existants. Si la voix rattrape le texte disponible, elle attend puis reprend automatiquement. Une pause volontaire reste respectée. Quitter le lecteur ou passer l’app en arrière-plan suspend la traduction ; les passages déjà terminés restent lisibles et le travail reprend à la prochaine ouverture de cette édition.
+Les premiers passages traduits s’ouvrent dès qu’ils sont prêts. La suite est ajoutée au même document sans déplacer les mots ou les signets existants. Si la voix rattrape le texte disponible, elle attend puis reprend automatiquement. Une pause volontaire reste respectée. Sur iOS 26 et versions ultérieures, une tâche de traitement continu permet à la traduction de progresser en arrière-plan et affiche son avancement dans l’indicateur système. Si iOS interrompt cette tâche, les passages terminés restent sauvegardés et la traduction reprend depuis son dernier point de contrôle.
 
-Pendant une traduction active, une voix Apple peut remplacer temporairement un moteur neuronal afin de ne pas conserver deux gros modèles en mémoire. Le lecteur l’indique clairement. Lorsque la traduction se termine ou est suspendue, le moteur choisi revient sans annuler une pause volontaire.
+Pendant une traduction active, les voix Apple et les voix en ligne restent utilisables. Les gros modèles neuronaux locaux peuvent être libérés afin de préserver la mémoire ; le moteur choisi revient ensuite sans annuler une pause volontaire.
 
 Dans **Voix → Les voix de votre iPhone → Voix préférées par langue**, une étoile désigne la voix Apple préférée de chaque langue. Choisir une voix anglaise ne remplace pas le choix français ou espagnol. Les variantes régionales sont regroupées par langue ; **Automatique** efface uniquement la préférence concernée. Les choix survivent aux relances. Si une voix disparaît, une autre voix disponible de la même langue prend le relais sans supprimer la préférence.
 
@@ -30,6 +40,8 @@ Les voix Apple reçoivent plusieurs phrases cohérentes d’un même paragraphe.
 
 Les couvertures EPUB 3 (`cover-image`), EPUB 2 (`meta name="cover"`) et les pages XHTML/SVG contenant une image matricielle sont prises en charge. Une miniature de 800 pixels au maximum est stockée séparément du texte. Réimporter un ancien EPUB peut récupérer sa couverture sans doublon ni perte de progression. Une couverture purement vectorielle sans image intégrée conserve le visuel générique.
 
+Le lecteur Web conserve la session du site dans son navigateur intégré. Lors d’un import Kindle compatible, Le Conteur parcourt les pages affichées, récupère au mieux la couverture, le titre, le texte et les changements de chapitre, puis crée un livre local. L’import peut être arrêté avant les annexes ou les pages finales inutiles. Le résultat dépend de la présentation fournie par le site et de son évolution.
+
 ## Lancer sur un iPhone
 
 1. Ouvrir `LeConteur.xcodeproj` dans Xcode et laisser Swift Package Manager résoudre les dépendances.
@@ -37,7 +49,7 @@ Les couvertures EPUB 3 (`cover-image`), EPUB 2 (`meta name="cover"`) et les page
 3. Configurer le groupe `group.com.guilleme.conteur` pour les deux cibles. Il transfère les documents reçus par l’extension de partage.
 4. Sélectionner un iPhone et exécuter le schéma **LeConteur**. Run utilise **Release** pour optimiser l’inférence ; les tests utilisent **Debug**. Pour déboguer les variables Swift, choisir Debug dans Edit Scheme → Run.
 
-Aucun modèle neuronal n’est intégré au binaire de production : l’installation s’effectue depuis l’onglet Voix. Le projet utilise iOS 18 comme version minimale et se compile actuellement avec le SDK iOS 27.1.
+Aucun modèle neuronal n’est intégré au binaire de production : l’installation s’effectue depuis l’onglet Voix. Le projet utilise iOS 18 comme version minimale et se compile actuellement avec le SDK iOS 27.2.
 
 Le projet utilise `apple-generic` pour le versionnement. Une action préalable à l’archive appelle `agvtool` afin d’incrémenter automatiquement le numéro de build. Une phase de préparation corrige les métadonnées `MinimumOSVersion` du framework ONNX Runtime, le signe de nouveau et produit son dSYM lorsque le format de débogage le demande, afin de rendre l’archive compatible avec App Store Connect.
 
@@ -50,6 +62,12 @@ Supertonic est le moteur neuronal local par défaut. Son modèle s’installe de
 iOS limite fortement le CPU dès que Le Conteur n’est plus l’app visible, même si l’écran reste allumé dans une autre app. Supertonic limite donc son calcul en arrière-plan pour éviter que le système ne termine le processus. Il utilise six étapes de diffusion lorsque Le Conteur est visible et quatre en arrière-plan afin de préserver la qualité de narration.
 
 Une réserve préparée réduit les interruptions ; des attentes occasionnelles restent possibles dans une autre app ou écran verrouillé. Sur les iPhone plus anciens, les voix Apple peuvent être préférables pour une lecture indéfiniment continue en arrière-plan.
+
+### ElevenLabs et Fish Audio
+
+Les deux fournisseurs sont facultatifs et configurés dans **Voix** avec la clé API personnelle de l’utilisateur, enregistrée dans le trousseau iOS. Le Conteur récupère les voix disponibles sur le compte et permet d’en choisir une indépendamment pour chaque langue. Un bouton ouvre directement la page de gestion des clés de chaque service.
+
+Seuls les passages demandés pour la lecture sont envoyés au fournisseur sélectionné. ElevenLabs et Fish Audio nécessitent Internet et peuvent consommer les crédits du compte. Fish Audio utilise la consigne `[expressive audiobook narration, infer emotions from context]` pour adapter l’émotion au contexte lorsque le modèle choisi la prend en charge.
 
 ### Inclusion optionnelle de Qwen
 
@@ -90,10 +108,12 @@ Sur les versions iOS actuelles, Le Conteur privilégie la stratégie Apple à fa
 
 L’inférence est espacée pour protéger la fluidité de l’interface. Les mises à jour de progression sont regroupées afin de ne pas invalider SwiftUI après chaque petit bloc. Les modèles vocaux sont libérés avant la traduction lorsqu’ils sont chargés.
 
+Sur iOS 26 et versions ultérieures, Le Conteur utilise `BGContinuedProcessingTask` pour maintenir une traduction longue hors de l’écran du lecteur. La session appartient au coordinateur de traduction plutôt qu’à la vue SwiftUI, sa progression est publiée dans l’interface système et chaque bloc reste sauvegardé localement. Les versions antérieures conservent une période d’exécution limitée puis reprennent au retour dans l’app.
+
 ## Limites et composants
 
-Les EPUB protégés par DRM, les PDF chiffrés et les PDF scannés sans couche de texte ne sont pas pris en charge. Limites d’import : 50 Mo et deux millions de caractères. Les traductions sont automatiques et conservées séparément de l’original.
+Les EPUB protégés par DRM et les PDF chiffrés ne sont pas pris en charge. Les PDF scannés sont traités par OCR sur l’appareil ; la qualité dépend de la résolution, de la mise en page et de la typographie du document. Limites d’import : 50 Mo et deux millions de caractères. Les traductions sont automatiques et conservées séparément de l’original.
 
-La bibliothèque et les voix téléchargées sont stockées localement et exclues de la sauvegarde iCloud de l’app. Les fichiers originaux choisis dans Fichiers conservent leur propre politique de stockage. Apple peut recueillir des métriques du framework Translation, mais Le Conteur ne lui transmet pas directement le texte des livres.
+La bibliothèque et les voix téléchargées sont stockées localement et exclues de la sauvegarde iCloud de l’app. Les fichiers originaux choisis dans Fichiers conservent leur propre politique de stockage. Apple peut recueillir des métriques du framework Translation. Le texte n’est envoyé à un service tiers que lorsque l’utilisateur choisit explicitement une voix en ligne, et seulement au fournisseur configuré pour les passages lus.
 
 Dépendances épinglées : ZIPFoundation 0.9.19, MLX Swift 0.32.3, swift-transformers 1.1.6, mlx-audio-swift révision `d8e2cafea891928075d3c8577b1a05b99396594e`, ONNX Runtime et leurs dépendances résolues dans le projet Xcode. Les crédits et licences se trouvent dans `LeConteur/Resources/ThirdPartyNotices.txt`.
