@@ -21,6 +21,7 @@ struct ReaderView: View {
     @State private var requestedOffset: CGFloat?
     @State private var sharedBook: SharedBook?
     @State private var showLanguagePicker = false
+    @State private var speedControlPresentation: SpeedControlPresentation?
 
     private var document: ReadingDocument? { library.document(documentID) }
     private var activeParagraph: Int {
@@ -340,12 +341,49 @@ struct ReaderView: View {
                 .disabled(document.segments.count < 2)
                 .onChange(of: playback.position) { _, value in if !isScrubbing { scrubPosition = Double(value) } }
             HStack {
-                Menu {
-                    ForEach(playback.effectiveEngine == .qwen ? [0.75, 1.0, 1.25, 1.5, 1.75, 2.0, 2.5] : [0.75, 1.0, 1.25, 1.5, 1.75, 2.0], id: \.self) { value in
-                        Button("\(value.formatted())×") { playback.setSpeed(value) }
-                    }
-                } label: { Text("\(playback.playbackSpeed.formatted())×").font(.subheadline.weight(.semibold)).frame(width: 48, height: 48) }
+                Text("\(playback.playbackSpeed.formatted())×")
+                    .font(.subheadline.weight(.semibold))
+                    .frame(width: 48, height: 48)
+                    .contentShape(Rectangle())
+                    .gesture(
+                        LongPressGesture(minimumDuration: 0.45)
+                            .exclusively(before: TapGesture())
+                            .onEnded { result in
+                                switch result {
+                                case .first(_):
+                                    speedControlPresentation = .fine
+                                case .second(_):
+                                    speedControlPresentation = .presets
+                                }
+                            }
+                    )
                     .accessibilityLabel("Vitesse de lecture")
+                    .accessibilityValue("\(playback.playbackSpeed.formatted())×")
+                    .accessibilityAddTraits(.isButton)
+                    .accessibilityAction {
+                        speedControlPresentation = .presets
+                    }
+                    .accessibilityAction(named: "Réglage fin") {
+                        speedControlPresentation = .fine
+                    }
+                    .popover(item: $speedControlPresentation, arrowEdge: .bottom) { presentation in
+                        switch presentation {
+                        case .presets:
+                            SpeedPresetPicker(
+                                values: playback.effectiveEngine == .qwen
+                                    ? [0.75, 1, 1.25, 1.5, 1.75, 2, 2.5]
+                                    : [0.75, 1, 1.25, 1.5, 1.75, 2],
+                                selected: playback.playbackSpeed
+                            ) { value in
+                                playback.setSpeed(value)
+                                speedControlPresentation = nil
+                            }
+                        case .fine:
+                            FineSpeedSlider(value: playback.playbackSpeed) {
+                                playback.setSpeed($0)
+                            }
+                        }
+                    }
                 Spacer()
                 Button { playback.skip(-1) } label: { Image(systemName: "backward.end.fill").font(.title3).frame(width: 44, height: 48) }
                     .accessibilityLabel("Passage précédent").disabled(playback.position == 0)
@@ -387,6 +425,100 @@ struct ReaderView: View {
         let minutes = max(1, Int(ceil(seconds / 60)))
         return String(format: String(localized: "%lld min jusqu’à la fin du chapitre"), Int64(minutes))
     }
+}
+
+private enum SpeedControlPresentation: String, Identifiable {
+    case presets, fine
+    var id: Self { self }
+}
+
+private struct SpeedPresetPicker: View {
+    let values: [Double]
+    let selected: Double
+    let select: (Double) -> Void
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text("Vitesse de lecture").font(.headline).padding(.bottom, 4)
+            ForEach(values, id: \.self) { value in
+                Button {
+                    select(value)
+                } label: {
+                    HStack {
+                        Text(speedLabel(value))
+                        Spacer()
+                        if abs(value - selected) < 0.001 {
+                            Image(systemName: "checkmark")
+                        }
+                    }
+                    .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .padding(.vertical, 5)
+            }
+        }
+        .padding(16)
+        .frame(width: 190)
+        .presentationCompactAdaptation(.popover)
+    }
+}
+
+private struct FineSpeedSlider: View {
+    let value: Double
+    let setValue: (Double) -> Void
+    private let limits = 0.5...2.0
+
+    var body: some View {
+        VStack(spacing: 10) {
+            Text("Réglage fin").font(.headline)
+            Text(speedLabel(value)).font(.title3.weight(.semibold)).monospacedDigit()
+            Text("2×").font(.caption).foregroundStyle(.secondary)
+            GeometryReader { geometry in
+                let height = max(1, geometry.size.height - 24)
+                let clamped = min(limits.upperBound, max(limits.lowerBound, value))
+                let fraction = (clamped - limits.lowerBound) / (limits.upperBound - limits.lowerBound)
+                let thumbY = 12 + (1 - fraction) * height
+
+                ZStack {
+                    Capsule().fill(ConteurTheme.ink.opacity(0.14))
+                        .frame(width: 7, height: height)
+                    Capsule().fill(ConteurTheme.green)
+                        .frame(width: 7, height: max(4, fraction * height))
+                        .position(x: geometry.size.width / 2,
+                                  y: 12 + height - max(4, fraction * height) / 2)
+                    Circle().fill(ConteurTheme.paper)
+                        .frame(width: 30, height: 30)
+                        .shadow(color: .black.opacity(0.18), radius: 4, y: 2)
+                        .overlay(Circle().stroke(ConteurTheme.green, lineWidth: 2))
+                        .position(x: geometry.size.width / 2, y: thumbY)
+                }
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .contentShape(Rectangle())
+                .gesture(DragGesture(minimumDistance: 0).onChanged { gesture in
+                    let fraction = 1 - min(1, max(0, (gesture.location.y - 12) / height))
+                    let raw = limits.lowerBound + fraction * (limits.upperBound - limits.lowerBound)
+                    setValue((raw * 20).rounded() / 20)
+                })
+            }
+            .frame(width: 54, height: 220)
+            Text("0,5×").font(.caption).foregroundStyle(.secondary)
+            Text("Pas de 0,05×").font(.caption2).foregroundStyle(.secondary)
+        }
+        .padding(16)
+        .frame(width: 150)
+        .presentationCompactAdaptation(.popover)
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("Réglage fin de la vitesse")
+        .accessibilityValue(speedLabel(value))
+        .accessibilityAdjustableAction { direction in
+            let delta = direction == .increment ? 0.05 : -0.05
+            setValue(min(limits.upperBound, max(limits.lowerBound, value + delta)))
+        }
+    }
+}
+
+private func speedLabel(_ value: Double) -> String {
+    value.formatted(.number.precision(.fractionLength(0...2))) + "×"
 }
 
 struct DocumentLanguagePicker: View {
