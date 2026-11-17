@@ -170,6 +170,30 @@ enum ChapterTitles {
         pattern: #"^([ivxlcdm]+)[\s.·:–—-]*$"#,
         options: [.caseInsensitive]
     )
+    private static let numberedHeading = try! NSRegularExpression(
+        pattern: #"^[0-9]{1,3}[.)]\s+.+$"#
+    )
+    private static let trailingChapterNumber = try! NSRegularExpression(
+        pattern: #"(?:^|\s)([0-9]{1,3})[.)]\s*$"#
+    )
+    private static let sectionHeadings: Set<String> = [
+        "introduction", "prologue", "preface", "préface", "avant propos",
+        "conclusion", "epilogue", "épilogue", "postface", "afterword",
+        "foreword", "acknowledgements", "acknowledgments", "remerciements",
+        "introduccion", "introducción", "prologo", "prólogo", "conclusion",
+        "conclusión", "epilogo", "epílogo", "introducao", "introdução",
+        "conclusao", "conclusão", "einleitung", "schluss", "nachwort"
+    ]
+
+    static func comparableKey(_ value: String) -> String {
+        value.folding(options: [.caseInsensitive, .diacriticInsensitive], locale: .current)
+            .split(whereSeparator: { !$0.isLetter && !$0.isNumber })
+            .joined(separator: " ")
+    }
+
+    static func isKnownSectionHeading(_ value: String) -> Bool {
+        sectionHeadings.contains(comparableKey(value))
+    }
 
     static func normalized(_ value: String) -> String {
         let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -208,9 +232,39 @@ enum ChapterTitles {
         guard !trimmed.isEmpty else { return nil }
         let range = NSRange(trimmed.startIndex..., in: trimmed)
         if labelled.firstMatch(in: trimmed, range: range) != nil { return normalized(trimmed) }
+        if isKnownSectionHeading(trimmed) { return normalized(trimmed) }
+        if numberedHeading.firstMatch(in: trimmed, range: range) != nil,
+           looksLikeNumberedHeading(trimmed) {
+            return normalized(trimmed)
+        }
         if standaloneRoman.firstMatch(in: trimmed, range: range) != nil,
            normalized(trimmed) != trimmed.uppercased() { return normalized(trimmed) }
         return nil
+    }
+
+    private static func looksLikeNumberedHeading(_ value: String) -> Bool {
+        let words = value.split(whereSeparator: \.isWhitespace)
+        guard (2...20).contains(words.count), value.count <= 160 else { return false }
+        let letters = value.filter(\.isLetter)
+        guard letters.count >= 4 else { return false }
+        let uppercase = letters.filter(\.isUppercase).count
+        return Double(uppercase) / Double(letters.count) >= 0.68
+    }
+
+    private static func standaloneUppercaseHeading(_ value: String) -> Bool {
+        let words = value.split(whereSeparator: \.isWhitespace)
+        guard (1...20).contains(words.count), value.count <= 160 else { return false }
+        let letters = value.filter(\.isLetter)
+        guard letters.count >= 4 else { return false }
+        let uppercase = letters.filter(\.isUppercase).count
+        return Double(uppercase) / Double(letters.count) >= 0.68
+    }
+
+    private static func trailingChapterNumber(in value: String) -> String? {
+        let range = NSRange(value.startIndex..., in: value)
+        guard let match = trailingChapterNumber.firstMatch(in: value, range: range),
+              let numberRange = Range(match.range(at: 1), in: value) else { return nil }
+        return String(value[numberRange])
     }
 
     static func normalizingHeadings(in text: String) -> String {
@@ -219,10 +273,49 @@ enum ChapterTitles {
         }.joined(separator: "\n")
     }
 
-    static func inferred(in document: ReadingDocument) -> [ReadingChapter] {
-        document.paragraphRanges.compactMap { range in
+    static func inferred(in document: ReadingDocument,
+                         additionalHeadings: [String] = []) -> [ReadingChapter] {
+        let additional = additionalHeadings.reduce(into: [String: String]()) { result, heading in
+            let key = comparableKey(heading)
+            if !key.isEmpty, result[key] == nil { result[key] = normalized(heading) }
+        }
+        // Kindle OCR may split a heading as `11 1.` (page marker + chapter
+        // number) followed by `L'EFFET PERVERS...`. Recover that structure at
+        // segment level instead of relying solely on paragraph boundaries.
+        let splitNumberCandidates = document.segments.indices.dropFirst().compactMap { index -> ReadingChapter? in
+            guard let number = trailingChapterNumber(in: document.segments[index - 1]),
+                  standaloneUppercaseHeading(document.segments[index]) else { return nil }
+            return ReadingChapter(title: "\(number). \(normalized(document.segments[index]))", start: index)
+        }
+        let paragraphCandidates = document.paragraphRanges.compactMap { range -> ReadingChapter? in
             let paragraph = document.segments[range].joined(separator: " ")
-            return recognized(paragraph).map { ReadingChapter(title: $0, start: range.lowerBound) }
+            if let title = recognized(paragraph) {
+                return ReadingChapter(title: title, start: range.lowerBound)
+            }
+            let paragraphKey = comparableKey(paragraph)
+            if let title = additional[paragraphKey] {
+                return ReadingChapter(title: title, start: range.lowerBound)
+            }
+            let words = paragraphKey.split(separator: " ")
+            if words.count <= 20, paragraph.count <= 160,
+               let prefix = additional.keys.filter({ key in
+                   key.split(separator: " ").count >= 3
+                       && paragraphKey.hasPrefix(key + " ")
+               }).max(by: { $0.count < $1.count }) {
+                _ = prefix
+                return ReadingChapter(title: normalized(paragraph), start: range.lowerBound)
+            }
+            return nil
+        }
+        return (splitNumberCandidates + paragraphCandidates)
+            .sorted { $0.start < $1.start }
+            .reduce(into: [ReadingChapter]()) { result, chapter in
+            // A subtitle or the second line of a large Kindle heading must not
+            // become a second chapter immediately after its heading.
+            guard let previous = result.last, chapter.start - previous.start <= 1 else {
+                result.append(chapter)
+                return
+            }
         }
     }
 

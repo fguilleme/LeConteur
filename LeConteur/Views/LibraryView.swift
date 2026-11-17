@@ -392,6 +392,14 @@ struct WebReadingView: View {
                 source: String(localized: "WEB"),
                 author: capture.host
             )
+            if !capture.chapterTitles.isEmpty {
+                let bookTitleKey = ChapterTitles.comparableKey(document.title)
+                let headings = capture.chapterTitles.filter {
+                    ChapterTitles.comparableKey($0) != bookTitleKey
+                }
+                let chapters = ChapterTitles.inferred(in: document, additionalHeadings: headings)
+                if !chapters.isEmpty { document.chapters = chapters }
+            }
             if let coverData = capture.coverData {
                 document.coverFileName = try? BookCoverStore.save(coverData)
             }
@@ -632,7 +640,8 @@ struct WebReadingView: View {
                 text: Self.normalizingKindleText(book.text),
                 title: preferredBookTitle(visualCandidate: book.titleCandidate),
                 host: webView.url?.host() ?? "amazon.fr",
-                coverData: book.coverData
+                coverData: book.coverData,
+                chapterTitles: book.chapterTitles
             )
         }
         guard let capture = frameCaptures.values.max(by: { $0.rank < $1.rank }),
@@ -641,7 +650,8 @@ struct WebReadingView: View {
             text: Self.normalizingKindleText(capture.text),
             title: capture.title.isEmpty ? webView.title ?? "" : capture.title,
             host: webView.url?.host() ?? capture.host,
-            coverData: nil
+            coverData: nil,
+            chapterTitles: []
         )
     }
 
@@ -651,6 +661,7 @@ struct WebReadingView: View {
         var combined = ""
         var firstPageCover: Data?
         var firstPageTitle = ""
+        var chapterTitles: [String] = []
         var unchangedScreens = 0
         var farthestKindlePage = 0
         var trackedKindlePageTotal: Int?
@@ -683,6 +694,12 @@ struct WebReadingView: View {
             if screen == 0 {
                 firstPageCover = image.jpegData(compressionQuality: 0.86)
                 firstPageTitle = recognized.titleCandidate
+            } else {
+                for heading in recognized.chapterTitles where !chapterTitles.contains(where: {
+                    ChapterTitles.comparableKey($0) == ChapterTitles.comparableKey(heading)
+                }) {
+                    chapterTitles.append(heading)
+                }
             }
             var pagePositionRestarted = false
             if let page = recognized.pageNumber, let total = recognized.pageTotal {
@@ -728,7 +745,12 @@ struct WebReadingView: View {
                 "window.__leConteurScrollAll && window.__leConteurScrollAll('advance', \(viewportHeight * 0.68))"
             )
         }
-        return WebOCRBook(text: combined, titleCandidate: firstPageTitle, coverData: firstPageCover)
+        return WebOCRBook(
+            text: combined,
+            titleCandidate: firstPageTitle,
+            coverData: firstPageCover,
+            chapterTitles: chapterTitles
+        )
     }
 
     private func rewindPaginatedReaderIfNeeded() async {
@@ -828,7 +850,7 @@ struct WebReadingView: View {
             guard !lines.isEmpty else {
                 return WebOCRRecognition(
                     text: "", titleCandidate: "", isLastPage: false,
-                    pageNumber: nil, pageTotal: nil
+                    pageNumber: nil, pageTotal: nil, chapterTitles: []
                 )
             }
             let typicalHeight = lines.map(\.box.height).sorted()[lines.count / 2]
@@ -890,12 +912,17 @@ struct WebReadingView: View {
                 result = Self.joiningOCRFragments(result, line.text, separator: separator)
                 previous = line
             }
+            let chapterTitles = Self.kindleChapterTitleCandidates(
+                readableLines.map { (text: $0.text, box: $0.box) },
+                typicalHeight: typicalHeight
+            )
             return WebOCRRecognition(
                 text: result,
                 titleCandidate: titleCandidate,
                 isLastPage: isLastPage,
                 pageNumber: pagePosition?.current,
-                pageTotal: pagePosition?.total
+                pageTotal: pagePosition?.total,
+                chapterTitles: chapterTitles
             )
         }.value
     }
@@ -926,6 +953,84 @@ struct WebReadingView: View {
         let needle = pageWords.prefix(min(16, pageWords.count)).joined(separator: " ")
         let haystack = comparableWords(in: existing).joined(separator: " ")
         return haystack.contains(needle)
+    }
+
+    nonisolated static func kindleChapterTitleCandidates(
+        _ lines: [(text: String, box: CGRect)],
+        typicalHeight: CGFloat
+    ) -> [String] {
+        guard typicalHeight > 0 else { return [] }
+        let numbered = try! NSRegularExpression(
+            pattern: #"^(?:[0-9]{1,3}|[ivxlcdm]+)[.)]\s+\p{L}"#,
+            options: [.caseInsensitive]
+        )
+        func cleaned(_ value: String) -> String? {
+            let clean = cleanBookTitle(value)
+            guard clean.count >= 2, clean.count <= 100,
+                  clean.split(whereSeparator: \.isWhitespace).count <= 14,
+                  clean.rangeOfCharacter(from: .letters) != nil,
+                  !isGenericBookTitle(clean), !looksLikePublisher(clean) else { return nil }
+            return clean
+        }
+        func isExplicit(_ value: String) -> Bool {
+            let range = NSRange(value.startIndex..., in: value)
+            let isLabelled = ChapterTitles.recognized(value) != nil
+                || ChapterTitles.isKnownSectionHeading(value)
+            let letters = value.filter(\.isLetter)
+            let uppercase = letters.filter(\.isUppercase).count
+            let mostlyUppercase = !letters.isEmpty
+                && Double(uppercase) / Double(letters.count) >= 0.68
+            return isLabelled
+                || (numbered.firstMatch(in: value, range: range) != nil && mostlyUppercase)
+        }
+        func isProminent(_ line: (text: String, box: CGRect)) -> Bool {
+            line.box.height >= typicalHeight * 1.22
+                && line.box.width <= 0.90
+                && abs(line.box.midX - 0.5) <= 0.20
+        }
+
+        var candidates: [String] = []
+        var group: [(text: String, box: CGRect)] = []
+        func append(_ value: String) {
+            let key = ChapterTitles.comparableKey(value)
+            guard !key.isEmpty,
+                  !candidates.contains(where: { ChapterTitles.comparableKey($0) == key }) else { return }
+            candidates.append(value)
+        }
+        func flushGroup() {
+            guard !group.isEmpty else { return }
+            let values = group.compactMap { cleaned($0.text) }
+            if !values.isEmpty { append(values.joined(separator: " ")) }
+            for value in values where isExplicit(value) { append(value) }
+            group.removeAll(keepingCapacity: true)
+        }
+
+        for line in lines {
+            guard let clean = cleaned(line.text) else {
+                flushGroup()
+                continue
+            }
+            let letters = clean.filter(\.isLetter)
+            let uppercase = letters.filter(\.isUppercase).count
+            let mostlyUppercase = !letters.isEmpty
+                && Double(uppercase) / Double(letters.count) >= 0.68
+            let stronglyProminent = line.box.height >= typicalHeight * 1.55
+                && line.box.width <= 0.90 && abs(line.box.midX - 0.5) <= 0.20
+            let eligible = isExplicit(clean)
+                || (isProminent(line) && mostlyUppercase)
+                || stronglyProminent
+            guard eligible else {
+                flushGroup()
+                continue
+            }
+            if let previous = group.last {
+                let gap = previous.box.minY - line.box.maxY
+                if gap > typicalHeight * 1.2 { flushGroup() }
+            }
+            group.append((clean, line.box))
+        }
+        flushGroup()
+        return candidates
     }
 
     nonisolated private static func looksLikeLastKindlePage(_ value: String) -> Bool {
@@ -1402,12 +1507,14 @@ private struct WebOCRRecognition: Sendable {
     let isLastPage: Bool
     let pageNumber: Int?
     let pageTotal: Int?
+    let chapterTitles: [String]
 }
 
 private struct WebOCRBook {
     let text: String
     let titleCandidate: String
     let coverData: Data?
+    let chapterTitles: [String]
 }
 
 private struct WebReadingBrowserView: UIViewRepresentable {
@@ -1421,6 +1528,7 @@ private struct WebPageCapture {
     let title: String
     let host: String
     let coverData: Data?
+    let chapterTitles: [String]
 }
 
 private enum WebReadingError: LocalizedError {

@@ -106,9 +106,18 @@ final class LibraryStore {
     private static func normalizingChapterMetadata(in documents: [ReadingDocument]) -> [ReadingDocument] {
         documents.map { document in
             var document = repairingWebParagraphs(in: mergingSplitDisplayedTitle(in: document))
-            if document.chapters?.isEmpty != false {
-                let inferred = ChapterTitles.inferred(in: document)
-                if !inferred.isEmpty { document.chapters = inferred }
+            let inferred = ChapterTitles.inferred(in: document)
+            if !inferred.isEmpty {
+                // A newer detector can discover chapters that an older app
+                // missed. Merge by segment position instead of only repairing
+                // documents that have no chapter metadata at all.
+                let stored = document.chapters ?? []
+                document.chapters = (stored + inferred)
+                    .sorted { $0.start < $1.start }
+                    .reduce(into: [ReadingChapter]()) { result, chapter in
+                        guard result.last?.start != chapter.start else { return }
+                        result.append(chapter)
+                    }
             }
             let compactBookTitle = document.title.filter { !$0.isWhitespace }.lowercased()
             document.chapters = document.chapters?.map { chapter in

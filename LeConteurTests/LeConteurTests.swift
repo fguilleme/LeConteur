@@ -221,6 +221,108 @@ final class LeConteurTests: XCTestCase {
         ))
     }
 
+    func testKindleVisualHeadingsCreateChaptersWithoutDuplicatingSubtitle() throws {
+        let text = """
+        Introduction
+
+        Le premier passage présente longuement le sujet du livre au lecteur.
+
+        Une méthode nouvelle
+
+        Comprendre avant d'agir
+
+        Ce second passage développe une méthode entièrement différente.
+        """
+        let document = try DocumentImporter.fromText(text, title: "Essai", source: "WEB")
+        let chapters = ChapterTitles.inferred(
+            in: document,
+            additionalHeadings: ["Introduction", "Une méthode nouvelle", "Comprendre avant d'agir"]
+        )
+
+        XCTAssertEqual(chapters.map(\.title), ["Introduction", "Une méthode nouvelle"])
+    }
+
+    func testKindleMultilineNumberedHeadingIsGrouped() throws {
+        let headings = WebReadingBrowser.kindleChapterTitleCandidates([
+            ("1. L’EFFET PERVERS DES", CGRect(x: 0.12, y: 0.82, width: 0.76, height: 0.050)),
+            ("FAUSSES VÉRITÉS", CGRect(x: 0.23, y: 0.755, width: 0.54, height: 0.050)),
+            ("Un menteur dit : Je mens", CGRect(x: 0.18, y: 0.62, width: 0.64, height: 0.030)),
+            ("Le texte du chapitre commence ici.", CGRect(x: 0.08, y: 0.48, width: 0.84, height: 0.030))
+        ], typicalHeight: 0.030)
+
+        XCTAssertTrue(headings.contains("1. L’EFFET PERVERS DES FAUSSES VÉRITÉS"))
+
+        let document = try DocumentImporter.fromText(
+            "1. L’EFFET PERVERS DES FAUSSES VÉRITÉS\n\nLe texte du chapitre commence ici.",
+            title: "Essai", source: "WEB"
+        )
+        let chapters = ChapterTitles.inferred(in: document, additionalHeadings: headings)
+        XCTAssertEqual(chapters.first?.title, "1. L’EFFET PERVERS DES FAUSSES VÉRITÉS")
+    }
+
+    func testKindlePartialVisualHeadingMatchesCompleteImportedParagraph() throws {
+        let document = try DocumentImporter.fromText(
+            "1. L’EFFET PERVERS DES FAUSSES VÉRITÉS\n\nLe texte du chapitre commence ici.",
+            title: "Essai", source: "WEB"
+        )
+        let chapters = ChapterTitles.inferred(
+            in: document,
+            additionalHeadings: ["1. L’EFFET PERVERS DES"]
+        )
+
+        XCTAssertEqual(chapters.first?.title, "1. L’EFFET PERVERS DES FAUSSES VÉRITÉS")
+    }
+
+    func testNumberedUppercaseKindleHeadingsAreInferredFromStoredText() throws {
+        let document = try DocumentImporter.fromText(
+            """
+            1. L’EFFET PERVERS DES FAUSSES VÉRITÉS
+
+            Le premier chapitre développe son argument.
+
+            2. DÉFINIR LES FAKE NEWS
+
+            Le deuxième chapitre propose une définition.
+            """,
+            title: "Essai", source: "WEB"
+        )
+
+        XCTAssertEqual(
+            document.chapters?.map(\.title),
+            ["1. L’EFFET PERVERS DES FAUSSES VÉRITÉS", "2. DÉFINIR LES FAKE NEWS"]
+        )
+        XCTAssertNil(ChapterTitles.recognized(
+            "1. Nicolas Truong, entretien publié dans Le Monde le 12 janvier."
+        ))
+    }
+
+    func testKindleSplitChapterNumberAfterPageMarkerIsInferred() throws {
+        var document = ReadingDocument(
+            title: "Kindle",
+            author: "",
+            source: "WEB",
+            segments: [
+                "Texte de la page précédente.",
+                "11 1.",
+                "L'EFFET PERVERS DES FAUSSES VÉRITÉS",
+                "Un menteur dit : « Je mens ! » Ment-il ?",
+                "Corps du chapitre.",
+                "Deirdre Shesgreen, USA Today, 16 décembre 2019 4.",
+                "L'IRAN",
+                "Corps du dernier chapitre."
+            ]
+        )
+        document.paragraphStarts = [0, 2, 3, 4, 5, 6, 7]
+
+        let chapters = ChapterTitles.inferred(in: document)
+
+        XCTAssertEqual(chapters.map(\.start), [2, 6])
+        XCTAssertEqual(chapters.map(\.title), [
+            "1. L'EFFET PERVERS DES FAUSSES VÉRITÉS",
+            "4. L'IRAN"
+        ])
+    }
+
     func testCreditsMatchTheQwenBuildVariant() {
         let source = "Before\n{{QWEN_BEGIN}}\nQwen credits\n{{QWEN_END}}\nSupertonic credits"
         let withoutQwen = VoicesView.visibleLicenseText(source, includesQwen: false)
