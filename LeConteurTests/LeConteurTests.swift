@@ -62,6 +62,127 @@ final class LeConteurTests: XCTestCase {
         XCTAssertTrue(merged.contains("passage entièrement nouveau"))
     }
 
+    func testKindleOCRRemovesLineEndHyphenation() {
+        let first = WebReadingBrowser.joiningOCRFragments(
+            "Pour obtenir des pro-",
+            "grammes de téléréalité.",
+            separator: " "
+        )
+        let second = WebReadingBrowser.joiningOCRFragments(
+            first,
+            "Le mot peut-être reste composé.",
+            separator: " "
+        )
+
+        XCTAssertEqual(
+            second,
+            "Pour obtenir des programmes de téléréalité. Le mot peut-être reste composé."
+        )
+    }
+
+    func testKindleOCRRemovesHyphenationAcrossCapturedPages() {
+        let merged = WebReadingBrowser.mergingOCR(
+            "Nous avions accès à l'informa-",
+            with: "tion, eux étaient maintenus dans l'ignorance."
+        )
+
+        XCTAssertEqual(
+            merged,
+            "Nous avions accès à l'information, eux étaient maintenus dans l'ignorance."
+        )
+    }
+
+    func testKindleOCRKeepsHyphenBeforeParagraphOrUppercaseText() {
+        XCTAssertEqual(
+            WebReadingBrowser.joiningOCRFragments(
+                "Une proposition -",
+                "Nouvelle partie",
+                separator: "\n\n"
+            ),
+            "Une proposition -\n\nNouvelle partie"
+        )
+    }
+
+    func testKindleDOMRemovesSoftHyphens() {
+        XCTAssertEqual(
+            WebReadingBrowser.removingSoftHyphens(from: "infor\u{00AD}mation"),
+            "information"
+        )
+    }
+
+    func testKindleOCRRemovesFootnoteInterruptingHyphenation() {
+        XCTAssertEqual(
+            WebReadingBrowser.normalizingKindleText(
+                "Les Français consacrent du temps à leurs animaux de com-\n\n3\n\npagnie."
+            ),
+            "Les Français consacrent du temps à leurs animaux de compagnie."
+        )
+        XCTAssertEqual(
+            WebReadingBrowser.normalizingKindleText("Une informa-³ tion essentielle."),
+            "Une information essentielle."
+        )
+    }
+
+    func testKindleOCRKeepsOrdinaryNumberedHyphenatedTerms() {
+        XCTAssertEqual(
+            WebReadingBrowser.normalizingKindleText("Le variant COVID-19 circule."),
+            "Le variant COVID-19 circule."
+        )
+    }
+
+    func testKindleOCRIgnoresNavigationMarkersAtScreenEdges() {
+        XCTAssertTrue(WebReadingBrowser.isEdgeNavigationMarker(
+            ">",
+            box: CGRect(x: 0.96, y: 0.4, width: 0.03, height: 0.05)
+        ))
+        XCTAssertTrue(WebReadingBrowser.isEdgeNavigationMarker(
+            "‹",
+            box: CGRect(x: 0.01, y: 0.4, width: 0.03, height: 0.05)
+        ))
+        XCTAssertFalse(WebReadingBrowser.isEdgeNavigationMarker(
+            "«",
+            box: CGRect(x: 0.08, y: 0.4, width: 0.03, height: 0.05)
+        ))
+        XCTAssertFalse(WebReadingBrowser.isEdgeNavigationMarker(
+            "Puisque tu pars »",
+            box: CGRect(x: 0.02, y: 0.4, width: 0.40, height: 0.05)
+        ))
+    }
+
+    func testKindleOCRIgnoresSmallFootnoteMarkers() {
+        XCTAssertTrue(WebReadingBrowser.isLikelyOCRFootnoteMarker(
+            "2",
+            box: CGRect(x: 0.66, y: 0.72, width: 0.014, height: 0.018),
+            typicalHeight: 0.030
+        ))
+        XCTAssertTrue(WebReadingBrowser.isLikelyOCRFootnoteMarker(
+            "³",
+            box: CGRect(x: 0.20, y: 0.50, width: 0.012, height: 0.017),
+            typicalHeight: 0.030
+        ))
+        XCTAssertFalse(WebReadingBrowser.isLikelyOCRFootnoteMarker(
+            "1990",
+            box: CGRect(x: 0.40, y: 0.30, width: 0.080, height: 0.030),
+            typicalHeight: 0.030
+        ))
+        XCTAssertFalse(WebReadingBrowser.isLikelyOCRFootnoteMarker(
+            "2",
+            box: CGRect(x: 0.10, y: 0.30, width: 0.025, height: 0.030),
+            typicalHeight: 0.030
+        ))
+    }
+
+    func testKindleCaptureAllowsOnlySameReaderDocumentNavigation() throws {
+        let current = try XCTUnwrap(URL(string: "https://lire.amazon.fr/sample/B0HGQZ5ABC?location=10"))
+        let nextChapter = try XCTUnwrap(URL(string: "https://lire.amazon.fr/sample/B0HGQZ5ABC/chapter/2?location=42"))
+        let footnoteSite = try XCTUnwrap(URL(string: "https://example.org/reference"))
+        let otherBook = try XCTUnwrap(URL(string: "https://lire.amazon.fr/sample/OTHERBOOK1"))
+
+        XCTAssertTrue(WebReadingBrowser.isSameKindleReaderDocument(current, nextChapter))
+        XCTAssertFalse(WebReadingBrowser.isSameKindleReaderDocument(current, footnoteSite))
+        XCTAssertFalse(WebReadingBrowser.isSameKindleReaderDocument(current, otherBook))
+    }
+
     func testCreditsMatchTheQwenBuildVariant() {
         let source = "Before\n{{QWEN_BEGIN}}\nQwen credits\n{{QWEN_END}}\nSupertonic credits"
         let withoutQwen = VoicesView.visibleLicenseText(source, includesQwen: false)

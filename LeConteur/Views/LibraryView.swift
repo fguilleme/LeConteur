@@ -416,6 +416,7 @@ struct WebReadingView: View {
     private let captureHandler: WebReadingCaptureHandler
     private var frameCaptures: [String: WebFrameCapture] = [:]
     private var captureShouldFinish = false
+    private var isCaptureActive = false
     private var attemptedKindleSampleASINs: Set<String> = []
 
     override init() {
@@ -456,6 +457,7 @@ struct WebReadingView: View {
         )
     }
     func setCaptureChromeHidden(_ hidden: Bool) {
+        isCaptureActive = hidden
         let action = hidden ? "captureOn" : "captureOff"
         webView.evaluateJavaScript(
             "window.__leConteurScrollAll && window.__leConteurScrollAll('\(action)', 0)",
@@ -481,8 +483,51 @@ struct WebReadingView: View {
     func webView(_ webView: WKWebView, didFail navigation: WKNavigation!, withError error: Error) { refresh() }
     func webView(_ webView: WKWebView, didFailProvisionalNavigation navigation: WKNavigation!, withError error: Error) { refresh() }
 
+    func webView(_ webView: WKWebView,
+                 decidePolicyFor navigationAction: WKNavigationAction,
+                 decisionHandler: @escaping (WKNavigationActionPolicy) -> Void) {
+        guard isCaptureActive,
+              navigationAction.targetFrame?.isMainFrame != false else {
+            decisionHandler(.allow)
+            return
+        }
+        // Page turns in Kindle update the reader in place. A main-frame link
+        // during capture is therefore a footnote, citation, ad, or accidental
+        // synthetic tap and must never take the scanner away from the book.
+        let staysInKindleReader = Self.isSameKindleReaderDocument(
+            webView.url,
+            navigationAction.request.url
+        )
+        if navigationAction.navigationType == .linkActivated && !staysInKindleReader {
+            decisionHandler(.cancel)
+        } else if navigationAction.request.url != webView.url && !staysInKindleReader {
+            decisionHandler(.cancel)
+        } else {
+            decisionHandler(.allow)
+        }
+    }
+
+    nonisolated static func isSameKindleReaderDocument(_ current: URL?, _ requested: URL?) -> Bool {
+        guard let current, let requested,
+              current.scheme?.caseInsensitiveCompare(requested.scheme ?? "") == .orderedSame,
+              current.host?.caseInsensitiveCompare(requested.host ?? "") == .orderedSame,
+              current.host()?.localizedCaseInsensitiveContains("amazon.") == true else { return false }
+        func sampleID(in url: URL) -> String? {
+            let components = url.pathComponents
+            guard let sample = components.firstIndex(where: {
+                $0.caseInsensitiveCompare("sample") == .orderedSame
+            }), components.indices.contains(sample + 1) else { return nil }
+            return components[sample + 1].uppercased()
+        }
+        guard let currentID = sampleID(in: current), let requestedID = sampleID(in: requested) else {
+            return false
+        }
+        return currentID == requestedID
+    }
+
     func webView(_ webView: WKWebView, createWebViewWith configuration: WKWebViewConfiguration,
                  for navigationAction: WKNavigationAction, windowFeatures: WKWindowFeatures) -> WKWebView? {
+        guard !isCaptureActive else { return nil }
         if navigationAction.targetFrame == nil, let url = navigationAction.request.url { load(url) }
         return nil
     }
@@ -552,6 +597,9 @@ struct WebReadingView: View {
     }
 
     fileprivate func captureVisibleText() async throws -> WebPageCapture {
+        let ownsCaptureState = !isCaptureActive
+        isCaptureActive = true
+        defer { if ownsCaptureState { isCaptureActive = false } }
         if let value = try? await webView.evaluateJavaScript("window.__leConteurCapture && window.__leConteurCapture()"),
            let result = value as? [String: Any] {
             receiveCapture(result, frameURL: webView.url)
@@ -564,7 +612,7 @@ struct WebReadingView: View {
         if webView.url?.host()?.localizedCaseInsensitiveContains("amazon.") == true,
            let book = try? await recognizeDisplayedText(), book.text.count >= 20 {
             return WebPageCapture(
-                text: book.text,
+                text: Self.normalizingKindleText(book.text),
                 title: preferredBookTitle(visualCandidate: book.titleCandidate),
                 host: webView.url?.host() ?? "amazon.fr",
                 coverData: book.coverData
@@ -573,7 +621,7 @@ struct WebReadingView: View {
         guard let capture = frameCaptures.values.max(by: { $0.rank < $1.rank }),
               capture.text.count >= 20 else { throw WebReadingError.noVisibleText }
         return WebPageCapture(
-            text: capture.text,
+            text: Self.normalizingKindleText(capture.text),
             title: capture.title.isEmpty ? webView.title ?? "" : capture.title,
             host: webView.url?.host() ?? capture.host,
             coverData: nil
@@ -767,9 +815,16 @@ struct WebReadingView: View {
             // refermé avant la capture. Ne retirer que sa très petite marge :
             // l'ancien seuil à 0,79 supprimait plusieurs lignes réellement
             // visibles au début de chaque page.
-            let readableLines = trimsPaginatedReaderChrome
+            let readableLines = (trimsPaginatedReaderChrome
                 ? lines.filter { $0.box.midY > 0.08 && $0.box.midY < 0.965 }
-                : lines
+                : lines).filter {
+                    !Self.isEdgeNavigationMarker($0.text, box: $0.box)
+                        && !Self.isLikelyOCRFootnoteMarker(
+                            $0.text,
+                            box: $0.box,
+                            typicalHeight: typicalHeight
+                        )
+                }
             // Le compteur Kindle est volontairement exclu du texte du livre,
             // mais il donne un signal de fin beaucoup plus fiable que plusieurs
             // captures OCR presque identiques.
@@ -782,11 +837,12 @@ struct WebReadingView: View {
             var result = ""
             var previous: WebOCRLine?
             for line in readableLines {
+                var separator = ""
                 if let previous {
                     let verticalGap = previous.box.minY - line.box.maxY
-                    result += verticalGap > typicalHeight * 1.15 ? "\n\n" : " "
+                    separator = verticalGap > typicalHeight * 1.15 ? "\n\n" : " "
                 }
-                result += line.text
+                result = Self.joiningOCRFragments(result, line.text, separator: separator)
                 previous = line
             }
             return WebOCRRecognition(
@@ -842,8 +898,8 @@ struct WebReadingView: View {
         }
         let oldWords = tokens(in: existing)
         let newWords = tokens(in: addition)
-        guard !newWords.isEmpty else { return existing }
-        guard !oldWords.isEmpty else { return addition }
+        guard !newWords.isEmpty else { return Self.removingSoftHyphens(from: existing) }
+        guard !oldWords.isEmpty else { return Self.removingSoftHyphens(from: addition) }
         let oldComparable = oldWords.map(\.comparable)
         let newComparable = newWords.map(\.comparable)
 
@@ -862,7 +918,7 @@ struct WebReadingView: View {
             guard !tail.isEmpty else { return existing }
             let separator = boundary.range(of: #"\n[\t ]*\n"#, options: .regularExpression) != nil
                 ? "\n\n" : " "
-            return existing.trimmingCharacters(in: .whitespacesAndNewlines) + separator + tail
+            return Self.joiningOCRFragments(existing, tail, separator: separator)
         }
 
         // Les captures se chevauchent volontairement. Vision peut toutefois
@@ -934,11 +990,79 @@ struct WebReadingView: View {
         guard !next.isEmpty else { return existing }
         let terminal = previousText.last.map { ".!?…»\"”.".contains($0) } == true
         let startsUppercase = next.first(where: \.isLetter)?.isUppercase == true
-        return previousText + (terminal && startsUppercase ? "\n\n" : " ") + next
+        return Self.joiningOCRFragments(
+            previousText,
+            next,
+            separator: terminal && startsUppercase ? "\n\n" : " "
+        )
+    }
+
+    /// Vision returns one observation per displayed line. Kindle may insert a
+    /// hyphen solely to wrap a word, and joining those observations with a
+    /// normal space would turn `pro-` + `grammes` into two spoken words. Only
+    /// remove a line-final hyphen before a lowercase continuation; punctuation,
+    /// em dashes, paragraph boundaries, and ordinary in-line compounds remain.
+    nonisolated static func joiningOCRFragments(_ existing: String,
+                                                _ addition: String,
+                                                separator: String = " ") -> String {
+        let left = Self.removingSoftHyphens(from: existing)
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+        let right = Self.removingSoftHyphens(from: addition)
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !left.isEmpty else { return right }
+        guard !right.isEmpty else { return left }
+
+        let hyphenationMarks: Set<Character> = ["-", "‐", "‑"]
+        let continuesWord = right.first(where: { !$0.isWhitespace })?.isLowercase == true
+        let leftWithoutMark = left.dropLast()
+        let followsLetter = leftWithoutMark.last?.isLetter == true
+        if separator != "\n\n", let mark = left.last,
+           hyphenationMarks.contains(mark), followsLetter, continuesWord {
+            return String(leftWithoutMark) + right
+        }
+        return left + separator + right
+    }
+
+    nonisolated static func removingSoftHyphens(from value: String) -> String {
+        value.replacingOccurrences(of: "\u{00AD}", with: "")
+    }
+
+    nonisolated static func isEdgeNavigationMarker(_ value: String, box: CGRect) -> Bool {
+        let marker = value.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !marker.isEmpty,
+              marker.range(of: #"^[<>‹›〈〉❮❯]+$"#, options: .regularExpression) != nil else {
+            return false
+        }
+        return box.midX < 0.055 || box.midX > 0.945
+    }
+
+    nonisolated static func isLikelyOCRFootnoteMarker(_ value: String,
+                                                      box: CGRect,
+                                                      typicalHeight: CGFloat) -> Bool {
+        let marker = value.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard typicalHeight > 0,
+              marker.range(
+                of: #"^(?:[0-9]{1,3}|[⁰¹²³⁴⁵⁶⁷⁸⁹]{1,3})$"#,
+                options: .regularExpression
+              ) != nil else { return false }
+        return box.height < typicalHeight * 0.84 && box.width < 0.065
+    }
+
+    /// Kindle footnote anchors may be OCRed as their own line between the two
+    /// halves of a wrapped word: `com-`, `3`, `pagnie`. Remove only a short
+    /// isolated note marker in that exact context, then restore the word.
+    nonisolated static func normalizingKindleText(_ value: String) -> String {
+        let withoutSoftHyphens = Self.removingSoftHyphens(from: value)
+        return withoutSoftHyphens.replacingOccurrences(
+            of: #"(?<=\p{L})[-‐‑](?:\s+[0-9]{1,3}|\s*[⁰¹²³⁴⁵⁶⁷⁸⁹]{1,3})\s+(?=\p{Ll})"#,
+            with: "",
+            options: .regularExpression
+        )
     }
 
     fileprivate func receiveCapture(_ result: [String: Any], frameURL: URL?) {
-        guard let text = result["text"] as? String else { return }
+        guard let rawText = result["text"] as? String else { return }
+        let text = Self.normalizingKindleText(rawText)
         let key = (result["href"] as? String) ?? frameURL?.absoluteString ?? UUID().uuidString
         frameCaptures[key] = WebFrameCapture(
             text: text,
@@ -953,7 +1077,7 @@ struct WebReadingView: View {
     (() => {
       if (window.__leConteurCaptureInstalled) return;
       window.__leConteurCaptureInstalled = true;
-      const clean = value => (value || '').replace(/\s+/g, ' ').trim();
+      const clean = value => (value || '').replace(/\u00AD/g, '').replace(/\s+/g, ' ').trim();
       const snapshot = () => {
         const entries = [];
         if (!document.body) return null;
@@ -963,6 +1087,7 @@ struct WebReadingView: View {
           const text = clean(node.nodeValue);
           const parent = node.parentElement;
           if (!text || !parent || parent.closest('script,style,noscript,nav,header,footer,button,input,textarea,select,[aria-hidden="true"]')) continue;
+          if (/^(?:[0-9]{1,3}|[⁰¹²³⁴⁵⁶⁷⁸⁹]{1,3})$/.test(text) && parent.closest('a[href]')) continue;
           const style = getComputedStyle(parent);
           if (style.display === 'none' || style.visibility === 'hidden' || Number(style.opacity) === 0) continue;
           const range = document.createRange();
@@ -970,6 +1095,10 @@ struct WebReadingView: View {
           const rect = range.getBoundingClientRect();
           if (!rect.width || !rect.height || rect.bottom < 0 || rect.top > innerHeight || rect.right < 0 || rect.left > innerWidth) continue;
           if (parseFloat(style.fontSize) < 11) continue;
+          const edgeMarker = /^[<>‹›〈〉❮❯]+$/.test(text)
+            && (rect.left + rect.width / 2 < innerWidth * 0.055
+              || rect.left + rect.width / 2 > innerWidth * 0.945);
+          if (edgeMarker) continue;
           entries.push({ text, top: rect.top, left: rect.left });
         }
         entries.sort((a, b) => Math.abs(a.top - b.top) > 3 ? a.top - b.top : a.left - b.left);
@@ -1082,8 +1211,12 @@ struct WebReadingView: View {
           requestAnimationFrame(() => {
             const x = innerWidth * 0.5;
             const y = innerHeight * 0.58;
-            const element = document.elementFromPoint(x, y);
-            if (!element) return;
+            const hit = document.elementFromPoint(x, y);
+            if (!hit) return;
+            // A footnote or citation can cover the nominal centre point. Send
+            // the gesture to the page rather than activating that link.
+            const element = hit.closest('a,button,[role="button"],[onclick]')
+              ? (document.body || document.documentElement) : hit;
             for (const type of ['pointerdown', 'mousedown', 'pointerup', 'mouseup', 'click']) {
               const EventType = type.startsWith('pointer') && typeof PointerEvent === 'function'
                 ? PointerEvent : MouseEvent;
