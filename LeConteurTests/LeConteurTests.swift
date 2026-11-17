@@ -92,6 +92,17 @@ final class LeConteurTests: XCTestCase {
         )
     }
 
+    func testKindleOCRStartsNumberedUppercaseChapterOnNewParagraph() {
+        let merged = WebReadingBrowser.mergingOCR(
+            "Barry Schwartz, Search Engine Land, 12 juin 2013",
+            with: "3. LES INTERVENTIONS OCCIDENTALES : LES MENSONGES, BOUCLIERS DE LA DÉMOCRATIE\n\nBien avant le début du chapitre."
+        )
+
+        XCTAssertTrue(merged.contains(
+            "12 juin 2013\n\n3. LES INTERVENTIONS OCCIDENTALES"
+        ))
+    }
+
     func testKindleOCRKeepsHyphenBeforeParagraphOrUppercaseText() {
         XCTAssertEqual(
             WebReadingBrowser.joiningOCRFragments(

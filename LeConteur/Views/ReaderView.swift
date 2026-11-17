@@ -178,7 +178,7 @@ struct ReaderView: View {
                             currentWordFrame = nil
                             playback.seek(to: chapter.start)
                             DispatchQueue.main.asyncAfter(deadline: .now() + 0.12) {
-                                proxy.scrollTo(paragraph, anchor: .center)
+                                proxy.scrollTo(paragraph, anchor: .top)
                             }
                         }
                     }

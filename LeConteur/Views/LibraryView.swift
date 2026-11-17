@@ -1082,6 +1082,19 @@ struct WebReadingView: View {
         let oldComparable = oldWords.map(\.comparable)
         let newComparable = newWords.map(\.comparable)
 
+        func beginsWithNumberedUppercaseHeading(_ value: String) -> Bool {
+            let firstParagraph = value.components(separatedBy: "\n\n").first?
+                .trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+            guard firstParagraph.count <= 180,
+                  firstParagraph.range(
+                    of: #"^[0-9]{1,3}[.)]\s+"#,
+                    options: .regularExpression
+                  ) != nil else { return false }
+            let letters = firstParagraph.filter(\.isLetter)
+            guard letters.count >= 4 else { return false }
+            return Double(letters.filter(\.isUppercase).count) / Double(letters.count) >= 0.68
+        }
+
         // Drop overlapping words without flattening the remaining OCR text.
         // The whitespace immediately before the first new word tells us whether
         // Vision saw a real paragraph gap or merely the next line/screen.
@@ -1096,7 +1109,7 @@ struct WebReadingView: View {
                 .trimmingCharacters(in: .whitespacesAndNewlines)
             guard !tail.isEmpty else { return existing }
             let separator = boundary.range(of: #"\n[\t ]*\n"#, options: .regularExpression) != nil
-                ? "\n\n" : " "
+                || beginsWithNumberedUppercaseHeading(tail) ? "\n\n" : " "
             return Self.joiningOCRFragments(existing, tail, separator: separator)
         }
 
@@ -1172,7 +1185,8 @@ struct WebReadingView: View {
         return Self.joiningOCRFragments(
             previousText,
             next,
-            separator: terminal && startsUppercase ? "\n\n" : " "
+            separator: (terminal && startsUppercase) || beginsWithNumberedUppercaseHeading(next)
+                ? "\n\n" : " "
         )
     }
 
