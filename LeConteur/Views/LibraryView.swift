@@ -498,9 +498,15 @@ struct WebReadingView: View {
             webView.url,
             navigationAction.request.url
         )
+        let policy: WKNavigationActionPolicy
         if navigationAction.navigationType == .linkActivated && !staysInKindleReader {
-            decisionHandler(.cancel)
+            policy = .cancel
         } else if navigationAction.request.url != webView.url && !staysInKindleReader {
+            policy = .cancel
+        } else {
+            policy = .allow
+        }
+        if policy == .cancel {
             decisionHandler(.cancel)
         } else {
             decisionHandler(.allow)
@@ -519,16 +525,27 @@ struct WebReadingView: View {
             }), components.indices.contains(sample + 1) else { return nil }
             return components[sample + 1].uppercased()
         }
-        guard let currentID = sampleID(in: current), let requestedID = sampleID(in: requested) else {
-            return false
+        let currentID = sampleID(in: current)
+        let requestedID = sampleID(in: requested)
+        if let currentID, let requestedID {
+            return currentID == requestedID
         }
-        return currentID == requestedID
+        // Aux limites de chapitre, Kindle peut quitter momentanément la route
+        // /sample/ASIN pour une route interne opaque. Le domaine du lecteur
+        // reste alors le seul identifiant stable. Une autre route /sample/
+        // explicite demeure en revanche refusée ci-dessus si son ASIN diffère.
+        return requestedID == nil
     }
 
     func webView(_ webView: WKWebView, createWebViewWith configuration: WKWebViewConfiguration,
                  for navigationAction: WKNavigationAction, windowFeatures: WKWindowFeatures) -> WKWebView? {
-        guard !isCaptureActive else { return nil }
-        if navigationAction.targetFrame == nil, let url = navigationAction.request.url { load(url) }
+        if navigationAction.targetFrame == nil, let url = navigationAction.request.url {
+            if !isCaptureActive || Self.isSameKindleReaderDocument(webView.url, url) {
+                // Certains changements de chapitre sont déclarés comme une
+                // nouvelle fenêtre. Les conserver dans le lecteur courant.
+                load(url)
+            }
+        }
         return nil
     }
 
@@ -636,6 +653,7 @@ struct WebReadingView: View {
         var firstPageTitle = ""
         var unchangedScreens = 0
         var farthestKindlePage = 0
+        var trackedKindlePageTotal: Int?
         captureShouldFinish = false
         captureStatus = String(localized: "Recherche du début du livre…")
         _ = try? await webView.evaluateJavaScript("window.__leConteurScrollAll && window.__leConteurScrollAll('start', 0)")
@@ -666,20 +684,46 @@ struct WebReadingView: View {
                 firstPageCover = image.jpegData(compressionQuality: 0.86)
                 firstPageTitle = recognized.titleCandidate
             }
-            if let page = recognized.pageNumber {
+            var pagePositionRestarted = false
+            if let page = recognized.pageNumber, let total = recognized.pageTotal {
                 // À la dernière page, certains lecteurs Kindle renvoient vers
                 // une page antérieure au lieu de désactiver la navigation.
                 // Ne jamais incorporer ce retour en arrière au livre importé.
-                if farthestKindlePage > 0, page + 1 < farthestKindlePage { break }
-                farthestKindlePage = max(farthestKindlePage, page)
+                // La pagination peut toutefois repartir à 1 au chapitre
+                // suivant, y compris avec le même total. Le contenu permet de
+                // distinguer cette nouvelle série d'une page déjà capturée.
+                if trackedKindlePageTotal == total {
+                    if farthestKindlePage > 0, page + 1 < farthestKindlePage {
+                        pagePositionRestarted = true
+                    } else {
+                        farthestKindlePage = max(farthestKindlePage, page)
+                    }
+                } else {
+                    trackedKindlePageTotal = total
+                    farthestKindlePage = page
+                }
             }
+            if pagePositionRestarted {
+                if Self.isOCRPageAlreadyCaptured(combined, page: recognized.text) {
+                    break
+                }
+                // Nouveau chapitre : sa pagination locale repart au début.
+                farthestKindlePage = recognized.pageNumber ?? 0
+            }
+            let previousLength = combined.count
             let merged = Self.mergingOCR(combined, with: recognized.text)
-            if merged.count <= combined.count + 12 { unchangedScreens += 1 }
+            if merged.count <= previousLength + 12 { unchangedScreens += 1 }
             else { unchangedScreens = 0 }
             combined = merged
 
-            if captureShouldFinish || recognized.isLastPage
-                || unchangedScreens >= 6 || combined.count >= 1_950_000 { break }
+            if Self.shouldStopKindleCapture(
+                userRequested: captureShouldFinish,
+                reportsLastPage: recognized.isLastPage,
+                unchangedScreens: unchangedScreens,
+                textLength: combined.count
+            ) {
+                break
+            }
             _ = try? await webView.evaluateJavaScript(
                 "window.__leConteurScrollAll && window.__leConteurScrollAll('advance', \(viewportHeight * 0.68))"
             )
@@ -783,7 +827,8 @@ struct WebReadingView: View {
             }
             guard !lines.isEmpty else {
                 return WebOCRRecognition(
-                    text: "", titleCandidate: "", isLastPage: false, pageNumber: nil
+                    text: "", titleCandidate: "", isLastPage: false,
+                    pageNumber: nil, pageTotal: nil
                 )
             }
             let typicalHeight = lines.map(\.box.height).sorted()[lines.count / 2]
@@ -849,9 +894,38 @@ struct WebReadingView: View {
                 text: result,
                 titleCandidate: titleCandidate,
                 isLastPage: isLastPage,
-                pageNumber: pagePosition?.current
+                pageNumber: pagePosition?.current,
+                pageTotal: pagePosition?.total
             )
         }.value
+    }
+
+    nonisolated static func shouldStopKindleCapture(
+        userRequested: Bool,
+        reportsLastPage: Bool,
+        unchangedScreens: Int,
+        textLength: Int
+    ) -> Bool {
+        if userRequested || textLength >= 1_950_000 { return true }
+        // Kindle peut afficher 100 % à la fin d'un chapitre. Continuer à
+        // actionner la page suivante laisse le temps au chapitre suivant de
+        // charger ; seule une page réellement immobile confirme la fin.
+        let unchangedLimit = reportsLastPage ? 12 : 6
+        return unchangedScreens >= unchangedLimit
+    }
+
+    nonisolated static func isOCRPageAlreadyCaptured(_ existing: String, page: String) -> Bool {
+        func comparableWords(in value: String) -> [String] {
+            value.split(whereSeparator: { $0.isWhitespace }).map {
+                $0.folding(options: [.caseInsensitive, .diacriticInsensitive], locale: .current)
+                    .filter { $0.isLetter || $0.isNumber }
+            }.filter { $0.count >= 2 }
+        }
+        let pageWords = comparableWords(in: page)
+        guard pageWords.count >= 8 else { return false }
+        let needle = pageWords.prefix(min(16, pageWords.count)).joined(separator: " ")
+        let haystack = comparableWords(in: existing).joined(separator: " ")
+        return haystack.contains(needle)
     }
 
     nonisolated private static func looksLikeLastKindlePage(_ value: String) -> Bool {
@@ -1168,9 +1242,22 @@ struct WebReadingView: View {
           control = visible.filter(element => {
             const rect = element.getBoundingClientRect();
             const middle = rect.top + rect.height / 2;
-            const atSide = direction > 0 ? rect.right >= innerWidth * 0.88 : rect.left <= innerWidth * 0.12;
+            const href = element.href || '';
+            let externalLink = false;
+            if (href) {
+              try { externalLink = new URL(href, location.href).host !== location.host; }
+              catch (_) { externalLink = true; }
+            }
+            // Le texte du livre peut contenir des liens à proximité du bord.
+            // Une commande de pagination Kindle touche réellement le bord de
+            // la fenêtre ; une marge de 12 % était beaucoup trop permissive.
+            const edgeTolerance = Math.max(6, innerWidth * 0.03);
+            const atSide = direction > 0
+              ? rect.right >= innerWidth - edgeTolerance
+              : rect.left <= edgeTolerance;
             return atSide && middle >= innerHeight * 0.22 && middle <= innerHeight * 0.84
-              && rect.width <= innerWidth * 0.22 && rect.height <= innerHeight * 0.45;
+              && rect.width <= innerWidth * 0.22 && rect.height <= innerHeight * 0.45
+              && !externalLink;
           }).sort((left, right) => {
             const a = left.getBoundingClientRect();
             const b = right.getBoundingClientRect();
@@ -1183,7 +1270,9 @@ struct WebReadingView: View {
           let edge = document.elementFromPoint(x, innerHeight * 0.55);
           control = edge?.closest?.('button,[role="button"],a,[tabindex]') || edge;
         }
-        if (!control || control === document.body || control === document.documentElement) return false;
+        if (!control || control === document.body || control === document.documentElement) {
+          return false;
+        }
         control.scrollIntoView({ block: 'nearest', inline: 'nearest' });
         const rect = control.getBoundingClientRect();
         const x = direction > 0 ? Math.min(innerWidth - 2, rect.right - 2) : Math.max(2, rect.left + 2);
@@ -1312,6 +1401,7 @@ private struct WebOCRRecognition: Sendable {
     let titleCandidate: String
     let isLastPage: Bool
     let pageNumber: Int?
+    let pageTotal: Int?
 }
 
 private struct WebOCRBook {

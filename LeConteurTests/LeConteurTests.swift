@@ -175,12 +175,50 @@ final class LeConteurTests: XCTestCase {
     func testKindleCaptureAllowsOnlySameReaderDocumentNavigation() throws {
         let current = try XCTUnwrap(URL(string: "https://lire.amazon.fr/sample/B0HGQZ5ABC?location=10"))
         let nextChapter = try XCTUnwrap(URL(string: "https://lire.amazon.fr/sample/B0HGQZ5ABC/chapter/2?location=42"))
+        let opaqueNextChapter = try XCTUnwrap(URL(string: "https://lire.amazon.fr/reader/chapter?location=42"))
         let footnoteSite = try XCTUnwrap(URL(string: "https://example.org/reference"))
         let otherBook = try XCTUnwrap(URL(string: "https://lire.amazon.fr/sample/OTHERBOOK1"))
 
         XCTAssertTrue(WebReadingBrowser.isSameKindleReaderDocument(current, nextChapter))
+        XCTAssertTrue(WebReadingBrowser.isSameKindleReaderDocument(current, opaqueNextChapter))
         XCTAssertFalse(WebReadingBrowser.isSameKindleReaderDocument(current, footnoteSite))
         XCTAssertFalse(WebReadingBrowser.isSameKindleReaderDocument(current, otherBook))
+    }
+
+    func testKindleChapterHundredPercentDoesNotEndImportImmediately() {
+        XCTAssertFalse(WebReadingBrowser.shouldStopKindleCapture(
+            userRequested: false,
+            reportsLastPage: true,
+            unchangedScreens: 0,
+            textLength: 4_000
+        ))
+        XCTAssertFalse(WebReadingBrowser.shouldStopKindleCapture(
+            userRequested: false,
+            reportsLastPage: true,
+            unchangedScreens: 11,
+            textLength: 4_000
+        ))
+        XCTAssertTrue(WebReadingBrowser.shouldStopKindleCapture(
+            userRequested: false,
+            reportsLastPage: true,
+            unchangedScreens: 12,
+            textLength: 4_000
+        ))
+    }
+
+    func testKindlePageRestartDistinguishesNextChapterFromBookLoop() {
+        let captured = "Le premier chapitre contient déjà cette longue page avec suffisamment de mots "
+            + "pour reconnaître sans ambiguïté son contenu lors d'un éventuel retour en arrière."
+        XCTAssertTrue(WebReadingBrowser.isOCRPageAlreadyCaptured(
+            captured,
+            page: "Cette longue page avec suffisamment de mots pour reconnaître sans ambiguïté "
+                + "son contenu lors d'un éventuel retour en arrière."
+        ))
+        XCTAssertFalse(WebReadingBrowser.isOCRPageAlreadyCaptured(
+            captured,
+            page: "Le chapitre suivant commence ici avec un texte entièrement nouveau qui doit "
+                + "continuer à être capturé même si la pagination repart au début."
+        ))
     }
 
     func testCreditsMatchTheQwenBuildVariant() {
