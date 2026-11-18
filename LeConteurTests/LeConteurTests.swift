@@ -134,6 +134,31 @@ final class LeConteurTests: XCTestCase {
         )
     }
 
+    func testKindleSuperscriptGeometryDistinguishesNotesFromOrdinaryDigits() {
+        let letter = CGRect(x: 0.20, y: 0.40, width: 0.03, height: 0.08)
+        let superscript = CGRect(x: 0.23, y: 0.47, width: 0.025, height: 0.045)
+        let baselineDigits = CGRect(x: 0.23, y: 0.40, width: 0.05, height: 0.08)
+
+        XCTAssertTrue(WebReadingBrowser.isSuperscriptFootnoteGeometry(
+            digits: superscript,
+            precedingLetter: letter
+        ))
+        XCTAssertFalse(WebReadingBrowser.isSuperscriptFootnoteGeometry(
+            digits: baselineDigits,
+            precedingLetter: letter
+        ))
+        XCTAssertTrue(WebReadingBrowser.isKindleFootnoteBlue(
+            red: 0.10,
+            green: 0.25,
+            blue: 0.92
+        ))
+        XCTAssertFalse(WebReadingBrowser.isKindleFootnoteBlue(
+            red: 0.10,
+            green: 0.10,
+            blue: 0.10
+        ))
+    }
+
     func testKindleOCRKeepsOrdinaryNumberedHyphenatedTerms() {
         XCTAssertEqual(
             WebReadingBrowser.normalizingKindleText("Le variant COVID-19 circule."),

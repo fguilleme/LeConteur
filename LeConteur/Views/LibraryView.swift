@@ -1,5 +1,6 @@
 import SwiftUI
 import UIKit
+import CoreImage
 import Vision
 import WebKit
 
@@ -838,9 +839,16 @@ struct WebReadingView: View {
             request.usesLanguageCorrection = true
             request.automaticallyDetectsLanguage = true
             try VNImageRequestHandler(cgImage: cgImage, orientation: .up).perform([request])
+            let colorContext = CIContext(options: [.workingColorSpace: NSNull()])
             var lines = (request.results ?? []).compactMap { observation -> WebOCRLine? in
-                guard let text = observation.topCandidates(1).first?.string
-                    .trimmingCharacters(in: .whitespacesAndNewlines), !text.isEmpty else { return nil }
+                guard let candidate = observation.topCandidates(1).first else { return nil }
+                let text = removingSuperscriptFootnoteReferences(
+                    from: candidate,
+                    image: cgImage,
+                    colorContext: colorContext
+                )
+                    .trimmingCharacters(in: .whitespacesAndNewlines)
+                guard !text.isEmpty else { return nil }
                 return WebOCRLine(text: text, box: observation.boundingBox)
             }
             lines.sort {
@@ -925,6 +933,95 @@ struct WebReadingView: View {
                 chapterTitles: chapterTitles
             )
         }.value
+    }
+
+    nonisolated static func isSuperscriptFootnoteGeometry(
+        digits: CGRect,
+        precedingLetter: CGRect
+    ) -> Bool {
+        guard digits.width > 0, digits.height > 0,
+              precedingLetter.width > 0, precedingLetter.height > 0 else { return false }
+        let smaller = digits.height <= precedingLetter.height * 0.86
+        let raised = digits.midY >= precedingLetter.midY + precedingLetter.height * 0.18
+        return smaller || raised
+    }
+
+    nonisolated static func isKindleFootnoteBlue(red: CGFloat,
+                                                 green: CGFloat,
+                                                 blue: CGFloat) -> Bool {
+        blue >= 0.30 && blue > red * 1.16 && blue > green * 1.08 && blue - red >= 0.08
+    }
+
+    nonisolated private static func containsKindleFootnoteBlue(
+        in image: CGImage,
+        normalized rect: CGRect,
+        context: CIContext
+    ) -> Bool {
+        let extent = CGRect(
+            x: rect.minX * CGFloat(image.width),
+            y: rect.minY * CGFloat(image.height),
+            width: rect.width * CGFloat(image.width),
+            height: rect.height * CGFloat(image.height)
+        ).intersection(CGRect(x: 0, y: 0, width: image.width, height: image.height)).integral
+        guard extent.width >= 1, extent.height >= 1 else { return false }
+        let width = max(1, Int(extent.width))
+        let height = max(1, Int(extent.height))
+        var pixels = [UInt8](repeating: 0, count: width * height * 4)
+        context.render(
+            CIImage(cgImage: image),
+            toBitmap: &pixels,
+            rowBytes: width * 4,
+            bounds: extent,
+            format: .RGBA8,
+            colorSpace: CGColorSpaceCreateDeviceRGB()
+        )
+        var bluePixels = 0
+        for offset in stride(from: 0, to: pixels.count, by: 4) {
+            if isKindleFootnoteBlue(
+                red: CGFloat(pixels[offset]) / 255,
+                green: CGFloat(pixels[offset + 1]) / 255,
+                blue: CGFloat(pixels[offset + 2]) / 255
+            ) {
+                bluePixels += 1
+                if bluePixels >= 8 { return true }
+            }
+        }
+        return false
+    }
+
+    nonisolated private static func removingSuperscriptFootnoteReferences(
+        from candidate: VNRecognizedText,
+        image: CGImage,
+        colorContext: CIContext
+    ) -> String {
+        var text = candidate.string
+        let expression = try! NSRegularExpression(
+            pattern: #"(?<=\p{L})[0-9]{1,3}(?=$|[\s.,;:!?…»”'’)\]])"#
+        )
+        let whole = NSRange(text.startIndex..., in: text)
+        let matches = expression.matches(in: text, range: whole)
+        var rangesToRemove: [Range<String.Index>] = []
+        for match in matches {
+            guard let digitRange = Range(match.range, in: text),
+                  digitRange.lowerBound > text.startIndex else { continue }
+            let previousIndex = text.index(before: digitRange.lowerBound)
+            let previousRange = previousIndex..<digitRange.lowerBound
+            guard let digitObservation = try? candidate.boundingBox(for: digitRange),
+                  let previousObservation = try? candidate.boundingBox(for: previousRange) else { continue }
+            let geometryMatches = isSuperscriptFootnoteGeometry(
+                digits: digitObservation.boundingBox,
+                precedingLetter: previousObservation.boundingBox
+            )
+            let colorMatches = containsKindleFootnoteBlue(
+                in: image,
+                normalized: digitObservation.boundingBox,
+                context: colorContext
+            )
+            guard geometryMatches || colorMatches else { continue }
+            rangesToRemove.append(digitRange)
+        }
+        for range in rangesToRemove.reversed() { text.removeSubrange(range) }
+        return text
     }
 
     nonisolated static func shouldStopKindleCapture(
@@ -1404,15 +1501,42 @@ struct WebReadingView: View {
         if (typeof control.click === 'function') control.click();
         return true;
       };
+      let captureActive = false;
+      const rememberAndHide = element => {
+        if (element.dataset.leConteurVisibility === undefined) {
+          element.dataset.leConteurVisibility = element.style.visibility || '';
+        }
+        element.style.setProperty('visibility', 'hidden', 'important');
+      };
+      const hideCaptureElements = () => {
+        for (const element of document.querySelectorAll('header,[role="banner"]')) {
+          rememberAndHide(element);
+        }
+        // Kindle renders footnote calls as numeric links or <sup> elements.
+        // Hide them before taking the screenshot: Vision otherwise merges the
+        // small glyph with its neighbouring word (for example `politique12`).
+        for (const element of document.querySelectorAll('a[href],sup,[role="doc-noteref"]')) {
+          const value = clean(element.textContent);
+          const style = getComputedStyle(element);
+          const parentStyle = element.parentElement ? getComputedStyle(element.parentElement) : null;
+          const fontSize = parseFloat(style.fontSize) || 0;
+          const parentFontSize = parseFloat(parentStyle?.fontSize || '') || 0;
+          const semanticNote = element.getAttribute('role') === 'doc-noteref'
+            || /(?:^|\s)noteref(?:\s|$)/i.test(element.getAttribute('epub:type') || '');
+          const raised = element.matches('sup') || !!element.closest('sup')
+            || /super/i.test(style.verticalAlign);
+          const smaller = parentFontSize > 0 && fontSize > 0 && fontSize <= parentFontSize * 0.86;
+          if (/^(?:[0-9]{1,3}|[⁰¹²³⁴⁵⁶⁷⁸⁹]{1,3})$/.test(value)
+              && (semanticNote || raised || smaller)) {
+            rememberAndHide(element);
+          }
+        }
+      };
       const scroll = (action, amount) => {
         const target = scrollingTarget();
         if (action === 'captureOn') {
-          for (const element of document.querySelectorAll('header,[role="banner"]')) {
-            if (element.dataset.leConteurVisibility === undefined) {
-              element.dataset.leConteurVisibility = element.style.visibility || '';
-            }
-            element.style.setProperty('visibility', 'hidden', 'important');
-          }
+          captureActive = true;
+          hideCaptureElements();
           // Le lecteur Kindle affiche son chrome dans des éléments qui ne sont
           // pas toujours accessibles par des sélecteurs stables. Un toucher au
           // centre de la page est son mécanisme normal pour le refermer.
@@ -1436,6 +1560,7 @@ struct WebReadingView: View {
           });
         }
         if (action === 'captureOff') {
+          captureActive = false;
           for (const element of document.querySelectorAll('[data-le-conteur-visibility]')) {
             const previous = element.dataset.leConteurVisibility || '';
             if (previous) element.style.visibility = previous;
@@ -1464,11 +1589,20 @@ struct WebReadingView: View {
           window.__leConteurSavedScroll.target.scrollTop = window.__leConteurSavedScroll.top;
         }
         childFrames(action, amount);
-        setTimeout(report, paged ? 260 : 100);
+        setTimeout(() => {
+          if (captureActive) hideCaptureElements();
+          report();
+        }, paged ? 260 : 100);
         return { top: target.scrollTop, maximum: Math.max(0, target.scrollHeight - target.clientHeight), paged };
       };
       let timer;
-      const later = () => { clearTimeout(timer); timer = setTimeout(report, 120); };
+      const later = () => {
+        clearTimeout(timer);
+        timer = setTimeout(() => {
+          if (captureActive) hideCaptureElements();
+          report();
+        }, 120);
+      };
       window.__leConteurCapture = report;
       window.__leConteurScrollAll = scroll;
       addEventListener('message', event => {
